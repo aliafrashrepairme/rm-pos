@@ -1,0 +1,35 @@
+{
+  "name": "rm-pos",
+  "version": "0.1.0",
+  "description": "RM POS — hardware store POS desktop app (React + Electron)",
+  "author": "Ali Afrash <aliafrash.repairme@gmail.com>",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k -n web,app,api -c yellow,cyan,green \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\" \"npm --prefix server run dev\"",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "dist": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "vite": "^8.3.5",
+    "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "lk.repairme.rmpos",
+    "productName": "RM POS",
+    "files": ["dist/**", "electron/**"],
+    "win": { "target": "nsis" }
+  }
+}

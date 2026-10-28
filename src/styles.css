@@ -1,0 +1,23 @@
+:root { --yellow: #f6c928; --black: #171717; --panel: #1f2023; --line: #2e2f33; --text: #f2f2f2; --muted: #a3a7ae; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, system-ui, 'Segoe UI', sans-serif; background: #121214; color: var(--text); font-weight: 600; }
+button { font: inherit; cursor: pointer; }
+.mark { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--yellow); color: var(--black); font-weight: 900; }
+.login { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+.login-brand { background: var(--black); padding: 48px; }
+.login-brand h1 { font-size: 36px; margin-top: 24px; }
+.login-card { align-self: center; justify-self: center; width: min(420px, 90%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 32px; display: grid; gap: 14px; }
+.login-card label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
+.login-card input { padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: #121214; color: var(--text); font-size: 15px; }
+.login-card button { padding: 13px; border: 0; border-radius: 10px; background: var(--yellow); color: var(--black); font-weight: 800; }
+.error { color: #ff8a80; margin: 0; } .hint { color: var(--muted); font-size: 12px; margin: 0; }
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 235px; background: var(--black); padding: 20px 13px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; margin-bottom: 18px; }
+.sidebar button { text-align: left; padding: 11px 12px; border: 0; border-radius: 10px; background: transparent; color: #ddd; }
+.sidebar button.active { background: var(--yellow); color: var(--black); }
+.side-foot { margin-top: auto; color: var(--muted); font-size: 12px; }
+.main { flex: 1; }
+.topbar { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.topbar button { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); }
+.content { padding: 28px; }
