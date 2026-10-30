@@ -246,7 +246,7 @@ async function barcodeChecks(sessions) {
     assert.equal((await look('Owner', product.barcode)).status, 403);
   });
   await check('an unknown barcode is reported as unknown', async () => {
-    const response = await look('Cashier', '2099999999993');
+    const response = await look('Cashier', '2099999999998');
     assert.equal(response.status, 404);
     assert.equal((await response.json()).code, 'UNKNOWN_BARCODE');
   });
