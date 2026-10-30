@@ -2,8 +2,9 @@
 // They get a new random password on each run and are disabled again afterwards.
 // Their rows stay, because the audit log they appear in can't be edited.
 // Usage: npm --prefix server run test:live
+// Add -- --with-sales to also make real test sales, which stay in the sales records permanently.
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createApp } from '../app.js';
 import { loadEnvFile, readConfig } from '../config.js';
 import { createClients } from '../db.js';
@@ -14,6 +15,9 @@ const ACCOUNTS = { Owner: 'smoke.owner', Manager: 'smoke.manager', Cashier: 'smo
 const ACCESS = [
   ['/api/dashboard', ['Manager']],
   ['/api/products', ['Manager', 'Inventory Staff']],
+  ['/api/pos/catalog', ['Cashier']],
+  ['/api/pos/options', ['Cashier']],
+  ['/api/pos/held', ['Cashier']],
   ['/api/inventory/stock', ['Manager', 'Inventory Staff']],
   ['/api/inventory/summary', ['Manager', 'Inventory Staff']],
   ['/api/inventory/movements', ['Manager', 'Inventory Staff']],
@@ -267,6 +271,119 @@ async function barcodeChecks(sessions) {
   });
 }
 
+async function saleChecks(sessions) {
+  const token = sessions.Cashier.token;
+  const manager = sessions.Manager.token;
+  const product = (await database.from('products').select('id, category_id').eq('sku', 'SMOKE-1').single()).data;
+  await database.from('categories').update({ active: true }).eq('id', product.category_id);
+  await database.from('products').update({ active: true }).eq('id', product.id);
+  const stockNow = async () => Number((await database.from('products').select('stock_qty').eq('id', product.id).single()).data.stock_qty);
+  async function setStock(target) {
+    const change = target - await stockNow();
+    if (!change) return;
+    const response = await request('/api/inventory/adjustments', { token: manager, body: { reason: 'Data correction', note: 'live check', lines: [{ productId: product.id, change }] } });
+    assert.equal(response.status, 201, await response.clone().text());
+  }
+  const sale = (overrides = {}) => ({
+    clientRequestId: randomUUID(),
+    items: [{ productId: product.id, qty: 1 }],
+    expectedTotal: 118,
+    payment: { method: 'Cash', amountTendered: 200 },
+    ...overrides
+  });
+  const sell = (body) => request('/api/pos/sales', { token, body });
+
+  await setStock(20);
+  await check('the catalogue shows selling prices and no costs', async () => {
+    const text = await (await request('/api/pos/catalog?q=SMOKE-1', { token })).text();
+    assert.equal(JSON.parse(text).products[0].price, 100);
+    assert.ok(!text.includes('cost'), text);
+  });
+  let firstBill;
+  await check('a cash sale records change, stock and ledger', async () => {
+    const response = await sell(sale());
+    assert.equal(response.status, 201, await response.clone().text());
+    const body = await response.json();
+    firstBill = body.sale.billNo;
+    assert.match(firstBill, /^RM-INV-\d{6}$/);
+    assert.equal(body.sale.total, 118);
+    assert.equal(body.sale.payment.change, 82);
+    assert.equal(await stockNow(), 19);
+    const ledger = await database.from('inventory_ledger').select('change_qty').eq('reference_no', firstBill);
+    assert.equal(Number(ledger.data[0].change_qty), -1);
+  });
+  await check('card and bank transfer sales work, and transfer needs a reference', async () => {
+    assert.equal((await sell(sale({ payment: { method: 'Card' } }))).status, 201);
+    assert.equal((await sell(sale({ payment: { method: 'Bank transfer' } }))).status, 400);
+    assert.equal((await sell(sale({ payment: { method: 'Bank transfer', reference: 'LIVE-1' } }))).status, 201);
+    assert.equal(await stockNow(), 17);
+  });
+  await check('short cash and a wrong total are refused without touching stock', async () => {
+    assert.equal((await sell(sale({ payment: { method: 'Cash', amountTendered: 50 } }))).status, 400);
+    assert.equal((await sell(sale({ expectedTotal: 1 }))).status, 409);
+    assert.equal(await stockNow(), 17);
+  });
+  await check('a retried request does not sell twice', async () => {
+    const body = sale();
+    const first = await (await sell(body)).json();
+    const retry = await sell(body);
+    assert.equal(retry.status, 200);
+    assert.equal((await retry.json()).sale.billNo, first.sale.billNo);
+    assert.equal(await stockNow(), 16);
+  });
+  await check('the same request sent at the same moment sells once', async () => {
+    const body = sale();
+    const replies = await Promise.all([sell(body), sell(body), sell(body)]);
+    const bills = await Promise.all(replies.map(async (reply) => (await reply.json()).sale.billNo));
+    assert.equal(new Set(bills).size, 1, bills.join());
+    assert.equal(await stockNow(), 15);
+  });
+  await check('selling more than exists is refused', async () => {
+    const response = await sell(sale({ items: [{ productId: product.id, qty: 9999 }], expectedTotal: 1179882 , payment: { method: 'Card' } }));
+    assert.equal(response.status, 409, await response.clone().text());
+    assert.equal(await stockNow(), 15);
+  });
+  await check('two sales racing for the last units cannot oversell', async () => {
+    await setStock(3);
+    const twoUnits = () => sale({ items: [{ productId: product.id, qty: 2 }], expectedTotal: 236, payment: { method: 'Card' } });
+    const replies = await Promise.all([sell(twoUnits()), sell(twoUnits()), sell(twoUnits())]);
+    const statuses = replies.map((reply) => reply.status).sort();
+    assert.deepEqual(statuses, [201, 409, 409]);
+    assert.equal(await stockNow(), 1);
+  });
+  await check('many sales at once get unique bill numbers and exact stock', async () => {
+    await setStock(10);
+    const replies = await Promise.all(Array.from({ length: 8 }, () => sell(sale({ payment: { method: 'Card' } }))));
+    const bodies = await Promise.all(replies.map((reply) => reply.json()));
+    assert.ok(replies.every((reply) => reply.status === 201), JSON.stringify(bodies[0]).slice(0, 200));
+    assert.equal(new Set(bodies.map((body) => body.sale.billNo)).size, 8);
+    assert.equal(await stockNow(), 2);
+  });
+  await check('a held order takes no stock, resumes once and can be cancelled', async () => {
+    const before = await stockNow();
+    const hold = () => request('/api/pos/held', { token, body: { items: [{ productId: product.id, qty: 1 }] } });
+    const { order } = await (await hold()).json();
+    assert.equal(await stockNow(), before);
+    const { orders } = await (await request('/api/pos/held', { token })).json();
+    assert.ok(orders.some((item) => item.id === order.id));
+    const resumed = await request(`/api/pos/held/${order.id}/resume`, { token, method: 'POST' });
+    assert.equal(resumed.status, 200, await resumed.clone().text());
+    assert.deepEqual((await resumed.json()).items, [{ productId: product.id, qty: 1 }]);
+    assert.equal((await request(`/api/pos/held/${order.id}/resume`, { token, method: 'POST' })).status, 409);
+    const second = (await (await hold()).json()).order;
+    assert.equal((await request(`/api/pos/held/${second.id}/cancel`, { token, method: 'POST' })).status, 204);
+  });
+  await check('sales reach the dashboard and reports', async () => {
+    const { dashboard } = await (await request('/api/dashboard', { token: manager })).json();
+    assert.ok(dashboard.today.orders > 0);
+    assert.ok(dashboard.recentSales.some((row) => row.status === 'Paid'));
+    const { sales } = await (await request('/api/reports/sales', { token: sessions.Owner.token })).json();
+    assert.ok(sales.some((row) => row.orderId === firstBill && row.status === 'Completed' && row.paymentMethod === 'Cash'));
+  });
+  await database.from('products').update({ active: false }).eq('id', product.id);
+  await database.from('categories').update({ active: false }).eq('id', product.category_id);
+}
+
 const base_url = () => base;
 
 try {
@@ -330,6 +447,7 @@ try {
   await productChecks(sessions);
   await inventoryChecks(sessions);
   await barcodeChecks(sessions);
+  if (process.argv.includes('--with-sales')) await saleChecks(sessions);
 
   const cashier = accounts.Cashier;
   const temporary = password();
