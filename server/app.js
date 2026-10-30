@@ -7,6 +7,7 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
 import { reportRoutes } from './routes/reports.js';
@@ -30,6 +31,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/categories', categoryRoutes(clients));
   app.use('/api/inventory', inventoryRoutes(clients));
   app.use('/api/barcode', barcodeRoutes(clients));
+  app.use('/api/pos', posRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

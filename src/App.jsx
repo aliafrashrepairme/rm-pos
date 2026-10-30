@@ -10,6 +10,9 @@ import { useI18n } from './i18n/I18nProvider.jsx';
 import BarcodePage from './features/barcode/BarcodePage.jsx';
 import Dashboard from './features/dashboard/Dashboard.jsx';
 import InventoryPage from './features/inventory/InventoryPage.jsx';
+import { CartProvider } from './features/pos/CartContext.jsx';
+import HeldOrdersPage from './features/pos/HeldOrdersPage.jsx';
+import PosPage from './features/pos/PosPage.jsx';
 import ProductsPage from './features/products/ProductsPage.jsx';
 import ReportsModule from './reports/pages/ReportsModule.jsx';
 
@@ -25,6 +28,8 @@ function Screen({ user, page, onHome, onNavigate }) {
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'POS Billing') return <PosPage user={user} onNavigate={onNavigate} />;
+  if (page === 'Held Orders') return <HeldOrdersPage onNavigate={onNavigate} />;
   if (page === 'Inventory') return <InventoryPage user={user} />;
   if (page === 'Products') return <ProductsPage user={user} />;
   if (page === 'Reports') return <ReportsModule user={user} />;
@@ -165,6 +170,7 @@ export default function App() {
   const page = slug ? (screen ?? slug) : home;
 
   return (
+    <CartProvider key={user.id}>
     <Layout
       user={user}
       page={screen ?? (slug ? '' : home)}
@@ -178,5 +184,6 @@ export default function App() {
     >
       <Screen user={user} page={page} onHome={() => navigate(home)} onNavigate={navigate} />
     </Layout>
+    </CartProvider>
   );
 }

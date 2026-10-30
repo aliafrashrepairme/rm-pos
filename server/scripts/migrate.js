@@ -12,7 +12,8 @@ const APPLIED_BY_HAND = {
   '0002_dashboard.sql': "to_regprocedure('public.dashboard_summary(timestamptz)') is not null",
   '0003_products.sql': "to_regprocedure('public.create_product(jsonb, uuid)') is not null",
   '0004_inventory.sql': "to_regprocedure('public.inventory_summary()') is not null",
-  '0005_barcode_counts.sql': "to_regprocedure('public.scan_stock_count(uuid, uuid)') is not null"
+  '0005_barcode_counts.sql': "to_regprocedure('public.scan_stock_count(uuid, uuid)') is not null",
+  '0006_pos.sql': "to_regprocedure('public.create_sale(jsonb, uuid)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

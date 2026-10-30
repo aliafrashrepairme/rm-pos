@@ -56,5 +56,10 @@ const scanMissing = scan.error?.code === 'PGRST202';
 if (scanMissing) failed = true;
 console.log(`${scanMissing ? 'FAIL' : 'ok  '} barcode count function${scanMissing ? ' (run 0005_barcode_counts.sql)' : ''}`);
 
+const sale = await database.rpc('hold_order', { p_order: { items: [] }, p_created_by: '00000000-0000-0000-0000-000000000000' });
+const saleMissing = sale.error?.code === 'PGRST202';
+if (saleMissing) failed = true;
+console.log(`${saleMissing ? 'FAIL' : 'ok  '} POS functions${saleMissing ? ' (run 0006_pos.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

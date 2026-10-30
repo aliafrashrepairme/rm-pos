@@ -35,7 +35,7 @@ function asProduct(row, imageUrls = {}) {
 }
 
 // Photos stay private, so each list hands out links that expire.
-async function signedImageUrls(database, rows) {
+export async function signedImageUrls(database, rows) {
   const paths = rows.map((row) => row.image_path).filter(Boolean);
   if (!paths.length) return {};
   const { data, error } = await database.storage.from(BUCKET).createSignedUrls(paths, IMAGE_LINK_SECONDS);

@@ -102,3 +102,14 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
   #printArea .label-grid.sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2mm; }
   #printArea .bc-label .barcode-image { max-height: 14mm; }
 }
+.pos-search { flex: 1 1 260px; }
+.product-tile:disabled { opacity: .55; cursor: not-allowed; }
+.product-art span { font-size: 26px; }
+.customer-field { margin-bottom: 8px; }
+.customer-search, .customer-chosen { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.customer-search input { flex: 1; min-width: 0; }
+.customer-chosen { flex-wrap: wrap; }
+.qty-input { width: 62px; text-align: center; }
+.pay-reference { margin-top: 10px; }
+.pos-error { margin: 10px 0 0; }
+.sale-change { margin-bottom: 12px; }
