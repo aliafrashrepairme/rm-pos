@@ -65,5 +65,9 @@ const transactions = await database.rpc('transactions_daily', { p_date: null });
 if (transactions.error) failed = true;
 console.log(`${transactions.error ? 'FAIL' : 'ok  '} transaction functions${transactions.error ? ' (run 0007_transactions.sql)' : ''}`);
 
+const purchases = await database.rpc('purchases_summary');
+if (purchases.error) failed = true;
+console.log(`${purchases.error ? 'FAIL' : 'ok  '} purchase functions${purchases.error ? ' (run 0008_purchases.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

@@ -30,7 +30,12 @@ function createWindow() {
 ipcMain.handle('app:version', () => app.getVersion());
 
 // Saves what the print area shows, using the page's own fonts, so Tamil and Sinhala stay intact.
-ipcMain.handle('print:save-bill-pdf', async (event, fileName) => {
+const PDF_SIZES = {
+  receipt: { width: 3.15, height: 11 },
+  a5: 'A5'
+};
+
+ipcMain.handle('print:save-pdf', async (event, fileName, size) => {
   const name = path.basename(String(fileName)).replace(/[^A-Za-z0-9._-]/g, '_');
   const window = BrowserWindow.fromWebContents(event.sender);
   const { canceled, filePath } = await dialog.showSaveDialog(window, {
@@ -38,7 +43,7 @@ ipcMain.handle('print:save-bill-pdf', async (event, fileName) => {
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (canceled || !filePath) return false;
-  const pdf = await event.sender.printToPDF({ printBackground: true, pageSize: { width: 3.15, height: 11 }, margins: { marginType: 'none' } });
+  const pdf = await event.sender.printToPDF({ printBackground: true, pageSize: PDF_SIZES[size] ?? PDF_SIZES.receipt, margins: { marginType: 'none' } });
   await fs.writeFile(filePath, pdf);
   return true;
 });

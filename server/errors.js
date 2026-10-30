@@ -21,7 +21,8 @@ const UNIQUE_VALUES = {
   products_sku_key: 'This SKU is already used by another product.',
   products_barcode_key: 'This barcode is already used by another product.',
   categories_name_key: 'A category with this name already exists.',
-  sales_client_request_id_key: 'This sale has already been recorded.'
+  sales_client_request_id_key: 'This sale has already been recorded.',
+  purchases_supplier_invoice_key: 'This supplier invoice number has already been recorded.'
 };
 
 export function fromSupabase(error) {

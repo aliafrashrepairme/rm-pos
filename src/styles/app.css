@@ -141,3 +141,19 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
 @media print {
   #printArea.print-receipt .receipt { box-shadow: none; width: 72mm; max-width: 100%; margin: 0; padding: 0 2mm; }
 }
+.inline-panel { background: var(--soft); border-radius: 10px; padding: 12px; margin: 10px 0; }
+.supplier-add { justify-content: flex-end; }
+.order-search { margin-top: 12px; }
+.order-lines { margin-top: 10px; }
+.order-total { margin-top: 10px; }
+.order-statuses { display: flex; gap: 8px; margin-bottom: 10px; }
+.received-cell { display: flex; align-items: center; gap: 7px; min-width: 90px; }
+.received-cell .meter { flex: 1; }
+.receive-scan { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.receive-scan .search { flex: 1; }
+.receive-note { margin-top: 10px; }
+.pb-title { text-align: right; }
+.pb-invoice { padding: 8px 18px 0; font-size: 12px; }
+@media print {
+  #printArea.print-purchase .pbill { box-shadow: none; width: 100%; }
+}

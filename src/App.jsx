@@ -13,6 +13,7 @@ import InventoryPage from './features/inventory/InventoryPage.jsx';
 import { CartProvider } from './features/pos/CartContext.jsx';
 import HeldOrdersPage from './features/pos/HeldOrdersPage.jsx';
 import PosPage from './features/pos/PosPage.jsx';
+import PurchasesPage from './features/purchases/PurchasesPage.jsx';
 import BillsPage from './features/transactions/BillsPage.jsx';
 import DailyPage from './features/transactions/DailyPage.jsx';
 import MonthlyPage from './features/transactions/MonthlyPage.jsx';
@@ -31,6 +32,7 @@ function Screen({ user, page, onHome, onNavigate }) {
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'Purchases') return <PurchasesPage user={user} />;
   if (page === 'Bills Register') return <BillsPage user={user} />;
   if (page === 'Daily Transactions') return <DailyPage user={user} />;
   if (page === 'Monthly Transactions') return <MonthlyPage user={user} onNavigate={onNavigate} />;
