@@ -68,11 +68,35 @@ async function ensureAccount(role, username) {
   accounts[role] = { id, username, email, password: secret };
 }
 
+// A brief network or database outage must not leave working test logins behind.
+async function withRetry(label, run, attempts = 6) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const result = await run();
+      if (result?.error) throw new Error(result.error.message || 'request failed');
+      return result;
+    } catch (error) {
+      if (attempt >= attempts) throw new Error(`${label}: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
+}
+
 async function disableAccounts() {
   for (const account of Object.values(accounts)) {
-    await database.from('profiles').update({ active: false, must_change_password: false }).eq('id', account.id);
-    await database.auth.admin.updateUserById(account.id, { password: password() });
+    await withRetry(`disable ${account.username}`, () => database.from('profiles').update({ active: false, must_change_password: false }).eq('id', account.id));
+    await withRetry(`reset ${account.username}`, () => database.auth.admin.updateUserById(account.id, { password: password() }));
   }
+  const { data } = await withRetry('confirm accounts', () => database.from('profiles').select('username, active').in('id', Object.values(accounts).map((account) => account.id)));
+  const stillOn = data.filter((row) => row.active).map((row) => row.username);
+  if (stillOn.length) throw new Error(`TEST ACCOUNTS STILL ENABLED: ${stillOn.join(', ')}`);
+}
+
+async function deactivateTestData() {
+  const { data } = await withRetry('find test product', () => database.from('products').select('id, category_id').eq('sku', 'SMOKE-1').maybeSingle());
+  if (!data) return;
+  await withRetry('deactivate test product', () => database.from('products').update({ active: false }).eq('id', data.id));
+  await withRetry('deactivate test category', () => database.from('categories').update({ active: false }).eq('id', data.category_id));
 }
 
 const server = createApp({ config, ...clients }).listen(0, '127.0.0.1');
@@ -189,7 +213,7 @@ async function inventoryChecks(sessions) {
   const manager = sessions.Manager.token;
   const staff = sessions['Inventory Staff'].token;
   const product = (await database.from('products').select('id, category_id').eq('sku', 'SMOKE-1').single()).data;
-  const stockNow = async () => Number((await database.from('products').select('stock_qty').eq('id', product.id).single()).data.stock_qty);
+  const stockNow = async () => Number((await withRetry('read stock', () => database.from('products').select('stock_qty').eq('id', product.id).single())).data.stock_qty);
   await database.from('categories').update({ active: true }).eq('id', product.category_id);
   await database.from('products').update({ active: true }).eq('id', product.id);
 
@@ -369,7 +393,7 @@ async function saleChecks(sessions) {
   const product = (await database.from('products').select('id, category_id').eq('sku', 'SMOKE-1').single()).data;
   await database.from('categories').update({ active: true }).eq('id', product.category_id);
   await database.from('products').update({ active: true }).eq('id', product.id);
-  const stockNow = async () => Number((await database.from('products').select('stock_qty').eq('id', product.id).single()).data.stock_qty);
+  const stockNow = async () => Number((await withRetry('read stock', () => database.from('products').select('stock_qty').eq('id', product.id).single())).data.stock_qty);
   async function setStock(target) {
     const change = target - await stockNow();
     if (!change) return;
@@ -655,7 +679,15 @@ try {
   console.error(`\nFAILED after ${passed} passing checks:`, error.message);
   process.exitCode = 1;
 } finally {
-  await disableAccounts();
+  // Each step runs even if the one before it fails, and any failure is reported.
+  for (const [label, step] of [['Deactivating test data', deactivateTestData], ['Disabling test accounts', disableAccounts]]) {
+    try {
+      await step();
+    } catch (error) {
+      console.error(`${label} FAILED: ${error.message}`);
+      process.exitCode = 1;
+    }
+  }
   server.close();
   server.closeAllConnections();
 }
