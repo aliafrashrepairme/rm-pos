@@ -22,9 +22,20 @@ npm --prefix server install
 npm run dev
 ```
 
-`npm run dev` starts three things together: the React dev server (Vite), the Electron window, and the API on port 4000.
+The API uses Supabase Auth and Postgres. Copy `.env.example` to `.env`, then set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from your Supabase project. Keep the service-role key private; it is only read by the server.
 
-Demo login: `manager@rmpos.lk` / `manager123`
+Run `server/supabase/schema.sql` in the Supabase SQL Editor to create the tables, row-level security policies, and transactional inventory functions. Create users in Supabase Authentication, then add a matching `profiles` row using that user's Auth ID and one of the roles `Owner`, `Manager`, `Cashier`, or `Inventory Staff`.
+
+For each Auth user, add its application profile in the SQL Editor, replacing the example UUID and account details:
+
+```sql
+insert into public.profiles (id, name, role, email)
+values ('AUTH_USER_UUID', 'Store Manager', 'Manager', 'manager@example.com');
+```
+
+`npm run dev` starts three things together: the React dev server (Vite), Electron, and the API on port 4000. The backend requires Node.js 22.13 or newer and loads `.env` from the repository root.
+
+The API includes authenticated product, sales, stock movement, supplier, purchase, and report routes. Sale, purchase, and inventory-adjustment writes use Postgres functions so stock changes and their history records commit atomically. Start the API by itself with `npm --prefix server run dev`; run its local startup checks with `npm --prefix server test`.
 
 ## Scripts
 
