@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { money, quantity } from '../../app/format.js';
@@ -36,6 +36,7 @@ export default function ProductsPage({ user }) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
+  const latestRequest = useRef(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -53,11 +54,15 @@ export default function ProductsPage({ user }) {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status });
     if (search) params.set('q', search);
     if (categoryId) params.set('categoryId', categoryId);
+    // A slow reply to an earlier filter must not replace the list for the current one.
+    const request = ++latestRequest.current;
     try {
-      setResult(await api(`/api/products?${params}`));
+      const data = await api(`/api/products?${params}`);
+      if (request !== latestRequest.current) return;
+      setResult(data);
       setError('');
     } catch (failure) {
-      setError(failure.message);
+      if (request === latestRequest.current) setError(failure.message);
     }
   }, [page, status, search, categoryId]);
 
