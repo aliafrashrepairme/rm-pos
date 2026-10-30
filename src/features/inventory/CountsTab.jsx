@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { dateTime, money, quantity } from '../../app/format.js';
@@ -71,6 +71,7 @@ function CountDetail({ id, user, onBack }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const pendingSaves = useRef(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -93,22 +94,28 @@ function CountDetail({ id, user, onBack }) {
     if (line.draft === undefined) return;
     const counted = line.draft === '' ? null : Number(line.draft);
     if (counted === line.counted) return;
-    try {
-      await api(`/api/inventory/counts/${id}/lines/${line.productId}`, { method: 'PUT', body: JSON.stringify({ counted }) });
-      setCount((current) => ({
-        ...current,
-        lines: current.lines.map((item) => (item.productId === line.productId ? { ...item, counted } : item))
-      }));
-    } catch (failure) {
-      toast(t(failure.message));
-      load();
-    }
+    const saving = api(`/api/inventory/counts/${id}/lines/${line.productId}`, { method: 'PUT', body: JSON.stringify({ counted }) })
+      .then(() => {
+        setCount((current) => ({
+          ...current,
+          lines: current.lines.map((item) => (item.productId === line.productId ? { ...item, counted } : item))
+        }));
+      })
+      .catch((failure) => {
+        toast(t(failure.message));
+        return load();
+      });
+    pendingSaves.current.add(saving);
+    await saving;
+    pendingSaves.current.delete(saving);
   }
 
   async function act(path, message) {
     setBusy(true);
     setConfirming(false);
     try {
+      // Whatever was just typed must reach the server before the count moves on.
+      await Promise.all(pendingSaves.current);
       const result = await api(`/api/inventory/counts/${id}/${path}`, { method: 'POST' });
       setCount(result.count);
       toast(message(result));
@@ -178,6 +185,12 @@ function CountDetail({ id, user, onBack }) {
                       placeholder="—"
                       onChange={(event) => setLocal(line.productId, event.target.value)}
                       onBlur={() => saveLine(line)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          saveLine(line);
+                        }
+                      }}
                     />
                   ) : <b>{line.counted === null ? '—' : quantity(line.counted)}</b>}
                 </td>
