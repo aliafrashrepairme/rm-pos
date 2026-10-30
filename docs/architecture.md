@@ -50,6 +50,11 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 
 Cashiers read the selling catalogue through a separate response that leaves out cost prices.
 
+Sessions:
+- Tokens last for the app window, so closing it on a shared PC signs the person out.
+- Five failed attempts lock that account from that address for 15 minutes.
+- A temporary password allows only the account routes until it is changed.
+
 Account rules:
 - Nobody can change their own role or disable themselves.
 - A Manager cannot view, edit or create Owner accounts.

@@ -5,6 +5,12 @@ export function requiredText(value, label) {
   return value.trim();
 }
 
+export function newPassword(value) {
+  if (typeof value !== 'string' || value.length < 8) throw new HttpError(400, 'Password must be at least 8 characters.');
+  if (value.length > 72) throw new HttpError(400, 'Password must be 72 characters or fewer.');
+  return value;
+}
+
 export function dateRange(query) {
   let start;
   let end;

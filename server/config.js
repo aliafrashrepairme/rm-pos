@@ -21,6 +21,7 @@ export function readConfig(env = process.env) {
     supabaseUrl: env.SUPABASE_URL,
     supabaseAnonKey: env.SUPABASE_ANON_KEY,
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    trustProxy: env.TRUST_PROXY ? Number(env.TRUST_PROXY) : 0,
     corsOrigins: env.CORS_ORIGINS
       ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
       : DEFAULT_ORIGINS

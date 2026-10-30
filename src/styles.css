@@ -21,3 +21,12 @@ button { font: inherit; cursor: pointer; }
 .topbar { height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .topbar button { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); }
 .content { padding: 28px; }
+.login-sub { color: var(--muted); margin: 0 0 14px; font-weight: 500; }
+.notice { background: rgba(246, 201, 40, .14); color: var(--yellow); padding: 10px 12px; border-radius: 8px; margin: 0 0 12px; }
+.password-row { display: flex; gap: 6px; align-items: stretch; }
+.password-row input { flex: 1; min-width: 0; }
+.login-card button.password-toggle { width: auto; margin: 0; padding: 0 12px; background: transparent; color: var(--yellow); border: 1px solid var(--line); }
+.login-card button.link-btn { background: transparent; color: var(--muted); border: 0; margin-top: 8px; text-decoration: underline; }
+.center-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--black); }
+.center-screen .login-card { width: 100%; max-width: 420px; }
+.top-actions { display: flex; gap: 8px; }

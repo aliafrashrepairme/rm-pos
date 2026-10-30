@@ -8,7 +8,9 @@
     "dev": "node --watch index.js",
     "start": "node index.js",
     "test": "node --test",
-    "db:check": "node scripts/check-database.js"
+    "db:check": "node scripts/check-database.js",
+    "user:create": "node scripts/create-user.js",
+    "test:live": "node scripts/live-check.js"
   },
   "engines": {
     "node": ">=22.13.0"
