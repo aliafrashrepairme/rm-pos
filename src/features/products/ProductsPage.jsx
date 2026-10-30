@@ -119,7 +119,7 @@ export default function ProductsPage({ user }) {
 
       {error && <p className="form-error" role="alert">{t(error)}</p>}
 
-      <div className="table-wrap">
+      <div className="table-wrap products-table">
         <table>
           <thead>
             <tr>

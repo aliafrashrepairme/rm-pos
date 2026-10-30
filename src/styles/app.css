@@ -55,3 +55,9 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
 .inline-add input { flex: 1; min-width: 0; }
 .inactive-row { opacity: .6; }
 @media (max-width: 700px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }
+.dark { color-scheme: dark; }
+.products-table th:last-child, .products-table td:last-child { position: sticky; right: 0; background: var(--panel); box-shadow: -6px 0 8px -6px rgba(0, 0, 0, .25); }
+.products-table td:last-child { white-space: nowrap; }
+.dark .products-table th:last-child { background: #222327; }
+.inactive-row td:not(:last-child) { opacity: .6; }
+.inactive-row { opacity: 1; }
