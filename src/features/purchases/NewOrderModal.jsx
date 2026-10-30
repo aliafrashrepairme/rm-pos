@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { money, quantity } from '../../app/format.js';
@@ -66,6 +66,7 @@ export default function NewOrderModal({ user, onClose, onCreated }) {
   const [matches, setMatches] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const latestSuggestions = useRef(0);
 
   useEffect(() => {
     api('/api/purchases/options')
@@ -95,9 +96,18 @@ export default function NewOrderModal({ user, onClose, onCreated }) {
     const supplier = list.find((item) => item.id === id);
     if (supplier) setExpectedAt(localDatePlus(supplier.leadTimeDays));
     // Low-stock items for this supplier are suggested, as in the prototype.
+    // A slow reply for a supplier no longer selected must not replace this order's lines.
+    const request = ++latestSuggestions.current;
+    setLines([]);
     api(`/api/purchases/suggestions?supplierId=${id}`)
-      .then(({ suggestions }) => setLines(suggestions.map((item) => ({ ...item, qty: String(item.qty), unitCost: String(item.unitCost) }))))
-      .catch((failure) => setError(failure.message));
+      .then(({ suggestions }) => {
+        if (request === latestSuggestions.current) {
+          setLines(suggestions.map((item) => ({ ...item, qty: String(item.qty), unitCost: String(item.unitCost) })));
+        }
+      })
+      .catch((failure) => {
+        if (request === latestSuggestions.current) setError(failure.message);
+      });
   }
 
   function addProduct(product) {

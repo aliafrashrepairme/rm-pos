@@ -18,6 +18,8 @@ const ACCESS = [
   ['/api/transactions/daily', ['Owner', 'Manager']],
   ['/api/transactions/monthly', ['Owner', 'Manager']],
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
+  ['/api/purchases', ['Manager', 'Inventory Staff']],
+  ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
   ['/api/pos/options', ['Cashier']],
   ['/api/pos/held', ['Cashier']],
@@ -274,6 +276,93 @@ async function barcodeChecks(sessions) {
   });
 }
 
+async function purchaseChecks(sessions, productId, stockNow) {
+  const staff = sessions['Inventory Staff'].token;
+  const manager = sessions.Manager.token;
+  const made = await request('/api/suppliers', { token: staff, body: { name: `Live Supplier ${Date.now()}`, paymentTerms: 'Cash' } });
+  assert.equal(made.status, 201, await made.clone().text());
+  const { supplier } = await made.json();
+  const newOrder = async (qty = 10, status = 'Ordered', extra = {}) => {
+    const response = await request('/api/purchases', { token: staff, body: { supplierId: supplier.id, status, items: [{ productId, qty, unitCost: 80 }], ...extra } });
+    assert.equal(response.status, 201, await response.clone().text());
+    return (await response.json()).purchase;
+  };
+  const deliver = (order, qty, requestId = randomUUID(), token = staff) => request(`/api/purchases/${order.id}/receive`, { token, body: { clientRequestId: requestId, lines: [{ purchaseItemId: order.lines[0].id, qty }] } });
+
+  await check('creating an order changes no stock, and delivery does', async () => {
+    const before = await stockNow();
+    const order = await newOrder(10);
+    assert.equal(order.total, 800);
+    assert.equal(await stockNow(), before);
+    const reply = await deliver(order, 4);
+    assert.equal(reply.status, 201, await reply.clone().text());
+    const body = await reply.json();
+    assert.equal(body.purchase.status, 'Partially Received');
+    assert.equal(await stockNow(), before + 4);
+    const ledger = await database.from('inventory_ledger').select('change_qty, movement_type, unit_cost').eq('reference_no', body.grnNo);
+    assert.deepEqual(ledger.data.map((row) => [row.movement_type, Number(row.change_qty), Number(row.unit_cost)]), [['Purchase', 4, 80]]);
+    assert.equal((await deliver(order, 7)).status, 409);
+    assert.equal(await stockNow(), before + 4);
+  });
+  await check('the same delivery sent at the same moment adds stock once', async () => {
+    const before = await stockNow();
+    const order = await newOrder(5);
+    const requestId = randomUUID();
+    const replies = await Promise.all([deliver(order, 3, requestId), deliver(order, 3, requestId), deliver(order, 3, requestId)]);
+    const numbers = await Promise.all(replies.map(async (reply) => (await reply.json()).grnNo));
+    assert.equal(new Set(numbers).size, 1, numbers.join());
+    assert.equal(await stockNow(), before + 3);
+  });
+  await check('two deliveries racing cannot receive more than ordered', async () => {
+    const before = await stockNow();
+    const order = await newOrder(10);
+    const replies = await Promise.all([deliver(order, 6), deliver(order, 6), deliver(order, 6)]);
+    assert.deepEqual(replies.map((reply) => reply.status).sort(), [201, 409, 409]);
+    assert.equal(await stockNow(), before + 6);
+  });
+  await check('drafts cannot be received, and send and cancel change state once', async () => {
+    const before = await stockNow();
+    const draft = await newOrder(1, 'Draft');
+    assert.equal((await deliver(draft, 1)).status, 409);
+    const url = `/api/purchases/${draft.id}`;
+    assert.equal((await request(`${url}/send`, { token: staff, method: 'POST' })).status, 200);
+    assert.equal((await request(`${url}/send`, { token: staff, method: 'POST' })).status, 409);
+    assert.equal((await request(`${url}/cancel`, { token: staff, method: 'POST' })).status, 200);
+    assert.equal((await deliver(draft, 1)).status, 409);
+    assert.equal(await stockNow(), before);
+  });
+  await check('only a Manager can pay, and racing payments cannot overpay', async () => {
+    const order = await newOrder(10);
+    const pay = (token, amount) => request(`/api/purchases/${order.id}/pay`, { token, body: { amount, method: 'Cash' } });
+    assert.equal((await pay(staff, 1)).status, 403);
+    assert.equal((await pay(sessions.Owner.token, 1)).status, 403);
+    const replies = await Promise.all([pay(manager, 500), pay(manager, 500), pay(manager, 500)]);
+    assert.deepEqual(replies.map((reply) => reply.status).sort(), [200, 409, 409]);
+    const { purchase } = await (await request(`/api/purchases/${order.id}`, { token: manager })).json();
+    assert.equal(purchase.paid, 500);
+    assert.equal(purchase.balance, 300);
+    assert.equal(purchase.paymentStatus, 'Part Paid');
+    assert.equal((await request(`/api/purchases/${order.id}/cancel`, { token: manager, method: 'POST' })).status, 409, 'a paid order cannot be cancelled');
+  });
+  await check('a supplier invoice number can only be recorded once', async () => {
+    const invoice = `LIVE-${Date.now()}`;
+    await newOrder(1, 'Ordered', { supplierInvoiceNo: invoice });
+    const repeat = await request('/api/purchases', { token: staff, body: { supplierId: supplier.id, supplierInvoiceNo: invoice, items: [{ productId, qty: 1, unitCost: 1 }] } });
+    assert.equal(repeat.status, 409);
+    assert.match((await repeat.json()).error, /invoice number/);
+  });
+  await check('the list, details and summary read real data', async () => {
+    const { purchases } = await (await request('/api/purchases?status=Partially%20Received', { token: staff })).json();
+    assert.ok(purchases.some((row) => row.supplier === supplier.name && row.receivedPercent > 0));
+    const { summary } = await (await request('/api/purchases/summary', { token: staff })).json();
+    assert.ok(summary.openOrders >= 1 && summary.payable > 0);
+    const list = await (await request('/api/purchases/options', { token: staff })).json();
+    assert.ok(list.suppliers.some((row) => row.id === supplier.id));
+  });
+  await database.from('purchases').update({ status: 'Cancelled' }).eq('supplier_id', supplier.id).in('status', ['Draft', 'Ordered', 'Partially Received']).eq('paid_total', 0);
+  await database.from('suppliers').update({ active: false }).eq('id', supplier.id);
+}
+
 async function saleChecks(sessions) {
   const token = sessions.Cashier.token;
   const manager = sessions.Manager.token;
@@ -428,6 +517,7 @@ async function saleChecks(sessions) {
     const today = new Date().toISOString().slice(0, 10);
     assert.equal((await request(`/api/transactions/bills?start=${today}&end=${today}`, { token })).status, 200);
   });
+  await purchaseChecks(sessions, product.id, stockNow);
   await check('sales reach the dashboard and reports', async () => {
     const { dashboard } = await (await request('/api/dashboard', { token: manager })).json();
     assert.ok(dashboard.today.orders > 0);
