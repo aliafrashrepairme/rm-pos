@@ -155,4 +155,4 @@ src/
 
 Work follows the 21 phases in order, on `feature/mayuriga`. Each phase ends with tests and a commit. Changes reach `dev` by pull request, and nothing is pushed directly to `main`.
 
-Migrations in `server/supabase/migrations/` are applied in number order. `0001` refuses to run if the starter tables hold real users or transactions. `server/supabase/schema.sql` and `server/data/rm-pos.sqlite` are removed once the API has moved over in Phase 3.
+Migrations in `server/supabase/migrations/` are applied in number order. `0001` refuses to run if the starter tables hold real users or transactions. The original starter schema is kept only as a test fixture in `server/test/fixtures/`. `server/data/rm-pos.sqlite` is no longer used. `npm --prefix server run db:check` confirms the live database matches the migrations.

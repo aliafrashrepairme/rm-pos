@@ -1,5 +1,5 @@
 -- RM POS core schema. See docs/architecture.md for the reasoning.
--- Replaces the starter tables in server/supabase/schema.sql.
+-- Replaces the starter tables from the first version of the API.
 -- Refuses to run if the starter tables hold real users or transactions.
 
 do $$
@@ -769,3 +769,5 @@ $$;
 revoke all on all functions in schema public from public, anon, authenticated;
 grant execute on all functions in schema public to service_role;
 grant usage on all sequences in schema public to service_role;
+
+notify pgrst, 'reload schema';

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import test from 'node:test';
@@ -50,15 +49,4 @@ test('API starts with Supabase configuration and reports its storage provider', 
 
   const health = await waitForApi(`http://127.0.0.1:${port}`, child);
   assert.deepEqual(health, { ok: true, service: 'rm-pos-server', storage: 'supabase' });
-});
-
-test('Supabase schema defines protected tables and transactional stock operations', async () => {
-  const schema = await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
-  for (const table of ['profiles', 'products', 'sales', 'sale_items', 'stock_movements', 'suppliers', 'purchases', 'purchase_items']) {
-    assert.match(schema, new RegExp(`create table if not exists public\\.${table}`));
-    assert.match(schema, new RegExp(`alter table public\\.${table} enable row level security`));
-  }
-  for (const operation of ['create_product', 'adjust_stock', 'create_sale', 'receive_purchase']) {
-    assert.match(schema, new RegExp(`function public\\.${operation}\\(`));
-  }
 });

@@ -5,7 +5,7 @@ import test, { before } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 
 const migration = await readFile(new URL('../supabase/migrations/0001_core_schema.sql', import.meta.url), 'utf8');
-const starterSchema = await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
+const starterSchema = await readFile(new URL('./fixtures/starter_schema.sql', import.meta.url), 'utf8');
 
 // Stands in for what Supabase provides before migrations run.
 const supabaseStub = `
