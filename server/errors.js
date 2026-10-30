@@ -9,6 +9,7 @@ export class HttpError extends Error {
 // Business errors raised by Postgres functions look like PREFIX:Readable message.
 const BUSINESS_ERRORS = {
   NOT_FOUND: 404,
+  CONFLICT: 409,
   INSUFFICIENT_STOCK: 409,
   STOCK_GUARD: 409,
   APPEND_ONLY: 409,

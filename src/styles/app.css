@@ -61,3 +61,12 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
 .dark .products-table th:last-child { background: #222327; }
 .inactive-row td:not(:last-child) { opacity: .6; }
 .inactive-row { opacity: 1; }
+.qty-up { color: #18865b; }
+.qty-down { color: #c0392b; }
+.dark .qty-up { color: #6fdcaa; }
+.dark .qty-down { color: #ff9a9a; }
+.date-input { width: auto; }
+.pick-list { display: grid; gap: 4px; margin: 8px 0; max-height: 200px; overflow-y: auto; }
+.pick-row { text-align: left; padding: 8px 10px; border-radius: 8px; background: var(--soft); color: var(--text); }
+.tab-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-bottom: 12px; }
+.count-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

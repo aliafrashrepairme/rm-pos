@@ -14,6 +14,11 @@ const ACCOUNTS = { Owner: 'smoke.owner', Manager: 'smoke.manager', Cashier: 'smo
 const ACCESS = [
   ['/api/dashboard', ['Manager']],
   ['/api/products', ['Manager', 'Inventory Staff']],
+  ['/api/inventory/stock', ['Manager', 'Inventory Staff']],
+  ['/api/inventory/summary', ['Manager', 'Inventory Staff']],
+  ['/api/inventory/movements', ['Manager', 'Inventory Staff']],
+  ['/api/inventory/counts', ['Manager', 'Inventory Staff']],
+  ['/api/inventory/adjustments', ['Manager']],
   ['/api/products/options', ['Manager', 'Inventory Staff']],
   ['/api/reports/sales', ['Owner', 'Manager']],
   ['/api/reports/products', ['Owner', 'Manager', 'Inventory Staff']],
@@ -170,6 +175,62 @@ async function productChecks(sessions) {
   });
 }
 
+// Works on the permanent test product, which is only active during these checks.
+async function inventoryChecks(sessions) {
+  const manager = sessions.Manager.token;
+  const staff = sessions['Inventory Staff'].token;
+  const product = (await database.from('products').select('id, category_id').eq('sku', 'SMOKE-1').single()).data;
+  const stockNow = async () => Number((await database.from('products').select('stock_qty').eq('id', product.id).single()).data.stock_qty);
+  await database.from('categories').update({ active: true }).eq('id', product.category_id);
+  await database.from('products').update({ active: true }).eq('id', product.id);
+
+  await check('the stock list and summary read real data', async () => {
+    const list = await (await request('/api/inventory/stock?q=SMOKE-1', { token: staff })).json();
+    assert.ok(list.products.some((row) => row.id === product.id));
+    assert.equal(typeof list.total, 'number');
+    const { summary } = await (await request('/api/inventory/summary', { token: staff })).json();
+    assert.ok(summary.categories.some((row) => row.category === 'Smoke test'));
+  });
+  await check('an adjustment changes stock and appears in the ledger and list', async () => {
+    const before = await stockNow();
+    const response = await request('/api/inventory/adjustments', { token: manager, body: { reason: 'Found stock', note: 'live check', lines: [{ productId: product.id, change: 2 }] } });
+    assert.equal(response.status, 201, await response.clone().text());
+    assert.equal(await stockNow(), before + 2);
+    const { movements } = await (await request('/api/inventory/movements?type=Adjustment', { token: manager })).json();
+    const latest = movements.find((row) => row.sku === 'SMOKE-1');
+    assert.equal(latest.change, 2);
+    assert.equal(latest.next, before + 2);
+    assert.equal(latest.user, 'Smoke Manager');
+    const { adjustments } = await (await request('/api/inventory/adjustments', { token: manager })).json();
+    assert.ok(adjustments.some((row) => row.lines.some((line) => line.product === 'Smoke product')));
+  });
+  await check('removing more than is in stock is refused', async () => {
+    const response = await request('/api/inventory/adjustments', { token: manager, body: { reason: 'Damaged', lines: [{ productId: product.id, change: -999999 }] } });
+    assert.equal(response.status, 409);
+  });
+  await check('a blind count hides quantities, then approval posts the difference once', async () => {
+    const before = await stockNow();
+    const started = await request('/api/inventory/counts', { token: staff, body: { name: 'Live check', scope: product.category_id, blind: true } });
+    assert.equal(started.status, 201, await started.clone().text());
+    const { count } = await started.json();
+    assert.equal(count.lines[0].expected, undefined);
+    const line = await request(`/api/inventory/counts/${count.id}/lines/${product.id}`, { token: staff, method: 'PUT', body: { counted: before - 1 } });
+    assert.equal(line.status, 204, await line.clone().text());
+    assert.equal(await stockNow(), before);
+    assert.equal((await request(`/api/inventory/counts/${count.id}/submit`, { token: staff, method: 'POST' })).status, 200);
+    assert.equal((await request(`/api/inventory/counts/${count.id}/approve`, { token: staff, method: 'POST' })).status, 403);
+    const seen = await (await request(`/api/inventory/counts/${count.id}`, { token: manager })).json();
+    assert.equal(seen.count.lines[0].variance, -1);
+    const approved = await request(`/api/inventory/counts/${count.id}/approve`, { token: manager, method: 'POST' });
+    assert.equal(approved.status, 200, await approved.clone().text());
+    assert.equal(await stockNow(), before - 1);
+    assert.equal((await request(`/api/inventory/counts/${count.id}/approve`, { token: manager, method: 'POST' })).status, 409);
+    assert.equal(await stockNow(), before - 1);
+  });
+  await database.from('products').update({ active: false }).eq('id', product.id);
+  await database.from('categories').update({ active: false }).eq('id', product.category_id);
+}
+
 const base_url = () => base;
 
 try {
@@ -231,6 +292,7 @@ try {
   });
 
   await productChecks(sessions);
+  await inventoryChecks(sessions);
 
   const cashier = accounts.Cashier;
   const temporary = password();
