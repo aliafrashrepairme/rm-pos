@@ -2,32 +2,68 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, getAuthToken, setAuthToken, SESSION_EXPIRED_EVENT } from './api.js';
 import { canOpen, screensFor } from './app/access.js';
 import ChangePassword from './app/ChangePassword.jsx';
+import Layout from './app/Layout.jsx';
 import Login from './app/Login.jsx';
+import { applyTheme, loadDevicePreferences, saveDevicePreference } from './app/preferences.js';
+import { useHashRoute } from './app/useHashRoute.js';
+import { useI18n } from './i18n/I18nProvider.jsx';
 import ReportsModule from './reports/pages/ReportsModule.jsx';
 
+function Screen({ user, page, onHome }) {
+  const { t } = useI18n();
+  if (!canOpen(user, page)) {
+    return (
+      <div className="card access-denied">
+        <p className="form-error" role="alert">{t('Your role does not have access to this section.')}</p>
+        <button type="button" className="btn btn-primary" onClick={onHome}>{t('Go to my home screen')}</button>
+      </div>
+    );
+  }
+  if (page === 'Reports') return <ReportsModule user={user} />;
+  return (
+    <>
+      <div className="page-head">
+        <div><div className="eyebrow">{t('RM HARDWARE STORE')}</div><h1>{t(page)}</h1></div>
+      </div>
+      <div className="card"><div className="empty">{t('This screen is not built yet. It is scheduled in a later development phase.')}</div></div>
+    </>
+  );
+}
+
 export default function App() {
+  const { t, setLanguage } = useI18n();
+  const { slug, screen, navigate } = useHashRoute();
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState('');
   const [version, setVersion] = useState('');
   const [authReady, setAuthReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [offline, setOffline] = useState('');
+  const [theme, setThemeState] = useState(() => loadDevicePreferences().theme);
+
+  useEffect(() => applyTheme(theme), [theme]);
 
   const enter = useCallback((nextUser) => {
     setUser(nextUser);
-    setPage(screensFor(nextUser)[0] || '');
     setNotice('');
     setOffline('');
-  }, []);
+    api('/api/auth/preferences')
+      .then(({ preferences }) => {
+        if (!preferences) return;
+        setThemeState(preferences.theme);
+        saveDevicePreference('theme', preferences.theme);
+        setLanguage(preferences.language);
+      })
+      .catch((error) => console.error('Could not load preferences:', error.message));
+  }, [setLanguage]);
 
   const leave = useCallback((message = '') => {
     setAuthToken(null);
     setUser(null);
-    setPage('');
     setChangingPassword(false);
     setNotice(message);
-  }, []);
+    navigate('');
+  }, [navigate]);
 
   const restoreSession = useCallback(() => {
     if (!getAuthToken()) {
@@ -53,6 +89,24 @@ export default function App() {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
   }, [restoreSession, leave]);
 
+  const signedIn = Boolean(user);
+  const savePreferences = useCallback((change) => {
+    if (!signedIn) return;
+    api('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(change) })
+      .catch((error) => console.error('Could not save preferences:', error.message));
+  }, [signedIn]);
+
+  function changeTheme(next) {
+    setThemeState(next);
+    saveDevicePreference('theme', next);
+    savePreferences({ theme: next });
+  }
+
+  function changeLanguage(next) {
+    setLanguage(next);
+    savePreferences({ language: next });
+  }
+
   async function logout() {
     try {
       await api('/api/auth/logout', { method: 'POST' });
@@ -67,9 +121,9 @@ export default function App() {
     return (
       <div className="center-screen">
         <div className="login-card">
-          <h2>Server unavailable</h2>
-          <p className="error" role="alert">{offline}</p>
-          <button type="button" onClick={restoreSession}>Try again</button>
+          <h2>{t('Server unavailable')}</h2>
+          <p className="form-error" role="alert">{t(offline)}</p>
+          <button type="button" className="btn btn-primary login-submit" onClick={restoreSession}>{t('Try again')}</button>
         </div>
       </div>
     );
@@ -78,6 +132,9 @@ export default function App() {
     return (
       <Login
         notice={notice}
+        theme={theme}
+        onTheme={changeTheme}
+        onLanguage={changeLanguage}
         onLogin={({ user: nextUser, token, refreshToken }) => {
           setAuthToken(token, refreshToken);
           enter(nextUser);
@@ -95,38 +152,23 @@ export default function App() {
     );
   }
 
-  const screens = screensFor(user);
+  const home = screensFor(user)[0] || '';
+  // An empty address opens the role's home screen. A typed address that isn't allowed is refused.
+  const page = slug ? (screen ?? slug) : home;
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand"><span className="mark">RM</span> RM POS</div>
-        {screens.map((item) => (
-          <button key={item} className={item === page ? 'active' : ''} onClick={() => setPage(item)}>{item}</button>
-        ))}
-        <div className="side-foot">{user.name} · {user.role}{version && ` · v${version}`}</div>
-      </aside>
-      <main className="main">
-        <header className="topbar">
-          <b>{page}</b>
-          <span className="top-actions">
-            <button onClick={() => setChangingPassword(true)}>Change password</button>
-            <button onClick={logout}>Log out</button>
-          </span>
-        </header>
-        <section className="content">
-          {!canOpen(user, page) ? (
-            <p className="error" role="alert">Your role does not have access to this section.</p>
-          ) : page === 'Reports' ? (
-            <ReportsModule user={user} />
-          ) : (
-            <>
-              <h1>{page}</h1>
-              <p>This screen is not built yet. It is scheduled in a later development phase.</p>
-            </>
-          )}
-        </section>
-      </main>
-    </div>
+    <Layout
+      user={user}
+      page={screen ?? (slug ? '' : home)}
+      version={version}
+      theme={theme}
+      onNavigate={navigate}
+      onTheme={changeTheme}
+      onLanguage={changeLanguage}
+      onChangePassword={() => setChangingPassword(true)}
+      onLogout={logout}
+    >
+      <Screen user={user} page={page} onHome={() => navigate(home)} />
+    </Layout>
   );
 }

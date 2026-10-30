@@ -1,0 +1,25 @@
+/* Additions to the prototype's styles for elements it didn't have. */
+.login-store { font-size: 15px; letter-spacing: 2px; color: var(--yellow); font-weight: 800; margin-bottom: 14px; }
+.login-foot { font-size: 14px; color: #aaa; }
+.login-controls { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 6px; }
+.notice { background: var(--soft); border-radius: 10px; padding: 10px 12px; margin: 0 0 14px; font-size: 14px; line-height: 1.5; }
+.form-error { color: var(--red); margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
+.password-row { display: flex; gap: 6px; align-items: stretch; }
+.password-row input { flex: 1; min-width: 0; }
+.link-btn { display: block; margin: 12px auto 0; background: transparent; color: var(--muted); font-size: 14px; text-decoration: underline; }
+.center-screen { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.side-user { color: #eee; }
+.sidebar { overflow-x: hidden; }
+.nav { grid-template-columns: minmax(0, 1fr); }
+.nav button { min-width: 0; }
+.nav button .label { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+.crumb-sep { margin: 0 8px; color: #aaa; }
+.access-denied { max-width: 520px; }
+.login-submit:disabled { opacity: .6; cursor: wait; }
+.dark .form-error { color: #ff9a9a; }
+@media (max-width: 1000px) { .top-actions .user-pill { display: none; } }
+@media (max-width: 700px) {
+  .topbar { height: auto; min-height: 70px; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .top-actions { flex-wrap: wrap; }
+  .main { min-width: 0; }
+}

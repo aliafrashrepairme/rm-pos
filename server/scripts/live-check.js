@@ -99,6 +99,15 @@ try {
     }
   }
 
+  await check('preferences save one field at a time, even when changed quickly', async () => {
+    const { token } = sessions.Manager;
+    const save = (body) => request('/api/auth/preferences', { token, body, method: 'PUT' });
+    const responses = await Promise.all([save({ language: 'ta' }), save({ theme: 'light' })]);
+    for (const response of responses) assert.equal(response.status, 200, await response.clone().text());
+    const read = await request('/api/auth/preferences', { token });
+    assert.deepEqual((await read.json()).preferences, { language: 'ta', theme: 'light' });
+    await save({ language: 'en', theme: 'dark' });
+  });
   await check('login by email works', async () => {
     const session = await signIn(accounts.Owner.email, accounts.Owner.password);
     sessions.Owner2 = session;

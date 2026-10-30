@@ -51,6 +51,8 @@ function fakeDatabase(tables) {
         limit: () => chain,
         insert: (row) => { call.insert = row; return chain; },
         update: (change) => { call.update = change; return chain; },
+        upsert: (row) => { (tables[table] ||= []).push(row); call.upserted = row; return chain; },
+        single: () => { call.single = true; return chain; },
         eq: (column, value) => { call.filters.push(['eq', column, value]); return chain; },
         gte: (column, value) => { call.filters.push(['gte', column, value]); return chain; },
         lte: (column, value) => { call.filters.push(['lte', column, value]); return chain; },
@@ -59,7 +61,7 @@ function fakeDatabase(tables) {
         then(resolve) {
           const source = tables[table];
           if (source?.error) return resolve({ data: null, error: source.error });
-          let rows = source || [];
+          let rows = call.upserted ? [call.upserted] : source || [];
           for (const [kind, column, value] of call.filters) if (kind === 'eq') rows = rows.filter((row) => row[column] === value);
           if (call.update) rows.forEach((row) => Object.assign(row, call.update));
           if (call.range) rows = rows.slice(call.range[0], call.range[1] + 1);
@@ -285,6 +287,22 @@ test('a reset code sets the new password; a bad code does not', async () => {
     assert.equal((await reset('123456')).status, 204);
     assert.deepEqual(database.admin.passwords, [['owner', 'long-enough-1']]);
     assert.deepEqual(database.admin.signOuts.at(-1), ['at', 'global']);
+  });
+});
+
+test('preferences are per user and validated', async () => {
+  await withApi({ user_preferences: [] }, async ({ as, call, tables }) => {
+    const save = (user, body) => as(user, '/api/auth/preferences', { method: 'PUT', body: JSON.stringify(body) });
+    assert.equal((await call('/api/auth/preferences')).status, 401);
+    assert.deepEqual((await (await as('owner', '/api/auth/preferences')).json()).preferences, null);
+    assert.equal((await save('owner', { theme: 'pink' })).status, 400);
+    assert.equal((await save('owner', { language: 'fr' })).status, 400);
+
+    const saved = await save('owner', { language: 'ta', user_id: 'manager' });
+    assert.equal((await saved.json()).preferences.language, 'ta');
+    assert.deepEqual(tables.user_preferences[0], { user_id: 'owner', language: 'ta' }, 'cannot target another user, and leaves the theme alone');
+    assert.equal((await save('owner', {})).status, 400);
+    assert.equal((await save('temp', { theme: 'light' })).status, 200, 'works on a temporary password too');
   });
 });
 

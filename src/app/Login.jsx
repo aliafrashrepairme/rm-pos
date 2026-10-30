@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { api } from '../api.js';
+import logo from '../assets/logo.jpg';
+import { useI18n } from '../i18n/I18nProvider.jsx';
+import { LanguageSelect, ThemeButton } from './Layout.jsx';
 import PasswordInput from './PasswordInput.jsx';
 
 function SignIn({ notice, onLogin, onForgot }) {
+  const { t } = useI18n();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,22 +26,23 @@ function SignIn({ notice, onLogin, onForgot }) {
   }
 
   return (
-    <form className="login-card" onSubmit={submit}>
-      <h2>Welcome back</h2>
-      <p className="login-sub">Sign in with your staff account to continue.</p>
-      {notice && <p className="notice">{notice}</p>}
-      <label>Username or email
+    <form onSubmit={submit}>
+      <h2>{t('Welcome back')}</h2>
+      <p className="login-sub">{t('Sign in with your staff account to continue.')}</p>
+      {notice && <p className="notice">{t(notice)}</p>}
+      <label className="field">{t('Username or email')}
         <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" autoFocus required />
       </label>
-      <PasswordInput label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
-      {error && <p className="error" role="alert">{error}</p>}
-      <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in to RM POS →'}</button>
-      <button type="button" className="link-btn" onClick={onForgot}>Forgot password?</button>
+      <PasswordInput label={t('Password')} value={password} onChange={setPassword} autoComplete="current-password" />
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      <button type="submit" className="btn btn-primary login-submit" disabled={busy}>{busy ? t('Signing in…') : t('Sign in to RM POS →')}</button>
+      <button type="button" className="link-btn" onClick={onForgot}>{t('Forgot password?')}</button>
     </form>
   );
 }
 
 function ForgotPassword({ onDone }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -74,42 +79,58 @@ function ForgotPassword({ onDone }) {
   }
 
   return (
-    <form className="login-card" onSubmit={sent ? resetPassword : requestCode}>
-      <h2>Reset password</h2>
-      {sent
-        ? <p className="login-sub">If this email has an account, a reset code is on its way. Enter it below.</p>
-        : <p className="login-sub">Enter your account email. No email on your account? Ask your manager to reset your password.</p>}
-      <label>Email address
+    <form onSubmit={sent ? resetPassword : requestCode}>
+      <h2>{t('Reset password')}</h2>
+      <p className="login-sub">
+        {sent
+          ? t('If this email has an account, a reset code is on its way. Enter it below.')
+          : t('Enter your account email. No email on your account? Ask your manager to reset your password.')}
+      </p>
+      <label className="field">{t('Email address')}
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={sent} autoFocus required />
       </label>
       {sent && (
         <>
-          <label>Reset code
+          <label className="field">{t('Reset code')}
             <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required />
           </label>
-          <PasswordInput label="New password" value={password} onChange={setPassword} autoComplete="new-password" minLength={8} />
+          <PasswordInput label={t('New password')} value={password} onChange={setPassword} autoComplete="new-password" minLength={8} />
         </>
       )}
-      {error && <p className="error" role="alert">{error}</p>}
-      <button type="submit" disabled={busy}>{sent ? 'Set new password' : 'Send reset code'}</button>
-      <button type="button" className="link-btn" onClick={() => onDone('')}>Back to sign in</button>
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      <button type="submit" className="btn btn-primary login-submit" disabled={busy}>{sent ? t('Set new password') : t('Send reset code')}</button>
+      <button type="button" className="link-btn" onClick={() => onDone('')}>{t('Back to sign in')}</button>
     </form>
   );
 }
 
-export default function Login({ notice, onLogin }) {
+export default function Login({ notice, theme, onTheme, onLanguage, onLogin }) {
+  const { t } = useI18n();
   const [forgot, setForgot] = useState(false);
   const [message, setMessage] = useState('');
 
   return (
-    <div className="login">
-      <div className="login-brand">
-        <div className="mark">RM</div>
-        <h1>Smarter store operations start here.</h1>
+    <section className="login-screen">
+      <div className="login-brand-panel">
+        <div>
+          <img className="login-logo" src={logo} alt="RepairMe company logo" />
+          <div className="login-store">{t('RM HARDWARE STORE')}</div>
+          <h1>{t('Smarter store operations start here.')}</h1>
+          <p>{t('Sign in to manage billing, inventory, purchasing, stock counts and AI invoice capture — with access tailored to your role.')}</p>
+        </div>
+        <div className="login-foot">RM POS · {t('Hardware Store Management')}</div>
       </div>
-      {forgot
-        ? <ForgotPassword onDone={(text) => { setMessage(text); setForgot(false); }} />
-        : <SignIn notice={message || notice} onLogin={onLogin} onForgot={() => setForgot(true)} />}
-    </div>
+      <div className="login-panel">
+        <div className="login-card">
+          <div className="login-controls">
+            <ThemeButton theme={theme} onChange={onTheme} />
+            <LanguageSelect onChange={onLanguage} />
+          </div>
+          {forgot
+            ? <ForgotPassword onDone={(text) => { setMessage(text); setForgot(false); }} />
+            : <SignIn notice={message || notice} onLogin={onLogin} onForgot={() => setForgot(true)} />}
+        </div>
+      </div>
+    </section>
   );
 }

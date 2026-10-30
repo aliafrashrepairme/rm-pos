@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { HttpError } from '../errors.js';
 import * as auth from '../services/auth.js';
+import { getPreferences, savePreferences } from '../services/preferences.js';
 import { newPassword, requiredText } from '../validation/common.js';
 
 function requiredPassword(value) {
@@ -58,6 +59,12 @@ export function publicAuthRoutes(clients) {
 export function sessionRoutes(clients) {
   const router = Router();
   router.get('/me', (req, res) => res.json({ user: req.user }));
+  router.get('/preferences', async (req, res) => {
+    res.json({ preferences: await getPreferences(clients, req.user.id) });
+  });
+  router.put('/preferences', async (req, res) => {
+    res.json({ preferences: await savePreferences(clients, req.user.id, req.body) });
+  });
   router.post('/logout', async (req, res) => {
     await auth.logout(clients, req.user, req.token);
     res.status(204).end();
