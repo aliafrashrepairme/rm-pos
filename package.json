@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.2",
@@ -29,7 +30,12 @@
   "build": {
     "appId": "lk.repairme.rmpos",
     "productName": "RM POS",
-    "files": ["dist/**", "electron/**"],
-    "win": { "target": "nsis" }
+    "files": [
+      "dist/**",
+      "electron/**"
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }

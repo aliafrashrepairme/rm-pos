@@ -1,0 +1,60 @@
+/* Reports & Analytics module styles — extends the existing RM POS design tokens
+   (--yellow, --black, --panel, --line, --text, --muted) defined in src/styles.css. */
+
+.rpt-page { display: grid; gap: 20px; }
+
+.rpt-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.rpt-tabs button { padding: 9px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--text); font-size: 13px; }
+.rpt-tabs button.active { background: var(--yellow); color: var(--black); border-color: var(--yellow); }
+
+.rpt-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.rpt-stat { padding: 18px; }
+.rpt-stat-top { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; }
+.rpt-stat-icon { font-size: 16px; }
+.rpt-stat-value { font-size: 26px; font-weight: 900; margin-top: 10px; }
+.rpt-stat-foot { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.rpt-charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.rpt-chart-card { padding: 18px; }
+.rpt-chart-card h3 { margin: 0 0 4px; font-size: 15px; }
+.rpt-chart-card .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.rpt-chart-empty { display: grid; place-items: center; height: 200px; color: var(--muted); font-size: 13px; }
+
+.rpt-filters { padding: 16px; display: grid; gap: 14px; }
+.rpt-filters-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
+.rpt-filters-row label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; min-width: 150px; }
+.rpt-filters-row select, .rpt-filters-row input { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: #121214; color: var(--text); font-size: 13px; }
+.rpt-filters-search { flex: 1; min-width: 200px; }
+.rpt-filters-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.btn-primary, .btn-outline { padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+.btn-primary { border: 0; background: var(--yellow); color: var(--black); }
+.btn-outline { border: 1px solid var(--line); background: transparent; color: var(--text); }
+.btn-outline:disabled { opacity: .4; cursor: not-allowed; }
+
+.rpt-table-wrap { padding: 0; overflow-x: auto; }
+.rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rpt-table th, .rpt-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rpt-table th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+.rpt-table th.sortable { cursor: pointer; user-select: none; }
+.rpt-sort-arrow { color: var(--yellow); }
+.rpt-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.rpt-table-empty { padding: 32px; text-align: center; color: var(--muted); }
+
+.rpt-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px; color: var(--muted); font-size: 13px; }
+
+.rpt-export { display: flex; gap: 8px; }
+
+.rpt-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(163,167,174,0.15); color: var(--muted); }
+.rpt-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rpt-status.warn { background: rgba(246,201,40,0.15); color: var(--yellow); }
+.rpt-status.red { background: rgba(255,138,128,0.15); color: #ff8a80; }
+.rpt-status.good { background: rgba(129,199,132,0.15); color: #81c784; }
+
+.rpt-loading, .rpt-error { padding: 32px; text-align: center; color: var(--muted); }
+.rpt-error { color: #ff8a80; }
+
+@media (max-width: 720px) {
+  .rpt-filters-row { flex-direction: column; align-items: stretch; }
+  .rpt-filters-row label { min-width: 0; }
+}

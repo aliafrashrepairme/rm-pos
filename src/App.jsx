@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, getAuthToken, setAuthToken } from './api.js';
+import ReportsModule from './reports/pages/ReportsModule.jsx';
 
 const MENU = {
   Owner: ['Daily Transactions', 'Monthly Transactions', 'Reports'],
@@ -17,8 +18,8 @@ function Login({ onLogin }) {
     e.preventDefault();
     setError('');
     try {
-      const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-      onLogin(user);
+      const { user, token, refreshToken } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      onLogin(user, token, refreshToken);
     } catch (err) {
       setError(err.message);
     }
@@ -36,7 +37,6 @@ function Login({ onLogin }) {
         <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
         {error && <p className="error">{error}</p>}
         <button type="submit">Sign in to RM POS →</button>
-        <p className="hint">Demo: manager@rmpos.lk / manager123</p>
       </form>
     </div>
   );
@@ -46,12 +46,38 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('');
   const [version, setVersion] = useState('');
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     window.rmpos?.getVersion().then(setVersion);
+    if (!getAuthToken()) {
+      setAuthReady(true);
+      return;
+    }
+    api('/api/auth/me')
+      .then(({ user: currentUser }) => {
+        setUser(currentUser);
+        setPage(MENU[currentUser.role][0]);
+      })
+      .catch(() => setAuthToken(null))
+      .finally(() => setAuthReady(true));
   }, []);
 
-  if (!user) return <Login onLogin={(u) => { setUser(u); setPage(MENU[u.role][0]); }} />;
+  if (!authReady) return null;
+  if (!user) return <Login onLogin={(nextUser, token, refreshToken) => {
+    setAuthToken(token, refreshToken);
+    setUser(nextUser);
+    setPage(MENU[nextUser.role][0]);
+  }} />;
+
+  async function logout() {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } finally {
+      setAuthToken(null);
+      setUser(null);
+    }
+  }
 
   return (
     <div className="app">
@@ -65,11 +91,17 @@ export default function App() {
       <main className="main">
         <header className="topbar">
           <b>{page}</b>
-          <button onClick={() => setUser(null)}>Log out</button>
+          <button onClick={logout}>Log out</button>
         </header>
         <section className="content">
-          <h1>{page}</h1>
-          <p>Build this screen next — copy the layout from the HTML prototype.</p>
+          {page === 'Reports' ? (
+            <ReportsModule />
+          ) : (
+            <>
+              <h1>{page}</h1>
+              <p>Build this screen next — copy the layout from the HTML prototype.</p>
+            </>
+          )}
         </section>
       </main>
     </div>
