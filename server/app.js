@@ -6,6 +6,7 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { categoryRoutes, productRoutes } from './routes/products.js';
 import { reportRoutes } from './routes/reports.js';
 import { userRoutes } from './routes/users.js';
 
@@ -23,6 +24,8 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api', createRequireAuth(clients), requirePasswordCurrent);
   app.use('/api/auth', sessionRoutes(clients));
   app.use('/api/dashboard', dashboardRoutes(clients));
+  app.use('/api/products', productRoutes(clients));
+  app.use('/api/categories', categoryRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

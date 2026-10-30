@@ -43,5 +43,9 @@ const dashboard = await database.rpc('dashboard_summary');
 if (dashboard.error) failed = true;
 console.log(`${dashboard.error ? 'FAIL' : 'ok  '} dashboard_summary function${dashboard.error ? ' (run 0002_dashboard.sql)' : ''}`);
 
+const barcode = await database.rpc('ean13_check_digit', { p_first_twelve: '200000000001' });
+if (barcode.error) failed = true;
+console.log(`${barcode.error ? 'FAIL' : 'ok  '} product functions${barcode.error ? ' (run 0003_products.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

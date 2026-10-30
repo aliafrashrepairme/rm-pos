@@ -9,7 +9,8 @@ import { loadEnvFile } from '../config.js';
 // Files applied by hand before this command existed, with what proves each one ran.
 const APPLIED_BY_HAND = {
   '0001_core_schema.sql': "to_regclass('public.store_settings') is not null",
-  '0002_dashboard.sql': "to_regprocedure('public.dashboard_summary(timestamptz)') is not null"
+  '0002_dashboard.sql': "to_regprocedure('public.dashboard_summary(timestamptz)') is not null",
+  '0003_products.sql': "to_regprocedure('public.create_product(jsonb, uuid)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

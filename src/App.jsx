@@ -8,6 +8,7 @@ import { applyTheme, loadDevicePreferences, saveDevicePreference } from './app/p
 import { useHashRoute } from './app/useHashRoute.js';
 import { useI18n } from './i18n/I18nProvider.jsx';
 import Dashboard from './features/dashboard/Dashboard.jsx';
+import ProductsPage from './features/products/ProductsPage.jsx';
 import ReportsModule from './reports/pages/ReportsModule.jsx';
 
 function Screen({ user, page, onHome, onNavigate }) {
@@ -21,6 +22,7 @@ function Screen({ user, page, onHome, onNavigate }) {
     );
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
+  if (page === 'Products') return <ProductsPage user={user} />;
   if (page === 'Reports') return <ReportsModule user={user} />;
   return (
     <>

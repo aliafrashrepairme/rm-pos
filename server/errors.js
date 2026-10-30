@@ -15,6 +15,13 @@ const BUSINESS_ERRORS = {
   INVALID_QTY: 400
 };
 
+// Which value clashed, in words a person can act on.
+const UNIQUE_VALUES = {
+  products_sku_key: 'This SKU is already used by another product.',
+  products_barcode_key: 'This barcode is already used by another product.',
+  categories_name_key: 'A category with this name already exists.'
+};
+
 export function fromSupabase(error) {
   const message = error.message || 'Supabase request failed.';
   if (error.code === 'P0001') {
@@ -22,7 +29,10 @@ export function fromSupabase(error) {
     const status = BUSINESS_ERRORS[message.slice(0, separator)];
     return status ? new HttpError(status, message.slice(separator + 1)) : new HttpError(400, message);
   }
-  if (error.code === '23505') return new HttpError(409, 'A record with the same unique value already exists.');
+  if (error.code === '23505') {
+    const known = Object.keys(UNIQUE_VALUES).find((constraint) => message.includes(constraint));
+    return new HttpError(409, known ? UNIQUE_VALUES[known] : 'A record with the same unique value already exists.');
+  }
   if (error.code === '23503') return new HttpError(400, 'A referenced record does not exist.');
   if (error.code === '23514' || error.code === '22P02') return new HttpError(400, 'The request contains invalid data.');
   if (error.code === '42501') return new HttpError(403, 'You do not have permission to perform this action.');

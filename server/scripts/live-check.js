@@ -13,6 +13,8 @@ const ACCOUNTS = { Owner: 'smoke.owner', Manager: 'smoke.manager', Cashier: 'smo
 // Route, then the roles allowed to use it. Everyone else must get 403.
 const ACCESS = [
   ['/api/dashboard', ['Manager']],
+  ['/api/products', ['Manager', 'Inventory Staff']],
+  ['/api/products/options', ['Manager', 'Inventory Staff']],
   ['/api/reports/sales', ['Owner', 'Manager']],
   ['/api/reports/products', ['Owner', 'Manager', 'Inventory Staff']],
   ['/api/reports/stock-movements', ['Owner', 'Manager', 'Inventory Staff']]
@@ -78,6 +80,98 @@ async function signIn(identifier, secret) {
   return response.json();
 }
 
+// Uses one permanent test product, left inactive afterwards so it doesn't count as stock.
+async function productChecks(sessions) {
+  const token = sessions['Inventory Staff'].token;
+  const send = (path, method, body) => request(path, { token, method, body });
+  const SKU = 'SMOKE-1';
+
+  let category = (await database.from('categories').select('id, active').eq('name', 'Smoke test').maybeSingle()).data;
+  if (!category) {
+    const response = await send('/api/categories', 'POST', { name: 'Smoke test' });
+    assert.equal(response.status, 201);
+    category = (await response.json()).category;
+  } else if (!category.active) {
+    assert.equal((await send(`/api/categories/${category.id}`, 'PATCH', { active: true })).status, 200);
+  }
+  const options = await (await request('/api/products/options', { token })).json();
+  const base = {
+    categoryId: category.id,
+    unitCode: 'Piece',
+    taxRateId: options.taxRates.find((rate) => rate.isDefault).id,
+    costPrice: 80,
+    sellingPrice: 100
+  };
+
+  let product = (await database.from('products').select('id').eq('sku', SKU).maybeSingle()).data;
+  if (!product) {
+    await check('creating a product generates a valid barcode and posts opening stock', async () => {
+      const response = await send('/api/products', 'POST', { ...base, name: 'Smoke product', sku: SKU, openingStock: 3 });
+      assert.equal(response.status, 201, await response.clone().text());
+      product = (await response.json()).product;
+      assert.match(product.barcode, /^20\d{11}$/);
+      assert.equal(product.stock, 3);
+      const ledger = await database.from('inventory_ledger').select('movement_type, new_qty').eq('product_id', product.id);
+      assert.deepEqual(ledger.data.map((row) => [row.movement_type, Number(row.new_qty)]), [['Opening', 3]]);
+    });
+  }
+  await check('a duplicate SKU is refused with a clear message', async () => {
+    const response = await send('/api/products', 'POST', { ...base, name: 'Copy', sku: SKU });
+    assert.equal(response.status, 409);
+    assert.match((await response.json()).error, /SKU is already used/);
+  });
+  await check('products can be edited and reactivated, but stock cannot be set', async () => {
+    const before = (await database.from('products').select('stock_qty').eq('id', product.id).single()).data;
+    const response = await send(`/api/products/${product.id}`, 'PATCH', { active: true, name: 'Smoke product', stock: 999, stock_qty: 999 });
+    assert.equal(response.status, 200, await response.clone().text());
+    const updated = (await response.json()).product;
+    assert.equal(updated.stock, Number(before.stock_qty));
+    assert.equal(updated.category, 'Smoke test');
+    assert.equal(updated.taxRate, 18);
+  });
+  await check('search finds a product by part of its name, SKU and barcode', async () => {
+    for (const q of ['smoke prod', 'SMOKE-1']) {
+      const body = await (await request(`/api/products?q=${encodeURIComponent(q)}`, { token })).json();
+      assert.ok(body.products.some((item) => item.id === product.id), q);
+      assert.ok(body.total >= 1);
+    }
+  });
+  await check('search survives punctuation', async () => {
+    for (const q of ['a,b(c)', 'x"y', "o'neil", '%_*', 'a.eq.1']) {
+      assert.equal((await request(`/api/products?q=${encodeURIComponent(q)}`, { token })).status, 200, q);
+    }
+  });
+  await check('a photo is stored privately and served by an expiring link', async () => {
+    const jpeg = Buffer.from('ffd8ffe000104a46494600010100000100010000ffd9', 'hex');
+    const response = await fetch(`${base_url()}/api/products/${product.id}/image`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg', Authorization: `Bearer ${token}` },
+      body: jpeg,
+      signal: AbortSignal.timeout(20000)
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    const { imageUrl } = (await response.json()).product;
+    assert.match(imageUrl, /token=/);
+    assert.equal((await fetch(imageUrl, { signal: AbortSignal.timeout(20000) })).status, 200);
+    const row = (await database.from('products').select('image_path').eq('id', product.id).single()).data;
+    const direct = `${config.supabaseUrl}/storage/v1/object/public/product-images/${row.image_path}`;
+    assert.notEqual((await fetch(direct, { signal: AbortSignal.timeout(20000) })).status, 200, 'the bucket must not be public');
+  });
+  await check('a category in use cannot be deactivated', async () => {
+    assert.equal((await send(`/api/categories/${category.id}`, 'PATCH', { active: false })).status, 409);
+  });
+  await check('deactivating hides a product from the active list', async () => {
+    assert.equal((await send(`/api/products/${product.id}`, 'PATCH', { active: false })).status, 200);
+    const body = await (await request('/api/products?q=SMOKE-1', { token })).json();
+    assert.ok(!body.products.some((item) => item.id === product.id));
+    const inactive = await (await request('/api/products?q=SMOKE-1&status=inactive', { token })).json();
+    assert.ok(inactive.products.some((item) => item.id === product.id));
+    assert.equal((await send(`/api/categories/${category.id}`, 'PATCH', { active: false })).status, 200);
+  });
+}
+
+const base_url = () => base;
+
 try {
   for (const [role, username] of Object.entries(ACCOUNTS)) await ensureAccount(role, username);
   const sessions = {};
@@ -135,6 +229,8 @@ try {
     assert.equal((await request('/api/auth/me', { token: sessions.Owner2.token })).status, 401);
     assert.equal((await request('/api/auth/refresh', { body: { refreshToken: sessions.Owner2.refreshToken } })).status, 401);
   });
+
+  await productChecks(sessions);
 
   const cashier = accounts.Cashier;
   const temporary = password();
