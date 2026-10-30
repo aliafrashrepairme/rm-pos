@@ -18,6 +18,7 @@ const ACCESS = [
   ['/api/transactions/daily', ['Owner', 'Manager']],
   ['/api/transactions/monthly', ['Owner', 'Manager']],
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
+  ['/api/suppliers', ['Manager', 'Inventory Staff']],
   ['/api/purchases', ['Manager', 'Inventory Staff']],
   ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
@@ -382,6 +383,23 @@ async function purchaseChecks(sessions, productId, stockNow) {
     assert.ok(summary.openOrders >= 1 && summary.payable > 0);
     const list = await (await request('/api/purchases/options', { token: staff })).json();
     assert.ok(list.suppliers.some((row) => row.id === supplier.id));
+  });
+  await check('a supplier profile shows real history, and open orders block deactivation', async () => {
+    const url = `/api/suppliers/${supplier.id}`;
+    const { supplier: profile } = await (await request(url, { token: staff })).json();
+    assert.ok(profile.purchases.length >= 5);
+    assert.equal(profile.payments.length, 1);
+    assert.equal(profile.stats.paid, 500);
+    assert.ok(profile.stats.balance > 0);
+    assert.equal((await request(url, { token: staff, method: 'PATCH', body: { active: false } })).status, 409);
+    const edited = await request(url, { token: staff, method: 'PATCH', body: { city: 'Jaffna', rating: 4.5 } });
+    assert.equal(edited.status, 200, await edited.clone().text());
+    assert.equal((await edited.json()).supplier.rating, 4.5);
+    const { suppliers } = await (await request(`/api/suppliers?q=${encodeURIComponent(supplier.name)}`, { token: staff })).json();
+    assert.equal(suppliers[0].id, supplier.id);
+    const repeat = await request('/api/suppliers', { token: staff, body: { name: supplier.name } });
+    assert.equal(repeat.status, 409);
+    assert.equal((await request(url, { token: sessions.Cashier.token })).status, 403);
   });
   await database.from('purchases').update({ status: 'Cancelled' }).eq('supplier_id', supplier.id).in('status', ['Draft', 'Ordered', 'Partially Received']).eq('paid_total', 0);
   await database.from('suppliers').update({ active: false }).eq('id', supplier.id);

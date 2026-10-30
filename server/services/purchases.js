@@ -250,29 +250,6 @@ export async function productPicker({ database }, query) {
   }));
 }
 
-export async function createSupplier({ database }, user, body) {
-  const name = typeof body?.name === 'string' ? body.name.trim() : '';
-  if (!name || name.length > 120) throw new HttpError(400, 'Enter the supplier name.');
-  const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
-  const leadTime = body?.leadTimeDays === undefined || body.leadTimeDays === '' ? 5 : Number(body.leadTimeDays);
-  if (!Number.isInteger(leadTime) || leadTime < 0 || leadTime > 365) throw new HttpError(400, 'Lead time must be a whole number of days.');
-  const id = unwrap(await database.rpc('create_supplier', {
-    p_supplier: {
-      name,
-      contactPerson: text(body?.contactPerson, 120),
-      phone: text(body?.phone, 30),
-      email: text(body?.email, 120),
-      address: text(body?.address, 300),
-      city: text(body?.city, 80),
-      paymentTerms: text(body?.paymentTerms, 40),
-      leadTimeDays: leadTime
-    }
-  }));
-  const row = unwrap(await database.from('suppliers').select('id, code, name, payment_terms, lead_time_days').eq('id', id).single());
-  await writeAudit(database, { user, action: 'Supplier added', description: `${row.code} ${row.name}`, entityType: 'supplier', entityId: id });
-  return { id: row.id, code: row.code, name: row.name, terms: row.payment_terms, leadTimeDays: row.lead_time_days };
-}
-
 export async function recordPrinted({ database }, user, id, kind) {
   requireId(id);
   const row = unwrap(await database.from('purchases').select('po_no').eq('id', id).maybeSingle());

@@ -157,3 +157,11 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
 @media print {
   #printArea.print-purchase .pbill { box-shadow: none; width: 100%; }
 }
+.sup-top { display: flex; gap: 11px; align-items: center; margin-bottom: 10px; }
+.sup-title { min-width: 0; flex: 1; }
+.sup-title h3 { margin: 0; overflow-wrap: anywhere; }
+.rating-number { font-size: 13px; }
+.ontime { display: flex; align-items: center; gap: 6px; width: 120px; }
+.ontime .meter { flex: 1; }
+.sup-actions { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+.inactive-card { opacity: .65; }

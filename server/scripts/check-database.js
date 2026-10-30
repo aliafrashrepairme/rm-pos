@@ -69,5 +69,9 @@ const purchases = await database.rpc('purchases_summary');
 if (purchases.error) failed = true;
 console.log(`${purchases.error ? 'FAIL' : 'ok  '} purchase functions${purchases.error ? ' (run 0008_purchases.sql)' : ''}`);
 
+const supplierFigures = await database.rpc('supplier_list', { p_search: '', p_status: 'all', p_limit: 1, p_offset: 0 });
+if (supplierFigures.error) failed = true;
+console.log(`${supplierFigures.error ? 'FAIL' : 'ok  '} supplier functions${supplierFigures.error ? ' (run 0009_suppliers.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

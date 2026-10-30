@@ -58,7 +58,7 @@ function fakeDatabase({ updated = { id: ID } } = {}) {
             return resolve({ data: call.single ? PO : [PO], count: 1, error: null });
           }
           if (table === 'store_settings') return resolve({ data: { store_name: 'RM', address: 'A', phone: 'P' }, error: null });
-          if (table === 'suppliers') return resolve({ data: call.single ? { id: ID, code: 'SUP-1', name: 'New', payment_terms: 'Cash', lead_time_days: 5 } : [], error: null });
+          if (table === 'suppliers') return resolve({ data: call.single ? { id: ID, code: 'SUP-1', name: 'New', contact_person: '', phone: '', email: '', address: '', city: '', payment_terms: 'Cash', lead_time_days: 5, rating: null, active: true } : [], error: null });
           resolve({ data: call.single ? null : [], error: null });
         }
       };

@@ -53,7 +53,7 @@ function NewSupplierForm({ onCreated, onCancel }) {
   );
 }
 
-export default function NewOrderModal({ user, onClose, onCreated }) {
+export default function NewOrderModal({ user, initialSupplierId, onClose, onCreated }) {
   const { t } = useI18n();
   const [suppliers, setSuppliers] = useState([]);
   const [supplierId, setSupplierId] = useState('');
@@ -72,7 +72,8 @@ export default function NewOrderModal({ user, onClose, onCreated }) {
     api('/api/purchases/options')
       .then((options) => {
         setSuppliers(options.suppliers);
-        if (options.suppliers[0]) chooseSupplier(options.suppliers[0].id, options.suppliers);
+        const first = options.suppliers.find((item) => item.id === initialSupplierId) ?? options.suppliers[0];
+        if (first) chooseSupplier(first.id, options.suppliers);
       })
       .catch((failure) => setError(failure.message));
     // Runs once, when the form opens.

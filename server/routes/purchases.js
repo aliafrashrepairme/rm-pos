@@ -31,11 +31,3 @@ export function purchaseRoutes(clients) {
   });
   return router;
 }
-
-export function supplierRoutes(clients) {
-  const router = Router();
-  router.post('/', requirePermission('suppliers.manage'), async (req, res) => {
-    res.status(201).json({ supplier: await purchases.createSupplier(clients, req.user, req.body) });
-  });
-  return router;
-}
