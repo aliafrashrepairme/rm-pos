@@ -15,6 +15,9 @@ const ACCOUNTS = { Owner: 'smoke.owner', Manager: 'smoke.manager', Cashier: 'smo
 const ACCESS = [
   ['/api/dashboard', ['Manager']],
   ['/api/products', ['Manager', 'Inventory Staff']],
+  ['/api/transactions/daily', ['Owner', 'Manager']],
+  ['/api/transactions/monthly', ['Owner', 'Manager']],
+  ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
   ['/api/pos/catalog', ['Cashier']],
   ['/api/pos/options', ['Cashier']],
   ['/api/pos/held', ['Cashier']],
@@ -372,6 +375,58 @@ async function saleChecks(sessions) {
     assert.equal((await request(`/api/pos/held/${order.id}/resume`, { token, method: 'POST' })).status, 409);
     const second = (await (await hold()).json()).order;
     assert.equal((await request(`/api/pos/held/${second.id}/cancel`, { token, method: 'POST' })).status, 204);
+  });
+  await check('a partial refund returns stock and money, and lowers the day\'s sales', async () => {
+    await setStock(10);
+    const { sale: bill } = await (await sell(sale({ items: [{ productId: product.id, qty: 4 }], expectedTotal: 472, payment: { method: 'Card' } }))).json();
+    const url = `/api/transactions/bills/${bill.id}`;
+    const detail = (await (await request(url, { token: manager })).json()).bill;
+    const before = (await (await request('/api/transactions/daily', { token: manager })).json()).daily.day;
+    const body = (qty, extra = {}) => ({ clientRequestId: randomUUID(), reason: 'Live check', method: 'Card', lines: [{ saleItemId: detail.lines[0].id, qty }], ...extra });
+    assert.equal((await request(`${url}/refund`, { token, body: body(1) })).status, 403, 'a cashier cannot refund');
+    const once = body(1);
+    const refund = await request(`${url}/refund`, { token: manager, body: once });
+    assert.equal(refund.status, 201, await refund.clone().text());
+    assert.equal((await refund.json()).bill.status, 'Partially Refunded');
+    assert.equal(await stockNow(), 7);
+    assert.equal((await request(`${url}/refund`, { token: manager, body: once })).status, 200, 'a retry changes nothing');
+    assert.equal(await stockNow(), 7);
+    const after = (await (await request('/api/transactions/daily', { token: manager })).json()).daily.day;
+    assert.equal(Math.round((after.refunds - before.refunds) * 100) / 100, 118);
+    assert.equal((await request(`${url}/refund`, { token: manager, body: body(99) })).status, 409);
+    assert.equal((await request(`${url}/void`, { token: manager, body: { reason: 'x' } })).status, 409, 'a refunded bill cannot be voided');
+    const rest = await request(`${url}/refund`, { token: manager, body: body(3, { lines: [{ saleItemId: detail.lines[0].id, qty: 3, restock: false }] }) });
+    const finished = (await rest.json()).bill;
+    assert.equal(finished.status, 'Refunded');
+    assert.equal(finished.refunds.reduce((sum, row) => sum + row.total, 0), 472);
+    assert.equal(await stockNow(), 7, 'damaged goods stay out of stock');
+  });
+  await check('a void restores stock, can happen once, and is limited to managers', async () => {
+    await setStock(5);
+    const { sale: bill } = await (await sell(sale({ items: [{ productId: product.id, qty: 2 }], expectedTotal: 236, payment: { method: 'Card' } }))).json();
+    const url = `/api/transactions/bills/${bill.id}/void`;
+    assert.equal((await request(url, { token, body: { reason: 'x' } })).status, 403);
+    assert.equal((await request(url, { token: sessions.Owner.token, body: { reason: 'x' } })).status, 403);
+    assert.equal(await stockNow(), 3);
+    const voided = await request(url, { token: manager, body: { reason: 'Live check' } });
+    assert.equal(voided.status, 200, await voided.clone().text());
+    assert.equal((await voided.json()).bill.status, 'Voided');
+    assert.equal(await stockNow(), 5);
+    assert.equal((await request(url, { token: manager, body: { reason: 'again' } })).status, 409);
+    assert.equal(await stockNow(), 5);
+  });
+  await check('the bills list, month figures and search read real data', async () => {
+    const { bills, total } = await (await request('/api/transactions/bills?status=Voided', { token: sessions.Owner.token })).json();
+    assert.ok(total >= 1);
+    assert.ok(bills.every((row) => row.status === 'Voided'));
+    assert.ok(bills[0].cashier);
+    const found = await (await request(`/api/transactions/bills?q=${firstBill}`, { token })).json();
+    assert.equal(found.bills[0].billNo, firstBill);
+    const { monthly } = await (await request('/api/transactions/monthly', { token: sessions.Owner.token })).json();
+    assert.equal(monthly.months.length, 12);
+    assert.equal(typeof monthly.grossProfit, 'number');
+    const today = new Date().toISOString().slice(0, 10);
+    assert.equal((await request(`/api/transactions/bills?start=${today}&end=${today}`, { token })).status, 200);
   });
   await check('sales reach the dashboard and reports', async () => {
     const { dashboard } = await (await request('/api/dashboard', { token: manager })).json();

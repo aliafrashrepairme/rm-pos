@@ -61,7 +61,7 @@ const saleMissing = sale.error?.code === 'PGRST202';
 if (saleMissing) failed = true;
 console.log(`${saleMissing ? 'FAIL' : 'ok  '} POS functions${saleMissing ? ' (run 0006_pos.sql)' : ''}`);
 
-const transactions = await database.rpc('transactions_daily', {});
+const transactions = await database.rpc('transactions_daily', { p_date: null });
 if (transactions.error) failed = true;
 console.log(`${transactions.error ? 'FAIL' : 'ok  '} transaction functions${transactions.error ? ' (run 0007_transactions.sql)' : ''}`);
 
