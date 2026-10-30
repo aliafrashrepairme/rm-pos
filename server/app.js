@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { createRequireAuth, requirePasswordCurrent } from './middleware/auth.js';
+import { dashboardRoutes } from './routes/dashboard.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
@@ -21,6 +22,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
 
   app.use('/api', createRequireAuth(clients), requirePasswordCurrent);
   app.use('/api/auth', sessionRoutes(clients));
+  app.use('/api/dashboard', dashboardRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

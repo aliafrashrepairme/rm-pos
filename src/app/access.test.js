@@ -26,12 +26,14 @@ test('every screen has a route that leads back to it', () => {
 });
 
 test('every label on the built screens exists in Tamil and Sinhala', () => {
-  const folder = new URL('.', import.meta.url);
-  const sources = [...readdirSync(folder).filter((file) => file.endsWith('.jsx')).map((file) => new URL(file, folder)), new URL('../App.jsx', folder)];
+  const src = new URL('..', import.meta.url);
+  const sources = readdirSync(src, { recursive: true })
+    .filter((file) => file.endsWith('.jsx') && !file.startsWith('reports'))
+    .map((file) => new URL(file.replaceAll('\\', '/'), src));
   const labels = new Set(SCREENS.flatMap((screen) => [screen.name, screen.group]));
   for (const role of ['Owner', 'Manager', 'Cashier', 'Inventory Staff']) labels.add(role);
   for (const source of sources) {
-    for (const match of readFileSync(source, 'utf8').matchAll(/\bt\('((?:[^'\\]|\\.)+)'\)/g)) labels.add(match[1]);
+    for (const match of readFileSync(source, 'utf8').matchAll(/\bt\((['"])((?:(?!\1)[^\\]|\\.)+)\1\)/g)) labels.add(match[2]);
   }
   const missing = [...labels].flatMap((label) => ['ta', 'si'].filter((language) => !hasTranslation(label, language)).map((language) => `${language}: ${label}`));
   assert.deepEqual(missing, []);

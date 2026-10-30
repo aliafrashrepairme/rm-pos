@@ -7,9 +7,10 @@ import Login from './app/Login.jsx';
 import { applyTheme, loadDevicePreferences, saveDevicePreference } from './app/preferences.js';
 import { useHashRoute } from './app/useHashRoute.js';
 import { useI18n } from './i18n/I18nProvider.jsx';
+import Dashboard from './features/dashboard/Dashboard.jsx';
 import ReportsModule from './reports/pages/ReportsModule.jsx';
 
-function Screen({ user, page, onHome }) {
+function Screen({ user, page, onHome, onNavigate }) {
   const { t } = useI18n();
   if (!canOpen(user, page)) {
     return (
@@ -19,6 +20,7 @@ function Screen({ user, page, onHome }) {
       </div>
     );
   }
+  if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Reports') return <ReportsModule user={user} />;
   return (
     <>
@@ -168,7 +170,7 @@ export default function App() {
       onChangePassword={() => setChangingPassword(true)}
       onLogout={logout}
     >
-      <Screen user={user} page={page} onHome={() => navigate(home)} />
+      <Screen user={user} page={page} onHome={() => navigate(home)} onNavigate={navigate} />
     </Layout>
   );
 }

@@ -39,5 +39,9 @@ for (const table of [...Object.keys(EXPECTED_ROWS), ...ANY_ROWS]) {
   }
 }
 
-console.log(failed ? '\nThe database does not match. Run server/supabase/migrations/0001_core_schema.sql.' : '\nThe database matches the migrations.');
+const dashboard = await database.rpc('dashboard_summary');
+if (dashboard.error) failed = true;
+console.log(`${dashboard.error ? 'FAIL' : 'ok  '} dashboard_summary function${dashboard.error ? ' (run 0002_dashboard.sql)' : ''}`);
+
+console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

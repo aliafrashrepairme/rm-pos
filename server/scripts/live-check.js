@@ -12,6 +12,7 @@ import { NO_EMAIL_DOMAIN } from '../services/auth.js';
 const ACCOUNTS = { Owner: 'smoke.owner', Manager: 'smoke.manager', Cashier: 'smoke.cashier', 'Inventory Staff': 'smoke.stock' };
 // Route, then the roles allowed to use it. Everyone else must get 403.
 const ACCESS = [
+  ['/api/dashboard', ['Manager']],
   ['/api/reports/sales', ['Owner', 'Manager']],
   ['/api/reports/products', ['Owner', 'Manager', 'Inventory Staff']],
   ['/api/reports/stock-movements', ['Owner', 'Manager', 'Inventory Staff']]

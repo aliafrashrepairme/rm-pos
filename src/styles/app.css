@@ -24,3 +24,15 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
   .top-actions { flex-wrap: wrap; }
   .main { min-width: 0; }
 }
+.small-note { font-size: 12px; }
+.row-end { text-align: right; }
+.task-sub { margin-bottom: 12px; }
+.chart-sub { margin-bottom: 8px; }
+.head-actions { margin: 0; justify-content: flex-end; }
+.dash-gap { margin-top: 16px; }
+.dash-bottom { align-items: start; }
+.sum-strip small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.sum-strip .dchip { width: fit-content; }
+@media (max-width: 1100px) { .grid.two-col { grid-template-columns: minmax(0, 1fr); } }
+.grid.two-col > * { min-width: 0; }
+.main { min-width: 0; }

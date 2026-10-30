@@ -26,7 +26,8 @@ const makeProfiles = () => [
   profile('cashier', 'Cashier', ['pos.sell']),
   profile('stock', 'Inventory Staff', ['reports.inventory']),
   profile('disabled', 'Manager', ['users.manage'], { active: false }),
-  profile('temp', 'Cashier', ['reports.sales'], { must_change_password: true })
+  profile('temp', 'Cashier', ['reports.sales'], { must_change_password: true }),
+  profile('dash', 'Manager', ['dashboard.view'])
 ];
 
 // Records queries and answers them from `tables`, honouring range() like Supabase does.
@@ -42,6 +43,7 @@ function fakeDatabase(tables) {
         updateUserById: async (id, change) => { admin.passwords.push([id, change.password]); return { error: null }; }
       }
     },
+    rpc: async (name) => name === 'dashboard_summary' ? { data: { today: { net: 5 } }, error: null } : { data: null, error: { message: 'unknown' } },
     from(table) {
       const call = { table, filters: [] };
       calls.push(call);
@@ -303,6 +305,18 @@ test('preferences are per user and validated', async () => {
     assert.deepEqual(tables.user_preferences[0], { user_id: 'owner', language: 'ta' }, 'cannot target another user, and leaves the theme alone');
     assert.equal((await save('owner', {})).status, 400);
     assert.equal((await save('temp', { theme: 'light' })).status, 200, 'works on a temporary password too');
+  });
+});
+
+test('only the dashboard permission can open the dashboard', async () => {
+  await withApi({}, async ({ as, call }) => {
+    assert.equal((await call('/api/dashboard')).status, 401);
+    assert.equal((await as('owner', '/api/dashboard')).status, 403);
+    assert.equal((await as('cashier', '/api/dashboard')).status, 403);
+    assert.equal((await as('stock', '/api/dashboard')).status, 403);
+    const response = await as('dash', '/api/dashboard');
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).dashboard, { today: { net: 5 } });
   });
 });
 
