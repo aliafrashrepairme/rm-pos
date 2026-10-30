@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requirePermission } from '../middleware/auth.js';
+import { scanIntoCount } from '../services/barcode.js';
 import * as inventory from '../services/inventory.js';
 
 const VIEW = requirePermission('inventory.view');
@@ -30,6 +31,9 @@ export function inventoryRoutes(clients) {
   router.put('/counts/:id/lines/:productId', COUNT, async (req, res) => {
     await inventory.setCountLine(clients, req.params.id, req.params.productId, req.body?.counted);
     res.status(204).end();
+  });
+  router.post('/counts/:id/scan', COUNT, async (req, res) => {
+    res.json(await scanIntoCount(clients, req.user, req.params.id, req.body?.code));
   });
   router.post('/counts/:id/submit', COUNT, async (req, res) => {
     res.json({ count: await inventory.submitCount(clients, req.user, req.params.id) });

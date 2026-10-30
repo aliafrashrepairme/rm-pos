@@ -7,6 +7,7 @@ import Login from './app/Login.jsx';
 import { applyTheme, loadDevicePreferences, saveDevicePreference } from './app/preferences.js';
 import { useHashRoute } from './app/useHashRoute.js';
 import { useI18n } from './i18n/I18nProvider.jsx';
+import BarcodePage from './features/barcode/BarcodePage.jsx';
 import Dashboard from './features/dashboard/Dashboard.jsx';
 import InventoryPage from './features/inventory/InventoryPage.jsx';
 import ProductsPage from './features/products/ProductsPage.jsx';
@@ -23,6 +24,7 @@ function Screen({ user, page, onHome, onNavigate }) {
     );
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
+  if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
   if (page === 'Inventory') return <InventoryPage user={user} />;
   if (page === 'Products') return <ProductsPage user={user} />;
   if (page === 'Reports') return <ReportsModule user={user} />;

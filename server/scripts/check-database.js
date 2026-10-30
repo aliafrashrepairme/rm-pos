@@ -51,5 +51,10 @@ const inventory = await database.rpc('inventory_summary');
 if (inventory.error) failed = true;
 console.log(`${inventory.error ? 'FAIL' : 'ok  '} inventory functions${inventory.error ? ' (run 0004_inventory.sql)' : ''}`);
 
+const scan = await database.rpc('scan_stock_count', { p_count_id: '00000000-0000-0000-0000-000000000000', p_product_id: '00000000-0000-0000-0000-000000000000' });
+const scanMissing = scan.error?.code === 'PGRST202';
+if (scanMissing) failed = true;
+console.log(`${scanMissing ? 'FAIL' : 'ok  '} barcode count function${scanMissing ? ' (run 0005_barcode_counts.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

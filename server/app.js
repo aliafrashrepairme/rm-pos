@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { createRequireAuth, requirePasswordCurrent } from './middleware/auth.js';
+import { barcodeRoutes } from './routes/barcode.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
@@ -28,6 +29,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/products', productRoutes(clients));
   app.use('/api/categories', categoryRoutes(clients));
   app.use('/api/inventory', inventoryRoutes(clients));
+  app.use('/api/barcode', barcodeRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

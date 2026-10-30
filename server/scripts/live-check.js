@@ -231,6 +231,42 @@ async function inventoryChecks(sessions) {
   await database.from('categories').update({ active: false }).eq('id', product.category_id);
 }
 
+async function barcodeChecks(sessions) {
+  const product = (await database.from('products').select('id, barcode, category_id').eq('sku', 'SMOKE-1').single()).data;
+  const look = (role, code) => request(`/api/barcode/lookup?code=${encodeURIComponent(code)}`, { token: sessions[role].token });
+
+  await check('a barcode and a SKU both find the product', async () => {
+    assert.equal((await (await look('Inventory Staff', product.barcode)).json()).product.id, product.id);
+    assert.equal((await (await look('Inventory Staff', 'smoke-1')).json()).product.id, product.id);
+  });
+  await check('cashiers can look up a product but do not get its cost', async () => {
+    const text = await (await look('Cashier', product.barcode)).text();
+    assert.equal(JSON.parse(text).product.id, product.id);
+    assert.ok(!text.includes('costPrice'));
+    assert.equal((await look('Owner', product.barcode)).status, 403);
+  });
+  await check('an unknown barcode is reported as unknown', async () => {
+    const response = await look('Cashier', '2099999999993');
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).code, 'UNKNOWN_BARCODE');
+  });
+  await check('scanning into a count adds one each time and then stops', async () => {
+    const token = sessions['Inventory Staff'].token;
+    await database.from('categories').update({ active: true }).eq('id', product.category_id);
+    await database.from('products').update({ active: true }).eq('id', product.id);
+    const { count } = await (await request('/api/inventory/counts', { token, body: { name: 'Live scan', scope: product.category_id, blind: true } })).json();
+    const scan = () => request(`/api/inventory/counts/${count.id}/scan`, { token, body: { code: product.barcode } });
+    assert.equal((await (await scan()).json()).counted, 1);
+    assert.equal((await (await scan()).json()).counted, 2);
+    assert.equal((await request(`/api/inventory/counts/${count.id}/submit`, { token, method: 'POST' })).status, 200);
+    assert.equal((await scan()).status, 409);
+    assert.equal((await request(`/api/inventory/counts/${count.id}/reopen`, { token: sessions.Manager.token, method: 'POST' })).status, 200);
+    await database.from('stock_counts').update({ status: 'Rejected' }).eq('id', count.id);
+    await database.from('products').update({ active: false }).eq('id', product.id);
+    await database.from('categories').update({ active: false }).eq('id', product.category_id);
+  });
+}
+
 const base_url = () => base;
 
 try {
@@ -293,6 +329,7 @@ try {
 
   await productChecks(sessions);
   await inventoryChecks(sessions);
+  await barcodeChecks(sessions);
 
   const cashier = accounts.Cashier;
   const temporary = password();

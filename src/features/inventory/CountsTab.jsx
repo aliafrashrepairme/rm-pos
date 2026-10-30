@@ -127,6 +127,24 @@ function CountDetail({ id, user, onBack }) {
     }
   }
 
+  async function scanCode(code) {
+    try {
+      const scan = await api(`/api/inventory/counts/${id}/scan`, { method: 'POST', body: JSON.stringify({ code }) });
+      const known = count.lines.some((line) => line.productId === scan.productId);
+      if (known) {
+        setCount((current) => ({
+          ...current,
+          lines: current.lines.map((line) => (line.productId === scan.productId ? { ...line, counted: scan.counted, draft: undefined } : line))
+        }));
+      } else {
+        await load();
+      }
+      toast(`${scan.name}: ${t('Counted')} ${quantity(scan.counted)}`);
+    } catch (failure) {
+      toast(t(failure.message));
+    }
+  }
+
   if (error) return <p className="form-error" role="alert">{t(error)}</p>;
   if (!count) return <div className="card"><div className="empty">{t('Loading…')}</div></div>;
 
@@ -156,6 +174,20 @@ function CountDetail({ id, user, onBack }) {
         <span>{t('Counted')} <b>{done}/{count.lines.length}</b></span>
         <Status value={count.status} label={t(count.status)} />
       </div>
+      {editing && (
+        <form
+          className="search count-scan"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const code = event.currentTarget.elements.code.value;
+            event.currentTarget.reset();
+            if (code.trim()) scanCode(code.trim());
+          }}
+        >
+          <span>⌸</span>
+          <input name="code" aria-label={t('Scan or type a barcode — adds +1 automatically')} placeholder={t('Scan or type a barcode — adds +1 automatically')} autoComplete="off" />
+        </form>
+      )}
       {count.showExpected && !editing && <p className="notice">{t('Variance value')}: <b>{money(variance)}</b></p>}
       <div className="table-wrap">
         <table>
