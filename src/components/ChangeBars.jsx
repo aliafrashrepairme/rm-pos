@@ -10,7 +10,7 @@ const TOP = 22;
 const BOTTOM = 32;
 
 // The prototype's bar chart: each bar is coloured by its change from the bar before.
-export default function ChangeBars({ rows, ariaLabel, formatTip }) {
+export default function ChangeBars({ rows, ariaLabel, formatTip, selectedKey, onSelect }) {
   const max = Math.max(...rows.map((row) => row.value), 1) * 1.15;
   const barSlot = (WIDTH - LEFT - 6) / rows.length;
   const y = (value) => TOP + (HEIGHT - TOP) * (1 - value / max);
@@ -30,8 +30,9 @@ export default function ChangeBars({ rows, ariaLabel, formatTip }) {
         const top = y(row.value);
         const color = index === 0 ? FIRST : row.value >= rows[index - 1].value ? UP : DOWN;
         return (
-          <g key={row.key}>
-            <rect x={x} y={top} width={barWidth} height={Math.max(HEIGHT - top, row.value ? 2 : 0)} rx="3" fill={color} />
+          <g key={row.key} className={onSelect ? 'bar-hit' : undefined} onClick={onSelect ? () => onSelect(row) : undefined}>
+            {onSelect && <rect x={LEFT + index * barSlot} y={TOP} width={barSlot} height={HEIGHT - TOP} fill="transparent" />}
+            <rect x={x} y={top} width={barWidth} height={Math.max(HEIGHT - top, row.value ? 2 : 0)} rx="3" fill={color} stroke={row.key === selectedKey ? 'currentColor' : undefined} strokeWidth={row.key === selectedKey ? 2.5 : undefined} />
             <text x={x + barWidth / 2} y={HEIGHT + 18} textAnchor="middle">{row.label}</text>
             <title>{formatTip(row)}</title>
           </g>

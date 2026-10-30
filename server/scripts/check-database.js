@@ -61,5 +61,9 @@ const saleMissing = sale.error?.code === 'PGRST202';
 if (saleMissing) failed = true;
 console.log(`${saleMissing ? 'FAIL' : 'ok  '} POS functions${saleMissing ? ' (run 0006_pos.sql)' : ''}`);
 
+const transactions = await database.rpc('transactions_daily', {});
+if (transactions.error) failed = true;
+console.log(`${transactions.error ? 'FAIL' : 'ok  '} transaction functions${transactions.error ? ' (run 0007_transactions.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

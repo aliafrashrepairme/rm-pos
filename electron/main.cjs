@@ -1,5 +1,6 @@
 // Electron main process (Node.js side)
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const fs = require('node:fs/promises');
 const path = require('node:path');
 
 function createWindow() {
@@ -27,6 +28,20 @@ function createWindow() {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+
+// Saves what the print area shows, using the page's own fonts, so Tamil and Sinhala stay intact.
+ipcMain.handle('print:save-bill-pdf', async (event, fileName) => {
+  const name = path.basename(String(fileName)).replace(/[^A-Za-z0-9._-]/g, '_');
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePath } = await dialog.showSaveDialog(window, {
+    defaultPath: name,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+  if (canceled || !filePath) return false;
+  const pdf = await event.sender.printToPDF({ printBackground: true, pageSize: { width: 3.15, height: 11 }, margins: { marginType: 'none' } });
+  await fs.writeFile(filePath, pdf);
+  return true;
+});
 
 app.whenReady().then(() => {
   createWindow();

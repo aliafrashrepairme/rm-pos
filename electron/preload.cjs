@@ -3,5 +3,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('rmpos', {
-  getVersion: () => ipcRenderer.invoke('app:version')
+  getVersion: () => ipcRenderer.invoke('app:version'),
+  saveBillPdf: (fileName) => ipcRenderer.invoke('print:save-bill-pdf', fileName)
 });

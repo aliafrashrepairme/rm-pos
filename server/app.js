@@ -11,6 +11,7 @@ import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
 import { reportRoutes } from './routes/reports.js';
+import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
 
 export function createApp({ config, authClient, database, limiter = createLoginLimiter() }) {
@@ -32,6 +33,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/inventory', inventoryRoutes(clients));
   app.use('/api/barcode', barcodeRoutes(clients));
   app.use('/api/pos', posRoutes(clients));
+  app.use('/api/transactions', transactionRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

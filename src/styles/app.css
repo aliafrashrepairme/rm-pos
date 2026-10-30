@@ -127,3 +127,17 @@ html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-si
   .bill-head, .bill-line { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); font-size: 11px; }
   .bill-head span { overflow-wrap: anywhere; }
 }
+.bar-hit { cursor: pointer; }
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: var(--soft); }
+.bill-status { margin-bottom: 8px; }
+.bill-actions { flex-wrap: wrap; }
+.receipt-code { margin-top: 8px; }
+.refund-damaged { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; white-space: nowrap; }
+.refund-fields { margin-top: 12px; }
+.refund-total { margin-top: 10px; }
+.heat-legend { align-items: center; }
+.heat-legend i { width: 22px; height: 12px; margin: 0; border-radius: 3px; }
+@media print {
+  #printArea.print-receipt .receipt { box-shadow: none; width: 72mm; max-width: 100%; margin: 0; padding: 0 2mm; }
+}
