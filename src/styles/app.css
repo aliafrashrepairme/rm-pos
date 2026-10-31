@@ -166,3 +166,16 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .ontime .meter { flex: 1; }
 .sup-actions { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
 .inactive-card { opacity: .65; }
+.users-roles { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); margin-bottom: 16px; }
+.user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-field { margin-top: 12px; }
+.settings-save { margin-top: 14px; }
+.tax-edit { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.ref-toggle { display: flex; align-items: center; gap: 5px; }
+.ref-toggle input { width: auto; margin: 0; }
+.receipt-100 { width: 380px; }
+.receipt-a4 { width: 100%; max-width: 620px; }
+@media print {
+  #printArea.print-receipt .receipt.receipt-100 { width: 92mm; }
+  #printArea.print-receipt .receipt.receipt-a4 { width: 180mm; font-size: 14px; }
+}

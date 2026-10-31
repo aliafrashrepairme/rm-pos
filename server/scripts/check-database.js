@@ -81,5 +81,10 @@ const reportFigures = await database.rpc('report_inventory');
 if (reportFigures.error) failed = true;
 console.log(`${reportFigures.error ? 'FAIL' : 'ok  '} report functions${reportFigures.error ? ' (run 0011_reports.sql)' : ''}`);
 
+const staffFunction = await database.rpc('update_staff', { p_actor: '00000000-0000-0000-0000-000000000000', p_target: '00000000-0000-0000-0000-000000000000', p_changes: {} });
+const staffMissing = staffFunction.error && !staffFunction.error.message.includes('User not found');
+if (staffMissing) failed = true;
+console.log(`${staffMissing ? 'FAIL' : 'ok  '} staff functions${staffMissing ? ' (run 0012_users_settings.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

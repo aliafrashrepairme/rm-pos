@@ -32,7 +32,9 @@ ipcMain.handle('app:version', () => app.getVersion());
 // Saves what the print area shows, using the page's own fonts, so Tamil and Sinhala stay intact.
 const PDF_SIZES = {
   receipt: { width: 3.15, height: 11 },
-  a5: 'A5'
+  receipt100: { width: 3.94, height: 11 },
+  a5: 'A5',
+  a4: 'A4'
 };
 
 ipcMain.handle('print:save-pdf', async (event, fileName, size) => {

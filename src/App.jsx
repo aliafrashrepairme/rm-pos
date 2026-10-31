@@ -15,14 +15,16 @@ import HeldOrdersPage from './features/pos/HeldOrdersPage.jsx';
 import PosPage from './features/pos/PosPage.jsx';
 import PurchasesPage from './features/purchases/PurchasesPage.jsx';
 import CustomersPage from './features/customers/CustomersPage.jsx';
+import SettingsPage from './features/settings/SettingsPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
+import UsersPage from './features/users/UsersPage.jsx';
 import BillsPage from './features/transactions/BillsPage.jsx';
 import DailyPage from './features/transactions/DailyPage.jsx';
 import MonthlyPage from './features/transactions/MonthlyPage.jsx';
 import ProductsPage from './features/products/ProductsPage.jsx';
 import ReportsModule from './reports/pages/ReportsModule.jsx';
 
-function Screen({ user, page, onHome, onNavigate }) {
+function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) {
   const { t } = useI18n();
   if (!canOpen(user, page)) {
     return (
@@ -34,6 +36,8 @@ function Screen({ user, page, onHome, onNavigate }) {
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'User Management') return <UsersPage user={user} />;
+  if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
   if (page === 'Customers') return <CustomersPage user={user} />;
   if (page === 'Suppliers') return <SuppliersPage user={user} />;
   if (page === 'Purchases') return <PurchasesPage user={user} />;
@@ -194,7 +198,7 @@ export default function App() {
       onChangePassword={() => setChangingPassword(true)}
       onLogout={logout}
     >
-      <Screen user={user} page={page} onHome={() => navigate(home)} onNavigate={navigate} />
+      <Screen user={user} page={page} onHome={() => navigate(home)} onNavigate={navigate} theme={theme} onTheme={changeTheme} onLanguage={changeLanguage} />
     </Layout>
     </CartProvider>
   );

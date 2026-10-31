@@ -89,6 +89,9 @@ export default function PosPage({ user, onNavigate }) {
   const totals = useMemo(() => cartTotals(lines, offer.rate), [lines, offer.rate]);
   const payment = options?.paymentMethods.find((item) => item.code === method);
   const isCash = payment?.isCash ?? method === 'Cash';
+  useEffect(() => {
+    if (options && !payment && options.paymentMethods[0]) setMethod(options.paymentMethods[0].code);
+  }, [options, payment]);
   const given = cashGiven === '' ? null : Number(cashGiven);
   const decimalUnits = options?.decimalUnits ?? [];
 

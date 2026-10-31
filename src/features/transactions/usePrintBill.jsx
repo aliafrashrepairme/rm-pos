@@ -11,7 +11,7 @@ export function usePrintBill() {
       className: 'print-receipt',
       content: <Receipt bill={bill} />,
       fileName: `${bill.billNo}.pdf`,
-      size: 'receipt',
+      size: { A4: 'a4', '100mm': 'receipt100' }[bill.store.receipt?.size] ?? 'receipt',
       onDone: (done) => {
         api(`/api/transactions/bills/${bill.id}/printed`, { method: 'POST', body: JSON.stringify({ kind: done }) })
           .catch((failure) => console.error('Could not record the printed bill:', failure.message));

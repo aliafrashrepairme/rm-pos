@@ -24,7 +24,9 @@ const UNIQUE_VALUES = {
   sales_client_request_id_key: 'This sale has already been recorded.',
   purchases_supplier_invoice_key: 'This supplier invoice number has already been recorded.',
   suppliers_active_name_key: 'An active supplier with this name already exists.',
-  customers_active_phone_key: 'A customer with this phone number already exists.'
+  customers_active_phone_key: 'A customer with this phone number already exists.',
+  profiles_username_key: 'This username is already taken.',
+  profiles_email_key: 'An account with this email already exists.'
 };
 
 export function fromSupabase(error) {

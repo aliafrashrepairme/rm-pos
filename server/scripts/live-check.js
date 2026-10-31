@@ -20,6 +20,8 @@ const ACCESS = [
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
   ['/api/suppliers', ['Manager', 'Inventory Staff']],
   ['/api/customers', ['Manager', 'Cashier']],
+  ['/api/users', ['Manager']],
+  ['/api/settings', ['Manager']],
   ['/api/purchases', ['Manager', 'Inventory Staff']],
   ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
@@ -748,6 +750,64 @@ try {
     assert.equal(after.user.mustChangePassword, false);
   });
 
+  await check('a Manager adds, changes and removes staff, and Owners stay protected', async () => {
+    const token = sessions.Manager.token;
+    const username = `live.${Date.now()}`;
+    const secret = `Live-${randomBytes(12).toString('hex')}`;
+    const made = await request('/api/users', { token, body: { name: 'Live Staff', username, role: 'Cashier', temporaryPassword: secret } });
+    assert.equal(made.status, 201, await made.clone().text());
+    const { user } = await made.json();
+    assert.equal(user.mustChangePassword, true);
+    const url = `/api/users/${user.id}`;
+    assert.equal((await request('/api/users', { token, body: { name: 'Same', username, role: 'Cashier', temporaryPassword: secret } })).status, 409);
+    const firstLogin = await request('/api/auth/login', { body: { identifier: username, password: secret } });
+    assert.equal(firstLogin.status, 200, await firstLogin.clone().text());
+    assert.equal((await firstLogin.json()).user.mustChangePassword, true);
+    assert.equal((await request(url, { token, method: 'PATCH', body: { role: 'Inventory Staff' } })).status, 200);
+    assert.equal((await request(url, { token, method: 'PATCH', body: { active: false } })).status, 200);
+    assert.equal((await request('/api/auth/login', { body: { identifier: username, password: secret } })).status, 403);
+    const { activity } = await (await request(`${url}/activity`, { token })).json();
+    assert.ok(activity.some((row) => row.action === 'User login'));
+    // It has signed in, so its history keeps it on record.
+    assert.equal((await request(url, { token, method: 'DELETE' })).status, 409);
+
+    const unused = await request('/api/users', { token, body: { name: 'Live Unused', username: `${username}.u`, role: 'Cashier', temporaryPassword: secret } });
+    const unusedId = (await unused.json()).user.id;
+    assert.equal((await request(`/api/users/${unusedId}`, { token, method: 'DELETE' })).status, 204);
+    assert.equal((await request('/api/auth/login', { body: { identifier: `${username}.u`, password: secret } })).status, 401);
+
+    const ownerUrl = `/api/users/${sessions.Owner.user.id}`;
+    assert.equal((await request(ownerUrl, { token, method: 'PATCH', body: { active: false } })).status, 403);
+    assert.equal((await request(ownerUrl, { token, method: 'DELETE' })).status, 403);
+    const { users } = await (await request('/api/users', { token })).json();
+    assert.ok(users.every((row) => row.role !== 'Owner'));
+    const self = `/api/users/${sessions.Manager.user.id}`;
+    assert.equal((await request(self, { token, method: 'PATCH', body: { role: 'Cashier' } })).status, 409);
+  });
+  await check('settings save, reach the receipt, and restore', async () => {
+    const token = sessions.Manager.token;
+    const { settings } = await (await request('/api/settings', { token })).json();
+    assert.equal(settings.currency, 'LKR');
+    const saved = await request('/api/settings', { token, method: 'PATCH', body: { receipt: { footer: 'Live thanks', showTax: false } } });
+    assert.equal(saved.status, 200, await saved.clone().text());
+    try {
+      const { bills } = await (await request('/api/transactions/bills?pageSize=1', { token })).json();
+      const { bill } = await (await request(`/api/transactions/bills/${bills[0].id}`, { token })).json();
+      assert.equal(bill.store.receipt.footer, 'Live thanks');
+      assert.equal(bill.store.receipt.showTax, false);
+    } finally {
+      await request('/api/settings', { token, method: 'PATCH', body: { receipt: settings.receipt } });
+    }
+    const method = settings.paymentMethods.find((row) => row.code === 'Bank transfer');
+    const url = `/api/settings/payment-methods/${encodeURIComponent(method.code)}`;
+    assert.equal((await request(url, { token, method: 'PATCH', body: { active: false } })).status, 200);
+    try {
+      const { paymentMethods } = await (await request('/api/pos/options', { token: sessions.Cashier.token })).json();
+      assert.ok(!paymentMethods.some((row) => row.code === method.code));
+    } finally {
+      await request(url, { token, method: 'PATCH', body: { active: method.active } });
+    }
+  });
   await check('disabling an account blocks its open session, login and refresh', async () => {
     const stock = accounts['Inventory Staff'];
     await database.from('profiles').update({ active: false }).eq('id', stock.id);

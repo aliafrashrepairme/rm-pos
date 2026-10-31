@@ -63,7 +63,7 @@ export async function getBill({ database }, id) {
     .eq('id', id)
     .maybeSingle());
   if (!row) throw new HttpError(404, 'Bill not found.');
-  const store = unwrap(await database.from('store_settings').select('store_name, address, phone, vat_registration, time_zone').single());
+  const store = unwrap(await database.from('store_settings').select('store_name, address, phone, vat_registration, time_zone, receipt').single());
   const payment = row.payments[0];
   return {
     id: row.id,
@@ -108,7 +108,8 @@ export async function getBill({ database }, id) {
       address: store.address,
       phone: store.phone,
       vatRegistration: store.vat_registration,
-      timeZone: store.time_zone
+      timeZone: store.time_zone,
+      receipt: store.receipt ?? {}
     }
   };
 }

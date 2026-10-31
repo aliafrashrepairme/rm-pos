@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { money, quantity } from '../../app/format.js';
 import Modal from '../../components/Modal.jsx';
@@ -10,12 +10,21 @@ export default function SaleCompleteModal({ sale, onClose }) {
   const { payment } = sale;
   const { printArea, printBill, saveBillPdf } = usePrintBill();
   const [bill, setBill] = useState(null);
+  const printed = useRef(false);
 
   useEffect(() => {
     api(`/api/transactions/bills/${sale.id}`)
       .then((result) => setBill(result.bill))
       .catch((failure) => console.error('Could not load the receipt:', failure.message));
   }, [sale.id]);
+
+  useEffect(() => {
+    if (!bill?.store.receipt?.printAfterSale || printed.current) return;
+    printed.current = true;
+    printBill(bill);
+    // printBill changes every render; this should only run once the bill arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bill]);
 
   return (
     <Modal title={`${t('Sale complete')} · ${sale.billNo}`} description={sale.customer} onClose={onClose}>
