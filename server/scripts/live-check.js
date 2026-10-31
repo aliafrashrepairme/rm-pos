@@ -618,7 +618,7 @@ async function saleChecks(sessions) {
     assert.ok(bills[0].payment.includes('Cash'));
     // Reports must agree exactly with the Daily screen.
     const report = await read('/api/reports/sales?preset=today');
-    const { day } = await read('/api/transactions/daily');
+    const { daily: { day } } = await read('/api/transactions/daily');
     assert.deepEqual([report.totals.gross, report.totals.refunds, report.totals.net, report.totals.orders], [day.gross, day.refunds, day.net, day.orders]);
     const payments = await read('/api/reports/payments?preset=today');
     assert.equal(payments.totals.collected, report.totals.gross);

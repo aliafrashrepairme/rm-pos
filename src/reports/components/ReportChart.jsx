@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 
-const COLORS = ['#f6c928', '#18865b', '#3f4248', '#ff8a65', '#4fc3f7', 'var(--muted)'];
+const COLORS = ['#f6c928', '#18865b', '#4fc3f7', '#ff8a65', '#ba68c8', 'var(--muted)'];
 
 export function RevenueTrendChart({ data, height = 260 }) {
   const { t } = useI18n();
@@ -19,7 +19,7 @@ export function RevenueTrendChart({ data, height = 260 }) {
         <XAxis dataKey="date" stroke="var(--muted)" fontSize={11} />
         <YAxis stroke="var(--muted)" fontSize={11} />
         <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--line)', color: 'var(--text)' }} />
-        <Line type="monotone" dataKey="revenue" stroke="#f6c928" strokeWidth={2} dot={false} />
+        <Line isAnimationActive={false} type="monotone" dataKey="revenue" stroke="#f6c928" strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -35,7 +35,7 @@ export function TopProductsChart({ data, height = 260 }) {
         <XAxis type="number" stroke="var(--muted)" fontSize={11} />
         <YAxis type="category" dataKey="name" stroke="var(--muted)" fontSize={11} width={140} />
         <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--line)', color: 'var(--text)' }} />
-        <Bar dataKey="qty" fill="#f6c928" radius={[0, 4, 4, 0]} />
+        <Bar isAnimationActive={false} dataKey="qty" fill="#f6c928" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -47,7 +47,7 @@ export function PaymentMethodChart({ data, height = 260 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
-        <Pie data={data} dataKey="amount" nameKey="method" cx="50%" cy="50%" outerRadius={90} label>
+        <Pie isAnimationActive={false} data={data} dataKey="amount" nameKey="method" cx="50%" cy="50%" outerRadius={90} label>
           {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
         </Pie>
         <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--line)', color: 'var(--text)' }} />
@@ -67,7 +67,7 @@ export function CategoryBarChart({ data, height = 260 }) {
         <XAxis dataKey="category" stroke="var(--muted)" fontSize={11} />
         <YAxis stroke="var(--muted)" fontSize={11} />
         <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--line)', color: 'var(--text)' }} />
-        <Bar dataKey="revenue" fill="#4fc3f7" radius={[4, 4, 0, 0]} />
+        <Bar isAnimationActive={false} dataKey="revenue" fill="#4fc3f7" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

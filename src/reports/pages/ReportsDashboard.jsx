@@ -35,7 +35,7 @@ export default function ReportsDashboard() {
       {totals && (
         <>
           <SumStrip items={[
-            { label: t('Total revenue'), value: money(totals.net), note: `${t('After refunds')}: ${money(totals.refunds)}` },
+            { label: t('Total revenue'), value: money(totals.net), note: `${t('Refunds')}: ${money(totals.refunds)}` },
             { label: t('Total orders'), value: totals.orders },
             { label: t('Average order value'), value: money(totals.average) },
             { label: t('Total products sold'), value: quantity(totals.items) },
@@ -44,7 +44,9 @@ export default function ReportsDashboard() {
           <div className="rpt-charts-grid">
             <div className="card rpt-chart-card"><h3>{t('Sales trend')}</h3><p className="sub">{t('Revenue after refunds')}</p><RevenueTrendChart data={sales.data.trend} /></div>
             <div className="card rpt-chart-card"><h3>{t('Best-selling products')}</h3><p className="sub">{t('By quantity sold')}</p><TopProductsChart data={[...sales.data.products].sort((a, b) => b.qty - a.qty).slice(0, 5)} /></div>
-            <div className="card rpt-chart-card"><h3>{t('Payment distribution')}</h3><p className="sub">{t('Money collected by method')}</p><PaymentMethodChart data={(payments.data?.methods ?? []).filter((row) => row.collected > 0).map((row) => ({ method: t(row.method), amount: row.collected }))} /></div>
+            <div className="card rpt-chart-card"><h3>{t('Payment distribution')}</h3><p className="sub">{t('Money collected by method')}</p>{payments.data
+              ? <PaymentMethodChart data={payments.data.methods.filter((row) => row.collected > 0).map((row) => ({ method: t(row.method), amount: row.collected }))} />
+              : <div className="rpt-chart-empty">{t('Loading…')}</div>}</div>
           </div>
           <div>
             <h3 className="rpt-heading">{t('Recent sales')}</h3>

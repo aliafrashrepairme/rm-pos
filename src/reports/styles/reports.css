@@ -1,5 +1,5 @@
 /* Reports layout. Colours and shared pieces come from the prototype's styles. */
-.rpt-page { display: grid; gap: 16px; min-width: 0; }
+.rpt-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
 .rpt-page > * { min-width: 0; }
 .rpt-page .tabs, .rpt-page .sum-strip, .rpt-page .page-head { margin-bottom: 0; }
 .rpt-heading { margin: 0 0 10px; }
