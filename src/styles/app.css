@@ -14,6 +14,7 @@
 .nav button { min-width: 0; }
 .nav button .label { min-width: 0; overflow-wrap: break-word; text-align: left; }
 html[lang='ta'] .nav button .label, html[lang='si'] .nav button .label { font-size: 13px; }
+html[lang='ta'] .nav button .label { font-size: 12px; }
 .crumb-sep { margin: 0 8px; color: #aaa; }
 .access-denied { max-width: 520px; }
 .login-submit:disabled { opacity: .6; cursor: wait; }
