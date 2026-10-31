@@ -126,7 +126,7 @@ test('config lists each missing setting', () => {
   assert.throws(() => readConfig({ SUPABASE_URL: 'x' }), /SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY/);
   assert.deepEqual(
     readConfig({ SUPABASE_URL: 'x', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', CORS_ORIGINS: 'app://rm-pos, http://a' }).corsOrigins,
-    ['app://rm-pos', 'http://a']
+    ['app://rmpos', 'app://rm-pos', 'http://a']
   );
 });
 

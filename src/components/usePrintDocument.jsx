@@ -32,6 +32,14 @@ export function usePrintDocument() {
         })
         .catch(() => toast(t('The PDF could not be saved.')))
         .finally(finish);
+    } else if (job.kind !== 'pdf' && window.rmpos?.print) {
+      window.rmpos.print(job.size)
+        .then(({ printed, cancelled }) => {
+          if (printed) job.onDone?.(job.kind);
+          else if (!cancelled) toast(t('It could not be printed. Check the printer and try again.'));
+        })
+        .catch(() => toast(t('It could not be printed. Check the printer and try again.')))
+        .finally(finish);
     } else {
       // In a browser, the print dialog's "Save as PDF" does the same job.
       job.onDone?.(job.kind);

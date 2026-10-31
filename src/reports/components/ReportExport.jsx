@@ -25,6 +25,7 @@ export default function ReportExport({ user, report, title, subtitle, columns, r
       } else {
         startPrint({
           kind: 'print',
+          size: 'a4',
           className: 'print-report',
           content: (
             <div className="report-print">

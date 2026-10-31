@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REQUIRED = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
 const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const DESKTOP_ORIGIN = 'app://rmpos';
 
 export function loadEnvFile() {
   try {
@@ -23,8 +24,8 @@ export function readConfig(env = process.env) {
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
     anthropicApiKey: env.ANTHROPIC_API_KEY || '',
     trustProxy: env.TRUST_PROXY ? Number(env.TRUST_PROXY) : 0,
-    corsOrigins: env.CORS_ORIGINS
+    corsOrigins: [DESKTOP_ORIGIN, ...(env.CORS_ORIGINS
       ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-      : DEFAULT_ORIGINS
+      : DEFAULT_ORIGINS)]
   };
 }

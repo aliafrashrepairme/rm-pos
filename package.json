@@ -33,12 +33,23 @@
   "build": {
     "appId": "lk.repairme.rmpos",
     "productName": "RM POS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "files": [
       "dist/**",
-      "electron/**"
+      "electron/**",
+      "!node_modules/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     }
   }
 }
