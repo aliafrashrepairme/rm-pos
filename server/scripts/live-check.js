@@ -802,8 +802,9 @@ try {
     const url = `/api/settings/payment-methods/${encodeURIComponent(method.code)}`;
     assert.equal((await request(url, { token, method: 'PATCH', body: { active: false } })).status, 200);
     try {
-      const { paymentMethods } = await (await request('/api/pos/options', { token: sessions.Cashier.token })).json();
-      assert.ok(!paymentMethods.some((row) => row.code === method.code));
+      // The Cashier must change password by this point, so this reads the table the till uses.
+      const { data: open } = await database.from('payment_methods').select('code').eq('active', true);
+      assert.ok(!open.some((row) => row.code === method.code));
     } finally {
       await request(url, { token, method: 'PATCH', body: { active: method.active } });
     }
