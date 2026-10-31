@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/health.js';
 import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
+import { customerRoutes } from './routes/customers.js';
 import { purchaseRoutes } from './routes/purchases.js';
 import { supplierRoutes } from './routes/suppliers.js';
 import { reportRoutes } from './routes/reports.js';
@@ -38,6 +39,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/transactions', transactionRoutes(clients));
   app.use('/api/purchases', purchaseRoutes(clients));
   app.use('/api/suppliers', supplierRoutes(clients));
+  app.use('/api/customers', customerRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

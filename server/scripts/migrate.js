@@ -16,7 +16,8 @@ const APPLIED_BY_HAND = {
   '0006_pos.sql': "to_regprocedure('public.create_sale(jsonb, uuid)') is not null",
   '0007_transactions.sql': "to_regprocedure('public.refund_sale(jsonb, uuid)') is not null",
   '0008_purchases.sql': "to_regprocedure('public.receive_purchase(jsonb, uuid)') is not null",
-  '0009_suppliers.sql': "to_regprocedure('public.supplier_stats(uuid)') is not null"
+  '0009_suppliers.sql': "to_regprocedure('public.supplier_stats(uuid)') is not null",
+  '0010_customers.sql': "to_regprocedure('public.customer_stats(uuid)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

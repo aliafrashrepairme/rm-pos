@@ -19,6 +19,7 @@ const ACCESS = [
   ['/api/transactions/monthly', ['Owner', 'Manager']],
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
   ['/api/suppliers', ['Manager', 'Inventory Staff']],
+  ['/api/customers', ['Manager', 'Cashier']],
   ['/api/purchases', ['Manager', 'Inventory Staff']],
   ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
@@ -487,6 +488,32 @@ async function saleChecks(sessions) {
     const response = await sell(sale({ items: [{ productId: product.id, qty: 9999 }], expectedTotal: 1179882 , payment: { method: 'Card' } }));
     assert.equal(response.status, 409, await response.clone().text());
     assert.equal(await stockNow(), 15);
+  });
+  await check('a customer sale reaches the profile, and only a Manager sets opening points', async () => {
+    const manager = sessions.Manager.token;
+    const cashier = sessions.Cashier.token;
+    const phone = `07${String(Date.now()).slice(-8)}`;
+    assert.equal((await request('/api/customers', { token: cashier, body: { name: 'Live Points', loyaltyPoints: 1000 } })).status, 403);
+    assert.equal((await request('/api/customers', { token: sessions.Owner.token })).status, 403);
+    const made = await request('/api/customers', { token: cashier, body: { name: `Live Customer ${phone}`, phone, address: '1 Test Road' } });
+    assert.equal(made.status, 201, await made.clone().text());
+    const { customer } = await made.json();
+    assert.equal((await request('/api/customers', { token: cashier, body: { name: 'Same Phone', phone } })).status, 409);
+    const url = `/api/customers/${customer.id}`;
+    const before = (await (await request(url, { token: cashier })).json()).customer;
+    assert.deepEqual([before.billCount, before.stats.spent, before.stats.lastPurchaseAt], [0, 0, null]);
+    const sold = await sell(sale({ customerId: customer.id }));
+    assert.equal(sold.status, 201, await sold.clone().text());
+    const { sale: bill } = await sold.json();
+    const after = (await (await request(url, { token: cashier })).json()).customer;
+    assert.equal(after.billCount, 1);
+    assert.equal(after.bills[0].billNo, bill.billNo);
+    assert.equal(after.purchaseCount, 1);
+    assert.ok(after.loyaltyPoints > 0);
+    assert.ok(after.stats.spent > 0);
+    const found = await (await request(`/api/customers?q=${phone}`, { token: manager })).json();
+    assert.deepEqual(found.customers.map((row) => row.id), [customer.id]);
+    assert.equal((await request(url, { token: manager, method: 'PATCH', body: { active: false } })).status, 200);
   });
   await check('two sales racing for the last units cannot oversell', async () => {
     await setStock(3);

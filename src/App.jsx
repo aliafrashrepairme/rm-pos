@@ -14,6 +14,7 @@ import { CartProvider } from './features/pos/CartContext.jsx';
 import HeldOrdersPage from './features/pos/HeldOrdersPage.jsx';
 import PosPage from './features/pos/PosPage.jsx';
 import PurchasesPage from './features/purchases/PurchasesPage.jsx';
+import CustomersPage from './features/customers/CustomersPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
 import BillsPage from './features/transactions/BillsPage.jsx';
 import DailyPage from './features/transactions/DailyPage.jsx';
@@ -33,6 +34,7 @@ function Screen({ user, page, onHome, onNavigate }) {
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'Customers') return <CustomersPage user={user} />;
   if (page === 'Suppliers') return <SuppliersPage user={user} />;
   if (page === 'Purchases') return <PurchasesPage user={user} />;
   if (page === 'Bills Register') return <BillsPage user={user} />;

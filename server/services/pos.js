@@ -1,6 +1,7 @@
 import { selectAll } from '../db.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { createCustomer as saveCustomer } from './customers.js';
 import { signedImageUrls } from './products.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -85,17 +86,8 @@ export async function searchCustomers({ database }, query) {
   return unwrap(await request.order('name').limit(20)).map(asCustomer);
 }
 
-export async function createCustomer({ database }, user, body) {
-  const name = typeof body?.name === 'string' ? body.name.trim() : '';
-  const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
-  if (!name || name.length > 120) throw new HttpError(400, 'Enter the customer name.');
-  if (!phone || !/^[0-9+() -]{6,20}$/.test(phone)) throw new HttpError(400, 'Enter a valid phone number.');
-  const existing = unwrap(await database.from('customers').select('id').eq('phone', phone).maybeSingle());
-  if (existing) throw new HttpError(409, 'A customer with this phone number already exists.');
-  const id = unwrap(await database.rpc('create_customer', { p_name: name, p_phone: phone }));
-  const row = unwrap(await database.from('customers').select(CUSTOMER_COLUMNS).eq('id', id).single());
-  await writeAudit(database, { user, action: 'Customer added', description: `${row.code} ${row.name}`, entityType: 'customer', entityId: id });
-  return asCustomer(row);
+export function createCustomer(clients, user, body) {
+  return saveCustomer(clients, user, { name: body?.name, phone: body?.phone }, { phoneRequired: true });
 }
 
 function itemsFrom(body) {
