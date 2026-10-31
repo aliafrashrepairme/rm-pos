@@ -7,6 +7,7 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
 import { createInvoiceExtractor } from './services/invoiceExtractor.js';
+import { auditRoutes, dataRoutes, listRoutes } from './routes/data.js';
 import { healthRoutes } from './routes/health.js';
 import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
@@ -45,6 +46,9 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/customers', customerRoutes(clients));
   app.use('/api/settings', settingsRoutes(clients));
   app.use('/api/invoice-scans', invoiceScanRoutes(clients));
+  app.use('/api/data', dataRoutes(clients));
+  app.use('/api/lists', listRoutes(clients));
+  app.use('/api/audit', auditRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

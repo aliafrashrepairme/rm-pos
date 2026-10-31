@@ -22,6 +22,11 @@ const ACCESS = [
   ['/api/customers', ['Manager', 'Cashier']],
   ['/api/users', ['Manager']],
   ['/api/settings', ['Manager']],
+  ['/api/lists', ['Manager']],
+  ['/api/audit', ['Manager']],
+  ['/api/audit/actions', ['Manager']],
+  ['/api/data/export/valuation', ['Manager']],
+  ['/api/data/import/products/template', ['Manager']],
   ['/api/invoice-scans', ['Manager']],
   ['/api/invoice-scans/status', ['Manager']],
   ['/api/invoice-scans/options', ['Manager']],
@@ -851,6 +856,52 @@ try {
     } finally {
       await request(url, { token, method: 'PATCH', body: { active: method.active } });
     }
+  });
+  await check('imports save all or nothing, and exports read real records', async () => {
+    const token = sessions.Manager.token;
+    const send = (path, body) => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'text/csv', Authorization: `Bearer ${token}` }, body, signal: AbortSignal.timeout(20000) });
+    const stamp = Date.now();
+    const bad = `name,phone\nLive Import ${stamp} A,07${String(stamp).slice(-8)}\n,0770000000`;
+    const report = await (await send('/api/data/import/customers/validate', bad)).json();
+    assert.equal(report.errorCount, 1);
+    assert.equal((await send('/api/data/import/customers', bad)).status, 422);
+    const { data: none } = await database.from('customers').select('id').like('name', `Live Import ${stamp}%`);
+    assert.equal(none.length, 0, 'a file with an error saves nothing');
+    const good = `name,phone\nLive Import ${stamp} A,07${String(stamp).slice(-8)}\nLive Import ${stamp} B,`;
+    const imported = await send('/api/data/import/customers', good);
+    assert.equal(imported.status, 200, await imported.clone().text());
+    assert.deepEqual(await imported.json(), { imported: 2 });
+    const repeat = await (await send('/api/data/import/customers/validate', good)).json();
+    assert.equal(repeat.errorCount, 2, 'importing the same file again finds duplicates');
+    await database.from('customers').update({ active: false }).like('name', `Live Import ${stamp}%`);
+
+    for (const kind of ['products', 'bills', 'ledger', 'valuation']) {
+      const response = await request(`/api/data/export/${kind}`, { token });
+      assert.equal(response.status, 200, kind);
+      assert.ok((await response.text()).startsWith('\uFEFF'), kind);
+    }
+    const bills = await (await request('/api/data/export/bills', { token })).text();
+    assert.ok(bills.includes('RM-INV-'), 'the export has real bills');
+
+    const { entries } = await (await request('/api/audit?preset=today&action=Data%20imported', { token })).json();
+    assert.ok(entries.some((row) => row.description.includes('customers: 2')));
+    assert.ok(entries.every((row) => row.action === 'Data imported'));
+    const tamper = await database.from('audit_logs').update({ action: 'changed' }).eq('id', entries[0].id);
+    assert.ok(tamper.error, 'the audit log cannot be edited even with full database access');
+    const removed = await database.from('audit_logs').delete().eq('id', entries[0].id);
+    assert.ok(removed.error, 'the audit log cannot be deleted');
+    const actions = (await (await request('/api/audit/actions', { token })).json()).actions;
+    for (const action of ['User login', 'User logout', 'User created', 'Role changed', 'Product created', 'Sale completed', 'Settings changed']) assert.ok(actions.includes(action), action);
+
+    const unit = `Live${stamp}`;
+    assert.equal((await request('/api/lists/units', { token, body: { code: unit } })).status, 201);
+    assert.equal((await request('/api/lists/units', { token, body: { code: unit.toLowerCase() } })).status, 409);
+    assert.equal((await request(`/api/lists/units/${unit}`, { token, method: 'PATCH', body: { active: false } })).status, 200);
+    const lists = await (await request('/api/lists', { token })).json();
+    assert.ok(lists.units.some((row) => row.code === unit && !row.active));
+    const inUse = lists.units.find((row) => row.products > 0);
+    assert.ok(inUse, 'the test product uses a unit');
+    assert.equal((await request(`/api/lists/units/${inUse.code}`, { token, method: 'PATCH', body: { active: false } })).status, 409);
   });
   await check('disabling an account blocks its open session, login and refresh', async () => {
     const stock = accounts['Inventory Staff'];

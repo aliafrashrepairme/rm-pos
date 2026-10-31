@@ -90,5 +90,9 @@ const scanFunction = await database.rpc('match_invoice_text', { p_text: 'check' 
 if (scanFunction.error) failed = true;
 console.log(`${scanFunction.error ? 'FAIL' : 'ok  '} invoice scan functions${scanFunction.error ? ' (run 0013_invoice_scans.sql)' : ''}`);
 
+const importFunctions = await database.rpc('audit_actions');
+if (importFunctions.error) failed = true;
+console.log(`${importFunctions.error ? 'FAIL' : 'ok  '} import and audit functions${importFunctions.error ? ' (run 0014_import_lists.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);
