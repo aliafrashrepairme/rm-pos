@@ -25,6 +25,8 @@ const UNIQUE_VALUES = {
   purchases_supplier_invoice_key: 'This supplier invoice number has already been recorded.',
   suppliers_active_name_key: 'An active supplier with this name already exists.',
   customers_active_phone_key: 'A customer with this phone number already exists.',
+  shifts_one_open_per_cashier: 'You already have an open shift.',
+  shifts_one_open_per_counter: 'This counter already has an open shift.',
   profiles_username_key: 'This username is already taken.',
   profiles_email_key: 'An account with this email already exists.'
 };

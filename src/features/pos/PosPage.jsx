@@ -62,6 +62,10 @@ export default function PosPage({ user, onNavigate }) {
   const [categoryId, setCategoryId] = useState('');
   const [page, setPage] = useState(1);
   const [method, setMethod] = useState('Cash');
+  const [noShift, setNoShift] = useState(false);
+  useEffect(() => {
+    api('/api/shifts/options').then(({ current }) => setNoShift(!current)).catch(() => {});
+  }, []);
   const [cashGiven, setCashGiven] = useState('');
   const [reference, setReference] = useState('');
   const [couponInput, setCouponInput] = useState('');
@@ -309,6 +313,7 @@ export default function PosPage({ user, onNavigate }) {
         </div>
       </div>
 
+      {noShift && <div className="light-note pos-shift-note">{t('No shift is open, so cash from these sales will not be counted in a drawer. Open one in Shifts & Cash.')}</div>}
       <div className="pos-layout">
         <div>
           <div className="toolbar">

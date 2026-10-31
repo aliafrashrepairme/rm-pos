@@ -94,5 +94,9 @@ const importFunctions = await database.rpc('audit_actions');
 if (importFunctions.error) failed = true;
 console.log(`${importFunctions.error ? 'FAIL' : 'ok  '} import and audit functions${importFunctions.error ? ' (run 0014_import_lists.sql)' : ''}`);
 
+const shiftFunction = await database.rpc('shift_figures', { p_shift: '00000000-0000-0000-0000-000000000000' });
+if (shiftFunction.error) failed = true;
+console.log(`${shiftFunction.error ? 'FAIL' : 'ok  '} shift functions${shiftFunction.error ? ' (run 0015_shifts.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

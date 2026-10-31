@@ -204,3 +204,7 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 @media print {
   html, body.print-labels { background: #fff !important; }
 }
+.shift-report hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+#printArea .report-print .total-row { display: flex; justify-content: space-between; color: #000; padding: 2px 0; }
+#printArea .report-print hr { border: 0; border-top: 1px solid #999; }
+.pos-shift-note { margin-bottom: 12px; }

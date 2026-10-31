@@ -16,6 +16,7 @@ import PosPage from './features/pos/PosPage.jsx';
 import PurchasesPage from './features/purchases/PurchasesPage.jsx';
 import CustomersPage from './features/customers/CustomersPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
+import ShiftsPage from './features/shifts/ShiftsPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
 import UsersPage from './features/users/UsersPage.jsx';
 import AiScanPage from './features/aiscan/AiScanPage.jsx';
@@ -46,6 +47,7 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   if (page === 'AI Invoice Scan') return <AiScanPage user={user} />;
   if (page === 'User Management') return <UsersPage user={user} />;
   if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
+  if (page === 'Shifts & Cash') return <ShiftsPage user={user} />;
   if (page === 'Customers') return <CustomersPage user={user} />;
   if (page === 'Suppliers') return <SuppliersPage user={user} />;
   if (page === 'Purchases') return <PurchasesPage user={user} />;
@@ -56,15 +58,7 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   if (page === 'Held Orders') return <HeldOrdersPage onNavigate={onNavigate} />;
   if (page === 'Inventory') return <InventoryPage user={user} />;
   if (page === 'Products') return <ProductsPage user={user} />;
-  if (page === 'Reports') return <ReportsModule user={user} />;
-  return (
-    <>
-      <div className="page-head">
-        <div><div className="eyebrow">{t('RM HARDWARE STORE')}</div><h1>{t(page)}</h1></div>
-      </div>
-      <div className="card"><div className="empty">{t('This screen is not built yet. It is scheduled in a later development phase.')}</div></div>
-    </>
-  );
+  return <ReportsModule user={user} />;
 }
 
 export default function App() {

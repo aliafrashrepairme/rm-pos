@@ -16,6 +16,7 @@ import { categoryRoutes, productRoutes } from './routes/products.js';
 import { customerRoutes } from './routes/customers.js';
 import { purchaseRoutes } from './routes/purchases.js';
 import { settingsRoutes } from './routes/settings.js';
+import { shiftRoutes } from './routes/shifts.js';
 import { supplierRoutes } from './routes/suppliers.js';
 import { reportRoutes } from './routes/reports.js';
 import { transactionRoutes } from './routes/transactions.js';
@@ -48,6 +49,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/invoice-scans', invoiceScanRoutes(clients));
   app.use('/api/data', dataRoutes(clients));
   app.use('/api/lists', listRoutes(clients));
+  app.use('/api/shifts', shiftRoutes(clients));
   app.use('/api/audit', auditRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));

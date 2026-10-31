@@ -21,7 +21,8 @@ const APPLIED_BY_HAND = {
   '0011_reports.sql': "to_regprocedure('public.report_inventory()') is not null",
   '0012_users_settings.sql': "to_regprocedure('public.set_default_tax_rate(uuid)') is not null",
   '0013_invoice_scans.sql': "to_regprocedure('public.match_invoice_text(text)') is not null",
-  '0014_import_lists.sql': "to_regprocedure('public.audit_actions()') is not null"
+  '0014_import_lists.sql': "to_regprocedure('public.audit_actions()') is not null",
+  '0015_shifts.sql': "to_regprocedure('public.shift_figures(uuid)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

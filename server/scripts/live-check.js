@@ -23,6 +23,9 @@ const ACCESS = [
   ['/api/users', ['Manager']],
   ['/api/settings', ['Manager']],
   ['/api/lists', ['Manager']],
+  ['/api/shifts', ['Manager', 'Cashier']],
+  ['/api/shifts/options', ['Manager', 'Cashier']],
+  ['/api/shifts/expenses', ['Manager', 'Cashier']],
   ['/api/audit', ['Manager']],
   ['/api/audit/actions', ['Manager']],
   ['/api/data/export/valuation', ['Manager']],
@@ -537,6 +540,33 @@ async function saleChecks(sessions) {
     const found = await (await request(`/api/customers?q=${phone}`, { token: manager })).json();
     assert.deepEqual(found.customers.map((row) => row.id), [customer.id]);
     assert.equal((await request(url, { token: manager, method: 'PATCH', body: { active: false } })).status, 200);
+  });
+  await check('a cash shift adds up from real sales, refunds and expenses', async () => {
+    const cashier = sessions.Cashier.token;
+    const { counters, current } = await (await request('/api/shifts/options', { token: cashier })).json();
+    if (current) await request(`/api/shifts/${current.id}/close`, { token: cashier, body: { countedCash: 0 } });
+    const opened = await request('/api/shifts', { token: cashier, body: { counterId: counters[0].id, openingCash: 1000 } });
+    assert.equal(opened.status, 201, await opened.clone().text());
+    const { id } = await opened.json();
+    const url = `/api/shifts/${id}`;
+    try {
+      assert.equal((await request('/api/shifts', { token: cashier, body: { counterId: counters[0].id, openingCash: 1 } })).status, 409);
+      const sold = await sell(sale());
+      assert.equal(sold.status, 201, await sold.clone().text());
+      assert.equal((await request('/api/shifts/expenses', { token: cashier, body: { category: 'Other', description: 'Live tea', amount: 18 } })).status, 201);
+      const { shift } = await (await request(url, { token: cashier })).json();
+      assert.deepEqual([shift.figures.cashSales, shift.figures.cashExpenses, shift.expectedCash], [118, 18, 1100]);
+      assert.equal((await request(url, { token: sessions.Owner.token })).status, 403);
+      const closed = await request(`${url}/close`, { token: cashier, body: { countedCash: 1095 } });
+      assert.equal(closed.status, 200, await closed.clone().text());
+      assert.equal((await closed.json()).variance, -5);
+      assert.equal((await request(`${url}/close`, { token: cashier, body: { countedCash: 1 } })).status, 409);
+      const { shifts } = await (await request('/api/shifts', { token: sessions.Manager.token })).json();
+      const row = shifts.find((item) => item.id === id);
+      assert.deepEqual([row.status, row.expectedCash, row.countedCash, row.variance], ['Closed', 1100, 1095, -5]);
+    } finally {
+      await request(`${url}/close`, { token: cashier, body: { countedCash: 0 } });
+    }
   });
   await check('two sales racing for the last units cannot oversell', async () => {
     await setStock(3);
