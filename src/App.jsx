@@ -18,6 +18,7 @@ import CustomersPage from './features/customers/CustomersPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
 import UsersPage from './features/users/UsersPage.jsx';
+import AiScanPage from './features/aiscan/AiScanPage.jsx';
 import BillsPage from './features/transactions/BillsPage.jsx';
 import DailyPage from './features/transactions/DailyPage.jsx';
 import MonthlyPage from './features/transactions/MonthlyPage.jsx';
@@ -36,6 +37,7 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   }
   if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
   if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'AI Invoice Scan') return <AiScanPage user={user} />;
   if (page === 'User Management') return <UsersPage user={user} />;
   if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
   if (page === 'Customers') return <CustomersPage user={user} />;

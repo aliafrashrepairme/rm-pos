@@ -6,9 +6,11 @@ import { dashboardRoutes } from './routes/dashboard.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
+import { createInvoiceExtractor } from './services/invoiceExtractor.js';
 import { healthRoutes } from './routes/health.js';
 import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
+import { invoiceScanRoutes } from './routes/invoiceScans.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
 import { customerRoutes } from './routes/customers.js';
 import { purchaseRoutes } from './routes/purchases.js';
@@ -18,8 +20,8 @@ import { reportRoutes } from './routes/reports.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
 
-export function createApp({ config, authClient, database, limiter = createLoginLimiter() }) {
-  const clients = { authClient, database, limiter };
+export function createApp({ config, authClient, database, limiter = createLoginLimiter(), extractor = createInvoiceExtractor(config) }) {
+  const clients = { authClient, database, limiter, extractor };
   const app = express();
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
@@ -42,6 +44,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/suppliers', supplierRoutes(clients));
   app.use('/api/customers', customerRoutes(clients));
   app.use('/api/settings', settingsRoutes(clients));
+  app.use('/api/invoice-scans', invoiceScanRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
 

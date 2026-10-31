@@ -86,5 +86,9 @@ const staffMissing = staffFunction.error && !staffFunction.error.message.include
 if (staffMissing) failed = true;
 console.log(`${staffMissing ? 'FAIL' : 'ok  '} staff functions${staffMissing ? ' (run 0012_users_settings.sql)' : ''}`);
 
+const scanFunction = await database.rpc('match_invoice_text', { p_text: 'check' });
+if (scanFunction.error) failed = true;
+console.log(`${scanFunction.error ? 'FAIL' : 'ok  '} invoice scan functions${scanFunction.error ? ' (run 0013_invoice_scans.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

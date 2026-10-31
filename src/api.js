@@ -68,3 +68,15 @@ export async function api(path, options = {}) {
   }
   return data;
 }
+
+// For stored files, which need the sign-in but aren't JSON.
+export async function apiFile(path) {
+  const res = await send(path, {}, getAuthToken());
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const error = new Error(data.error || `Request failed (${res.status})`);
+    error.status = res.status;
+    throw error;
+  }
+  return res.blob();
+}
