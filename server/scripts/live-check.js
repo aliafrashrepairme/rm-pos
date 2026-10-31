@@ -33,6 +33,11 @@ const ACCESS = [
   ['/api/products/options', ['Manager', 'Inventory Staff']],
   ['/api/reports/sales', ['Owner', 'Manager']],
   ['/api/reports/products', ['Owner', 'Manager', 'Inventory Staff']],
+  ['/api/reports/inventory', ['Owner', 'Manager', 'Inventory Staff']],
+  ['/api/reports/payments', ['Owner', 'Manager']],
+  ['/api/reports/sales/bills', ['Owner', 'Manager']],
+  ['/api/reports/payments/list', ['Owner', 'Manager']],
+  ['/api/reports/filters', ['Owner', 'Manager', 'Inventory Staff']],
   ['/api/reports/stock-movements', ['Owner', 'Manager', 'Inventory Staff']]
 ];
 
@@ -602,8 +607,38 @@ async function saleChecks(sessions) {
     const { dashboard } = await (await request('/api/dashboard', { token: manager })).json();
     assert.ok(dashboard.today.orders > 0);
     assert.ok(dashboard.recentSales.some((row) => row.status === 'Paid'));
-    const { sales } = await (await request('/api/reports/sales', { token: sessions.Owner.token })).json();
-    assert.ok(sales.some((row) => row.orderId === firstBill && row.status === 'Completed' && row.paymentMethod === 'Cash'));
+    const owner = sessions.Owner.token;
+    const read = async (path, token = owner) => {
+      const response = await request(path, { token });
+      assert.equal(response.status, 200, `${path}: ${await response.clone().text()}`);
+      return response.json();
+    };
+    const { bills } = await read(`/api/reports/sales/bills?preset=today&q=${firstBill}`);
+    assert.equal(bills[0].billNo, firstBill);
+    assert.ok(bills[0].payment.includes('Cash'));
+    // Reports must agree exactly with the Daily screen.
+    const report = await read('/api/reports/sales?preset=today');
+    const { day } = await read('/api/transactions/daily');
+    assert.deepEqual([report.totals.gross, report.totals.refunds, report.totals.net, report.totals.orders], [day.gross, day.refunds, day.net, day.orders]);
+    const payments = await read('/api/reports/payments?preset=today');
+    assert.equal(payments.totals.collected, report.totals.gross);
+    assert.equal(payments.totals.net, report.totals.net);
+    const narrowed = await read(`/api/reports/sales/bills?preset=today&product=${product.id}&pageSize=5`);
+    assert.ok(narrowed.total > 0);
+    const line = report.products.find((row) => row.productId === product.id);
+    assert.ok(line.qty > 0);
+    const category = await read(`/api/reports/sales?preset=today&category=${encodeURIComponent(line.category)}`);
+    assert.ok(category.totals.net >= line.revenue);
+    const staff = sessions['Inventory Staff'].token;
+    const moves = await read(`/api/reports/stock-movements?preset=today&product=${product.id}&type=Sale`, staff);
+    assert.ok(moves.movements.every((row) => row.type === 'Sale' && row.change < 0));
+    assert.ok(moves.totals.stockOut > 0);
+    const noExport = await request('/api/reports/stock-movements?all=1', { token: staff });
+    assert.equal(noExport.status, 403);
+    const full = await read('/api/reports/payments/list?preset=today&all=1');
+    assert.ok(full.total >= full.payments.length);
+    assert.equal((await request('/api/reports/exported', { token: owner, body: { report: 'sales', kind: 'csv' } })).status, 204);
+    assert.equal((await request('/api/reports/exported', { token: staff, body: { report: 'stock', kind: 'csv' } })).status, 403);
   });
   await database.from('products').update({ active: false }).eq('id', product.id);
   await database.from('categories').update({ active: false }).eq('id', product.category_id);

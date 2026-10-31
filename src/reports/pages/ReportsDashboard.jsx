@@ -1,89 +1,57 @@
-import { useEffect, useMemo, useState } from 'react';
-import ReportStatCard from '../components/ReportStatCard.jsx';
+import { useListRequest } from '../../app/useListRequest.js';
+import { dateTime, money, quantity } from '../../app/format.js';
+import Status from '../../components/Status.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { PaymentMethodChart, RevenueTrendChart, TopProductsChart } from '../components/ReportChart.jsx';
 import ReportFilters from '../components/ReportFilters.jsx';
-import { RevenueTrendChart, TopProductsChart, PaymentMethodChart } from '../components/ReportChart.jsx';
-import ReportTable from '../components/ReportTable.jsx';
-import { fetchSales, fetchProducts } from '../services/reportService.js';
-import {
-  resolveDateRange, filterSalesByRange, sumRevenue, countOrders, averageOrderValue,
-  totalItemsSold, paymentsCollected, paymentMethodBreakdown, topSellingProducts,
-  salesTrend, recentSales, lowStockProducts, formatCurrency, formatDateTime
-} from '../utils/reportCalculations.js';
+import { TableView } from '../components/ReportTable.jsx';
+import SumStrip from '../components/SumStrip.jsx';
+import { queryString, usePeriod } from '../utils/useReportData.js';
 
 export default function ReportsDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [preset, setPreset] = useState('last30');
-  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+  const { t } = useI18n();
+  const period = usePeriod('last30');
+  const query = queryString(period.params);
+  const sales = useListRequest(`/api/reports/sales?${query}`);
+  const payments = useListRequest(`/api/reports/payments?${query}`);
+  const stock = useListRequest('/api/reports/inventory');
+  const recent = useListRequest(`/api/reports/sales/bills?${query}&pageSize=10`);
+  const error = sales.error || payments.error || stock.error || recent.error;
+  const totals = sales.data?.totals;
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    Promise.all([fetchSales(), fetchProducts()])
-      .then(([s, p]) => { if (active) { setSales(s); setProducts(p); setError(''); } })
-      .catch(() => { if (active) setError('Could not load report data.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
-
-  const range = useMemo(() => resolveDateRange(preset, customRange), [preset, customRange]);
-  const inRange = useMemo(() => filterSalesByRange(sales, range), [sales, range]);
-
-  const recentColumns = [
-    { key: 'orderId', label: 'Order ID', value: 'orderId' },
-    { key: 'date', label: 'Date', value: (row) => formatDateTime(row.date) },
-    { key: 'customer', label: 'Customer', value: 'customer' },
-    { key: 'total', label: 'Total', value: (row) => formatCurrency(row.total) },
-    { key: 'status', label: 'Status', value: 'status' }
+  const columns = [
+    { key: 'billNo', label: t('Bill no.'), value: (row) => <b>{row.billNo}</b> },
+    { key: 'date', label: t('Date'), value: (row) => dateTime(row.date) },
+    { key: 'customer', label: t('Customer'), value: (row) => row.customer },
+    { key: 'total', label: t('Total'), value: (row) => money(row.total) },
+    { key: 'status', label: t('Status'), value: (row) => <Status value={row.status} label={t(row.status)} /> }
   ];
 
-  if (loading) return <div className="rpt-loading">Loading dashboard…</div>;
-  if (error) return <div className="rpt-error">{error}</div>;
-
   return (
-    <div className="rpt-page">
-      <ReportFilters
-        preset={preset}
-        onPresetChange={setPreset}
-        customRange={customRange}
-        onCustomRangeChange={setCustomRange}
-        onApply={() => {}}
-        onReset={() => { setPreset('last30'); setCustomRange({ start: '', end: '' }); }}
-      />
-
-      <div className="rpt-stats-grid">
-        <ReportStatCard label="Total Sales Revenue" value={formatCurrency(sumRevenue(inRange))} icon="💰" />
-        <ReportStatCard label="Total Orders" value={countOrders(inRange)} icon="🧾" />
-        <ReportStatCard label="Average Order Value" value={formatCurrency(averageOrderValue(inRange))} icon="📊" />
-        <ReportStatCard label="Total Products Sold" value={totalItemsSold(inRange)} icon="📦" />
-        <ReportStatCard label="Payments Collected" value={formatCurrency(paymentsCollected(inRange))} icon="💳" />
-        <ReportStatCard label="Low-Stock Products" value={lowStockProducts(products).length} icon="⚠️" />
-      </div>
-
-      <div className="rpt-charts-grid">
-        <div className="card rpt-chart-card">
-          <h3>Revenue Trend</h3>
-          <p className="sub">Daily revenue for the selected period</p>
-          <RevenueTrendChart data={salesTrend(inRange, range)} />
-        </div>
-        <div className="card rpt-chart-card">
-          <h3>Top-Selling Products</h3>
-          <p className="sub">By quantity sold</p>
-          <TopProductsChart data={topSellingProducts(inRange, 5)} />
-        </div>
-        <div className="card rpt-chart-card">
-          <h3>Payment Method Distribution</h3>
-          <p className="sub">Share of revenue by method</p>
-          <PaymentMethodChart data={paymentMethodBreakdown(inRange)} />
-        </div>
-      </div>
-
-      <div>
-        <h3 style={{ margin: '0 0 10px' }}>Recent Sales</h3>
-        <ReportTable columns={recentColumns} rows={recentSales(inRange, 10)} />
-      </div>
-    </div>
+    <>
+      <ReportFilters period={period} onReset={period.reset} />
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      {!totals && !error && <div className="card"><div className="empty">{t('Loading…')}</div></div>}
+      {totals && (
+        <>
+          <SumStrip items={[
+            { label: t('Total revenue'), value: money(totals.net), note: `${t('After refunds')}: ${money(totals.refunds)}` },
+            { label: t('Total orders'), value: totals.orders },
+            { label: t('Average order value'), value: money(totals.average) },
+            { label: t('Total products sold'), value: quantity(totals.items) },
+            ...(stock.data ? [{ label: t('Low stock'), value: stock.data.low, down: stock.data.low > 0, note: `${t('Out of stock')}: ${stock.data.out}` }] : [])
+          ]} />
+          <div className="rpt-charts-grid">
+            <div className="card rpt-chart-card"><h3>{t('Sales trend')}</h3><p className="sub">{t('Revenue after refunds')}</p><RevenueTrendChart data={sales.data.trend} /></div>
+            <div className="card rpt-chart-card"><h3>{t('Best-selling products')}</h3><p className="sub">{t('By quantity sold')}</p><TopProductsChart data={[...sales.data.products].sort((a, b) => b.qty - a.qty).slice(0, 5)} /></div>
+            <div className="card rpt-chart-card"><h3>{t('Payment distribution')}</h3><p className="sub">{t('Money collected by method')}</p><PaymentMethodChart data={(payments.data?.methods ?? []).filter((row) => row.collected > 0).map((row) => ({ method: t(row.method), amount: row.collected }))} /></div>
+          </div>
+          <div>
+            <h3 className="rpt-heading">{t('Recent sales')}</h3>
+            <TableView columns={columns} rows={recent.data?.bills ?? []} loading={!recent.data} />
+          </div>
+        </>
+      )}
+    </>
   );
 }

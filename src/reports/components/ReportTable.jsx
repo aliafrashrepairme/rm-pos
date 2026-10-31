@@ -1,74 +1,71 @@
 import { useMemo, useState } from 'react';
+import Pager from '../../components/Pager.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
-export default function ReportTable({ columns, rows, emptyMessage = 'No data for the selected filters.' }) {
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState('asc');
-  const [page, setPage] = useState(1);
-
-  const sortedRows = useMemo(() => {
-    if (!sortKey) return rows;
-    const col = columns.find((c) => c.key === sortKey);
-    const getValue = col?.sortValue || col?.value;
-    return [...rows].sort((a, b) => {
-      const av = typeof getValue === 'function' ? getValue(a) : a[getValue];
-      const bv = typeof getValue === 'function' ? getValue(b) : b[getValue];
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [rows, sortKey, sortDir, columns]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
-  const pageRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const safePage = Math.min(page, totalPages);
-
-  function toggleSort(key) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
-    setPage(1);
-  }
-
-  if (rows.length === 0) {
-    return <div className="card rpt-table-empty">{emptyMessage}</div>;
-  }
-
+export function TableView({ columns, rows, sort, dir, onSort, empty, loading }) {
+  const { t } = useI18n();
   return (
-    <div className="card rpt-table-wrap">
-      <table className="rpt-table">
+    <div className="table-wrap">
+      <table>
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)} className={col.sortable !== false ? 'sortable' : ''}>
-                {col.label}
-                {sortKey === col.key && <span className="rpt-sort-arrow">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const sortKey = column.sort;
+              return (
+                <th key={column.key} aria-sort={sort === sortKey && sortKey ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  {sortKey
+                    ? <button type="button" className="rpt-sort" onClick={() => onSort(sortKey)}>{column.label}{sort === sortKey && <span className="rpt-sort-arrow">{dir === 'asc' ? ' ▲' : ' ▼'}</span>}</button>
+                    : column.label}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {pageRows.map((row, i) => (
-            <tr key={row.id || row.orderId || row.transactionId || i}>
-              {columns.map((col) => (
-                <td key={col.key}>{typeof col.value === 'function' ? col.value(row) : row[col.value]}</td>
-              ))}
+          {loading && <tr><td colSpan={columns.length}><div className="empty">{t('Loading…')}</div></td></tr>}
+          {!loading && rows.length === 0 && <tr><td colSpan={columns.length}><div className="empty">{empty ?? t('No records found.')}</div></td></tr>}
+          {!loading && rows.map((row, index) => (
+            <tr key={row.id ?? row.productId ?? row.category ?? row.date ?? index}>
+              {columns.map((column) => <td key={column.key}>{column.value(row)}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
-
-      {totalPages > 1 && (
-        <div className="rpt-pagination">
-          <button className="btn-outline" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)} type="button">← Prev</button>
-          <span>Page {safePage} of {totalPages}</span>
-          <button className="btn-outline" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)} type="button">Next →</button>
-        </div>
-      )}
     </div>
+  );
+}
+
+// For reports already fully loaded: sorts and pages on this computer.
+export default function ReportTable({ columns, rows, empty }) {
+  const [sort, setSort] = useState(null);
+  const [dir, setDir] = useState('asc');
+  const [page, setPage] = useState(1);
+
+  const ordered = useMemo(() => {
+    const column = columns.find((item) => item.sort === sort);
+    if (!column) return rows;
+    const read = column.csv ?? column.value;
+    return [...rows].sort((a, b) => {
+      const [left, right] = [read(a), read(b)];
+      const order = typeof left === 'number' ? left - right : String(left).localeCompare(String(right));
+      return dir === 'asc' ? order : -order;
+    });
+  }, [rows, columns, sort, dir]);
+
+  function onSort(key) {
+    setDir(sort === key && dir === 'asc' ? 'desc' : 'asc');
+    setSort(key);
+    setPage(1);
+  }
+
+  const lastPage = Math.max(Math.ceil(ordered.length / PAGE_SIZE), 1);
+  const safePage = Math.min(page, lastPage);
+  return (
+    <>
+      <TableView columns={columns} rows={ordered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)} sort={sort} dir={dir} onSort={onSort} empty={empty} />
+      {ordered.length > PAGE_SIZE && <Pager page={safePage} pageSize={PAGE_SIZE} total={ordered.length} onPage={setPage} />}
+    </>
   );
 }

@@ -1,180 +1,145 @@
-import { useEffect, useMemo, useState } from 'react';
-import ReportStatCard from '../components/ReportStatCard.jsx';
-import ReportFilters from '../components/ReportFilters.jsx';
-import ReportTable from '../components/ReportTable.jsx';
-import ReportExport from '../components/ReportExport.jsx';
+import { useMemo, useState } from 'react';
+import { api } from '../../api.js';
+import { useDebounced, useListRequest } from '../../app/useListRequest.js';
+import { dateTime, money, quantity } from '../../app/format.js';
+import Pager from '../../components/Pager.jsx';
+import Status from '../../components/Status.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { CategoryBarChart } from '../components/ReportChart.jsx';
-import { fetchProducts, fetchStockMovements } from '../services/reportService.js';
-import { CATEGORIES } from '../data/reportMockData.js';
-import {
-  resolveDateRange, lowStockProducts, outOfStockProducts, stockStatus,
-  inventoryValuation, categoryStockSummary, stockMovementSummary,
-  formatCurrency, formatDateTime
-} from '../utils/reportCalculations.js';
+import ReportExport from '../components/ReportExport.jsx';
+import ReportFilters from '../components/ReportFilters.jsx';
+import ReportTable, { TableView } from '../components/ReportTable.jsx';
+import SumStrip from '../components/SumStrip.jsx';
+import { useFilterOptions, usePagedReport, usePeriod } from '../utils/useReportData.js';
 
-const TABS = [
-  { key: 'stock', label: 'Current Stock' },
-  { key: 'low', label: 'Low / Out of Stock' },
-  { key: 'category', label: 'Category Summary' },
-  { key: 'movement', label: 'Stock Movement' }
-];
+const TABS = { stock: 'Current stock', low: 'Low and out of stock', category: 'Inventory valuation', movement: 'Stock movement' };
 
-export default function InventoryReport() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [products, setProducts] = useState([]);
-  const [movements, setMovements] = useState([]);
+function stockState(product) {
+  if (product.stock <= 0) return 'Out of Stock';
+  return product.stock <= product.reorderLevel ? 'Low Stock' : 'In Stock';
+}
+
+export default function InventoryReport({ user }) {
+  const { t } = useI18n();
+  const options = useFilterOptions();
+  const summary = useListRequest('/api/reports/inventory');
+  const products = useListRequest('/api/reports/products');
   const [tab, setTab] = useState('stock');
-  const [category, setCategory] = useState('All');
-  const [search, setSearch] = useState('');
-  const [preset, setPreset] = useState('last30');
-  const [customRange, setCustomRange] = useState({ start: '', end: '' });
+  const [category, setCategory] = useState('');
+  const [typed, setTyped] = useState('');
+  const search = useDebounced(typed);
+  const period = usePeriod('last30');
+  const [product, setProduct] = useState('');
+  const [type, setType] = useState('');
+  const movements = usePagedReport('/api/reports/stock-movements', { ...period.params, product, type, q: tab === 'movement' ? search : '' });
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    Promise.all([fetchProducts(), fetchStockMovements()])
-      .then(([p, m]) => { if (active) { setProducts(p); setMovements(m); setError(''); } })
-      .catch(() => { if (active) setError('Could not load inventory data.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
-
-  const range = useMemo(() => resolveDateRange(preset, customRange), [preset, customRange]);
-
-  const filteredProducts = useMemo(() => {
-    let result = products;
-    if (category !== 'All') result = result.filter((p) => p.category === category);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
-    }
-    return result;
-  }, [products, category, search]);
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (products.data?.products ?? []).filter((row) => (!category || row.category === category)
+      && (!term || row.name.toLowerCase().includes(term) || row.sku.toLowerCase().includes(term)));
+  }, [products.data, category, search]);
+  const low = useMemo(() => rows.filter((row) => stockState(row) !== 'In Stock').sort((a, b) => a.stock - b.stock), [rows]);
 
   const stockColumns = [
-    { key: 'name', label: 'Product', value: 'name' },
-    { key: 'sku', label: 'SKU', value: 'sku' },
-    { key: 'category', label: 'Category', value: 'category' },
-    { key: 'stock', label: 'Current Qty', value: 'stock' },
-    { key: 'reorderLevel', label: 'Min Level', value: 'reorderLevel' },
-    { key: 'unitCost', label: 'Unit Cost', value: (row) => formatCurrency(row.unitCost), sortValue: 'unitCost' },
-    { key: 'totalValue', label: 'Stock Value', value: (row) => formatCurrency(row.stock * row.unitCost), sortValue: (row) => row.stock * row.unitCost },
-    { key: 'status', label: 'Status', value: (row) => <StatusBadge status={stockStatus(row)} />, sortable: false }
+    { key: 'name', sort: 'name', label: t('Product'), value: (row) => row.name },
+    { key: 'sku', sort: 'sku', label: t('SKU'), value: (row) => row.sku },
+    { key: 'category', sort: 'category', label: t('Category'), value: (row) => row.category },
+    { key: 'stock', sort: 'stock', label: t('On hand'), value: (row) => quantity(row.stock), csv: (row) => row.stock },
+    { key: 'reorderLevel', sort: 'reorderLevel', label: t('Reorder level'), value: (row) => quantity(row.reorderLevel), csv: (row) => row.reorderLevel },
+    { key: 'unitCost', sort: 'unitCost', label: t('Unit cost'), value: (row) => money(row.unitCost), csv: (row) => row.unitCost },
+    { key: 'value', sort: 'value', label: t('Stock value'), value: (row) => money(row.stock * row.unitCost), csv: (row) => Math.round(row.stock * row.unitCost * 100) / 100 },
+    { key: 'status', label: t('Status'), value: (row) => t(stockState(row)) }
   ];
-
-  const exportColumns = [
-    { label: 'Product', value: 'name' },
-    { label: 'SKU', value: 'sku' },
-    { label: 'Category', value: 'category' },
-    { label: 'Current Qty', value: 'stock' },
-    { label: 'Min Level', value: 'reorderLevel' },
-    { label: 'Unit Cost', value: 'unitCost' },
-    { label: 'Stock Value', value: (row) => row.stock * row.unitCost },
-    { label: 'Status', value: (row) => stockStatus(row) }
+  const stockScreen = stockColumns.map((column) => (column.key === 'status' ? { ...column, value: (row) => <Status value={stockState(row)} label={t(stockState(row))} /> } : column));
+  const categoryColumns = [
+    { key: 'category', sort: 'category', label: t('Category'), value: (row) => row.category },
+    { key: 'products', sort: 'products', label: t('Products'), value: (row) => row.products },
+    { key: 'stock', sort: 'stock', label: t('Total stock'), value: (row) => quantity(row.stock), csv: (row) => row.stock },
+    { key: 'value', sort: 'value', label: t('Stock value'), value: (row) => money(row.value), csv: (row) => row.value }
   ];
-
   const movementColumns = [
-    { key: 'date', label: 'Date', value: (row) => formatDateTime(row.date), sortValue: 'date' },
-    { key: 'name', label: 'Product', value: 'name' },
-    { key: 'type', label: 'Type', value: 'type' },
-    { key: 'quantity', label: 'Quantity', value: 'quantity' }
+    { key: 'date', sort: 'date', label: t('Date'), value: (row) => dateTime(row.date) },
+    { key: 'name', label: t('Product'), value: (row) => row.name },
+    { key: 'type', label: t('Type'), value: (row) => t(row.type) },
+    { key: 'change', sort: 'quantity', label: t('Change'), value: (row) => (row.change > 0 ? `+${quantity(row.change)}` : quantity(row.change)), csv: (row) => row.change },
+    { key: 'balance', label: t('Balance'), value: (row) => quantity(row.balance), csv: (row) => row.balance },
+    { key: 'reference', label: t('Reference'), value: (row) => row.reference },
+    { key: 'reason', label: t('Reason'), value: (row) => row.reason }
   ];
+  const categories = summary.data?.categories ?? [];
 
-  const lowStock = lowStockProducts(products);
-  const outOfStock = outOfStockProducts(products);
-  const totalValue = inventoryValuation(products);
-  const { stockIn, stockOut, movements: movementsInRange } = stockMovementSummary(movements, range);
-
-  if (loading) return <div className="rpt-loading">Loading inventory report…</div>;
-  if (error) return <div className="rpt-error">{error}</div>;
+  const exports = {
+    stock: { report: 'stock', columns: stockColumns, rows },
+    low: { report: 'low-stock', columns: stockColumns, rows: low },
+    category: { report: 'stock-categories', columns: categoryColumns, rows: categories },
+    movement: { report: 'stock-movements', columns: movementColumns, loadRows: async () => (await api(movements.allPath)).movements }
+  }[tab];
+  const error = summary.error || products.error;
 
   return (
-    <div className="rpt-page">
-      <div className="rpt-tabs">
-        {TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)} type="button">{t.label}</button>
-        ))}
+    <>
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      {summary.data && (
+        <SumStrip items={[
+          { label: t('Products'), value: summary.data.products },
+          { label: t('Low stock'), value: summary.data.low, down: summary.data.low > 0 },
+          { label: t('Out of stock'), value: summary.data.out, down: summary.data.out > 0 },
+          { label: t('Stock value'), value: money(summary.data.value), note: t('At cost') }
+        ]} />
+      )}
+      <div className="section-row">
+        <div className="tabs rpt-subtabs">
+          {Object.entries(TABS).map(([key, label]) => <button key={key} type="button" className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{t(label)}</button>)}
+        </div>
+        <ReportExport user={user} title={t(TABS[tab])} {...exports} />
       </div>
 
-      <div className="rpt-stats-grid">
-        <ReportStatCard label="Total Products" value={products.length} icon="📦" />
-        <ReportStatCard label="Low Stock" value={lowStock.length} icon="⚠️" />
-        <ReportStatCard label="Out of Stock" value={outOfStock.length} icon="⛔" />
-        <ReportStatCard label="Inventory Valuation" value={formatCurrency(totalValue)} icon="💰" />
-      </div>
-
-      {tab === 'stock' && (
-        <>
-          <ReportFilters
-            category={category}
-            categories={CATEGORIES}
-            onCategoryChange={setCategory}
-            search={search}
-            onSearchChange={setSearch}
-            onApply={() => {}}
-            onReset={() => { setCategory('All'); setSearch(''); }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <ReportExport filename="inventory-stock-report.csv" columns={exportColumns} rows={filteredProducts} />
-          </div>
-          <ReportTable columns={stockColumns} rows={filteredProducts} />
-        </>
+      {(tab === 'stock' || tab === 'low') && (
+        <ReportFilters
+          category={category}
+          categories={options?.categories ?? []}
+          onCategory={setCategory}
+          search={typed}
+          onSearch={setTyped}
+          onReset={() => { setCategory(''); setTyped(''); }}
+        />
       )}
-
-      {tab === 'low' && (
-        <>
-          <div>
-            <h3 style={{ margin: '0 0 10px' }}>Low Stock Products</h3>
-            <ReportTable columns={stockColumns} rows={lowStock} emptyMessage="No low-stock products." />
-          </div>
-          <div>
-            <h3 style={{ margin: '0 0 10px' }}>Out of Stock Products</h3>
-            <ReportTable columns={stockColumns} rows={outOfStock} emptyMessage="No out-of-stock products." />
-          </div>
-        </>
-      )}
-
+      {tab === 'stock' && (products.data ? <ReportTable columns={stockScreen} rows={rows} /> : <TableView columns={stockScreen} rows={[]} loading />)}
+      {tab === 'low' && (products.data ? <ReportTable columns={stockScreen} rows={low} /> : <TableView columns={stockScreen} rows={[]} loading />)}
       {tab === 'category' && (
         <>
           <div className="card rpt-chart-card">
-            <h3>Stock Value by Category</h3>
-            <CategoryBarChart data={categoryStockSummary(products).map((c) => ({ category: c.category, revenue: c.totalValue }))} />
+            <h3>{t('Stock value by category')}</h3>
+            <CategoryBarChart data={categories.map((row) => ({ category: row.category, revenue: row.value }))} />
           </div>
-          <ReportTable
-            columns={[
-              { key: 'category', label: 'Category', value: 'category' },
-              { key: 'productCount', label: 'Products', value: 'productCount' },
-              { key: 'totalStock', label: 'Total Stock', value: 'totalStock' },
-              { key: 'totalValue', label: 'Total Value', value: (row) => formatCurrency(row.totalValue), sortValue: 'totalValue' }
-            ]}
-            rows={categoryStockSummary(products)}
-          />
+          <ReportTable columns={categoryColumns} rows={categories} />
         </>
       )}
-
       {tab === 'movement' && (
         <>
           <ReportFilters
-            preset={preset}
-            onPresetChange={setPreset}
-            customRange={customRange}
-            onCustomRangeChange={setCustomRange}
-            onApply={() => {}}
-            onReset={() => { setPreset('last30'); setCustomRange({ start: '', end: '' }); }}
+            period={period}
+            product={product}
+            products={options?.products ?? []}
+            onProduct={setProduct}
+            type={type}
+            types={options?.movementTypes ?? []}
+            onType={setType}
+            search={typed}
+            onSearch={setTyped}
+            onReset={() => { period.reset(); setProduct(''); setType(''); setTyped(''); }}
           />
-          <div className="rpt-stats-grid">
-            <ReportStatCard label="Stock In" value={stockIn} icon="⬆️" />
-            <ReportStatCard label="Stock Out" value={stockOut} icon="⬇️" />
-          </div>
-          <ReportTable columns={movementColumns} rows={movementsInRange} emptyMessage="No stock movement in this period." />
+          {movements.error && <p className="form-error" role="alert">{t(movements.error)}</p>}
+          {movements.data && (
+            <SumStrip items={[
+              { label: t('Stock in'), value: quantity(movements.data.totals.stockIn), note: `${movements.data.period.from} – ${movements.data.period.to}` },
+              { label: t('Stock out'), value: quantity(movements.data.totals.stockOut) }
+            ]} />
+          )}
+          <TableView columns={movementColumns} rows={movements.data?.movements ?? []} loading={!movements.data} sort={movements.sort === 'date' || movements.sort === 'quantity' ? movements.sort : null} dir={movements.dir} onSort={movements.onSort} />
+          {movements.data && movements.data.total > movements.data.pageSize && <Pager page={movements.data.page} pageSize={movements.data.pageSize} total={movements.data.total} onPage={movements.setPage} />}
         </>
       )}
-    </div>
+    </>
   );
-}
-
-function StatusBadge({ status }) {
-  const cls = status === 'Low Stock' ? 'warn' : status === 'Out of Stock' ? 'red' : 'good';
-  return <span className={`rpt-status ${cls}`}><span className="dot" />{status}</span>;
 }

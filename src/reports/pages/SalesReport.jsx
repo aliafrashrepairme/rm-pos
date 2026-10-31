@@ -1,123 +1,130 @@
-import { useEffect, useMemo, useState } from 'react';
-import ReportStatCard from '../components/ReportStatCard.jsx';
-import ReportFilters from '../components/ReportFilters.jsx';
-import ReportTable from '../components/ReportTable.jsx';
+import { useState } from 'react';
+import { api } from '../../api.js';
+import { useDebounced, useListRequest } from '../../app/useListRequest.js';
+import { dateTime, money, quantity } from '../../app/format.js';
+import Pager from '../../components/Pager.jsx';
+import Status from '../../components/Status.jsx';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { CategoryBarChart, RevenueTrendChart, TopProductsChart } from '../components/ReportChart.jsx';
 import ReportExport from '../components/ReportExport.jsx';
-import { RevenueTrendChart, CategoryBarChart, TopProductsChart } from '../components/ReportChart.jsx';
-import { fetchSales } from '../services/reportService.js';
-import { CATEGORIES } from '../data/reportMockData.js';
-import {
-  resolveDateRange, filterSalesByRange, sumRevenue, countOrders, averageOrderValue,
-  totalItemsSold, salesTrend, salesByCategory, topSellingProducts,
-  formatCurrency, formatDateTime
-} from '../utils/reportCalculations.js';
+import ReportFilters from '../components/ReportFilters.jsx';
+import ReportTable, { TableView } from '../components/ReportTable.jsx';
+import SumStrip from '../components/SumStrip.jsx';
+import { queryString, useFilterOptions, usePagedReport, usePeriod } from '../utils/useReportData.js';
 
-export default function SalesReport() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [preset, setPreset] = useState('last7');
-  const [customRange, setCustomRange] = useState({ start: '', end: '' });
-  const [category, setCategory] = useState('All');
-  const [search, setSearch] = useState('');
+const GROUPS = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Yearly' };
+const TABS = { periods: 'Sales by period', categories: 'Sales by category', products: 'Sales by product', bills: 'Sales transactions' };
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    fetchSales()
-      .then((s) => { if (active) { setSales(s); setError(''); } })
-      .catch(() => { if (active) setError('Could not load sales data.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+export default function SalesReport({ user }) {
+  const { t } = useI18n();
+  const options = useFilterOptions();
+  const period = usePeriod('last7');
+  const [group, setGroup] = useState('day');
+  const [category, setCategory] = useState('');
+  const [product, setProduct] = useState('');
+  const [typed, setTyped] = useState('');
+  const search = useDebounced(typed);
+  const [tab, setTab] = useState('periods');
 
-  const range = useMemo(() => resolveDateRange(preset, customRange), [preset, customRange]);
+  const filters = { ...period.params, category, product };
+  const { data, error } = useListRequest(`/api/reports/sales?${queryString({ ...filters, group })}`);
+  const bills = usePagedReport('/api/reports/sales/bills', { ...filters, q: search });
+  const totals = data?.totals;
+  const subtitle = data ? `${data.period.from} – ${data.period.to}` : '';
 
-  const filtered = useMemo(() => {
-    let result = filterSalesByRange(sales, range);
-    if (category !== 'All') {
-      result = result.filter((s) => s.items.some((i) => i.category === category));
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter((s) =>
-        s.orderId.toLowerCase().includes(q) ||
-        s.customer.toLowerCase().includes(q) ||
-        s.items.some((i) => i.name.toLowerCase().includes(q))
-      );
-    }
-    return result;
-  }, [sales, range, category, search]);
-
-  const columns = [
-    { key: 'orderId', label: 'Order ID', value: 'orderId' },
-    { key: 'date', label: 'Date', value: (row) => formatDateTime(row.date), sortValue: 'date' },
-    { key: 'customer', label: 'Customer', value: 'customer' },
-    { key: 'items', label: 'Items', value: (row) => row.items.reduce((n, i) => n + i.qty, 0), sortable: false },
-    { key: 'paymentMethod', label: 'Payment', value: 'paymentMethod' },
-    { key: 'status', label: 'Status', value: 'status' },
-    { key: 'total', label: 'Total', value: (row) => formatCurrency(row.total), sortValue: 'total' }
+  const periodColumns = [
+    { key: 'date', sort: 'date', label: t('Period'), value: (row) => row.date },
+    { key: 'orders', sort: 'orders', label: t('Bills'), value: (row) => row.orders },
+    { key: 'refunds', sort: 'refunds', label: t('Refunds'), value: (row) => money(row.refunds), csv: (row) => row.refunds },
+    { key: 'revenue', sort: 'revenue', label: t('Revenue'), value: (row) => money(row.revenue), csv: (row) => row.revenue }
   ];
-
-  const exportColumns = [
-    { label: 'Order ID', value: 'orderId' },
-    { label: 'Date', value: (row) => formatDateTime(row.date) },
-    { label: 'Customer', value: 'customer' },
-    { label: 'Items', value: (row) => row.items.reduce((n, i) => n + i.qty, 0) },
-    { label: 'Payment Method', value: 'paymentMethod' },
-    { label: 'Status', value: 'status' },
-    { label: 'Total', value: 'total' }
+  const categoryColumns = [
+    { key: 'category', sort: 'category', label: t('Category'), value: (row) => row.category },
+    { key: 'qty', sort: 'qty', label: t('Qty sold'), value: (row) => quantity(row.qty), csv: (row) => row.qty },
+    { key: 'revenue', sort: 'revenue', label: t('Revenue'), value: (row) => money(row.revenue), csv: (row) => row.revenue }
   ];
+  const productColumns = [
+    { key: 'name', sort: 'name', label: t('Product'), value: (row) => row.name },
+    { key: 'sku', sort: 'sku', label: t('SKU'), value: (row) => row.sku },
+    { key: 'category', sort: 'category', label: t('Category'), value: (row) => row.category },
+    { key: 'qty', sort: 'qty', label: t('Qty sold'), value: (row) => quantity(row.qty), csv: (row) => row.qty },
+    { key: 'revenue', sort: 'revenue', label: t('Revenue'), value: (row) => money(row.revenue), csv: (row) => row.revenue }
+  ];
+  const billColumns = [
+    { key: 'billNo', sort: 'billNo', label: t('Bill no.'), value: (row) => row.billNo },
+    { key: 'date', sort: 'date', label: t('Date'), value: (row) => dateTime(row.date) },
+    { key: 'customer', sort: 'customer', label: t('Customer'), value: (row) => row.customer },
+    { key: 'items', label: t('Items'), value: (row) => quantity(row.items), csv: (row) => row.items },
+    { key: 'payment', label: t('Payment'), value: (row) => t(row.payment) },
+    { key: 'status', label: t('Status'), value: (row) => t(row.status) },
+    { key: 'refunded', label: t('Refunded'), value: (row) => money(row.refunded), csv: (row) => row.refunded },
+    { key: 'total', sort: 'total', label: t('Total'), value: (row) => money(row.total), csv: (row) => row.total }
+  ];
+  const billScreen = billColumns.map((column) => (column.key === 'status' ? { ...column, value: (row) => <Status value={row.status} label={t(row.status)} /> } : column));
 
-  if (loading) return <div className="rpt-loading">Loading sales report…</div>;
-  if (error) return <div className="rpt-error">{error}</div>;
+  const exports = {
+    periods: { report: 'sales-periods', columns: periodColumns, rows: data?.trend ?? [] },
+    categories: { report: 'sales-categories', columns: categoryColumns, rows: data?.categories ?? [] },
+    products: { report: 'sales-products', columns: productColumns, rows: data?.products ?? [] },
+    bills: { report: 'sales', columns: billColumns, loadRows: async () => (await api(bills.allPath)).bills }
+  }[tab];
 
   return (
-    <div className="rpt-page">
+    <>
       <ReportFilters
-        preset={preset}
-        onPresetChange={setPreset}
-        customRange={customRange}
-        onCustomRangeChange={setCustomRange}
+        period={period}
         category={category}
-        categories={CATEGORIES}
-        onCategoryChange={setCategory}
-        search={search}
-        onSearchChange={setSearch}
-        onApply={() => {}}
-        onReset={() => { setPreset('last7'); setCustomRange({ start: '', end: '' }); setCategory('All'); setSearch(''); }}
+        categories={options?.categories ?? []}
+        onCategory={setCategory}
+        product={product}
+        products={options?.products ?? []}
+        onProduct={setProduct}
+        search={typed}
+        onSearch={tab === 'bills' ? setTyped : undefined}
+        onReset={() => { period.reset(); setCategory(''); setProduct(''); setTyped(''); }}
       />
-
-      <div className="rpt-stats-grid">
-        <ReportStatCard label="Total Revenue" value={formatCurrency(sumRevenue(filtered))} icon="💰" />
-        <ReportStatCard label="Total Orders" value={countOrders(filtered)} icon="🧾" />
-        <ReportStatCard label="Average Order Value" value={formatCurrency(averageOrderValue(filtered))} icon="📊" />
-        <ReportStatCard label="Total Items Sold" value={totalItemsSold(filtered)} icon="📦" />
-      </div>
-
-      <div className="rpt-charts-grid">
-        <div className="card rpt-chart-card">
-          <h3>Sales Trend</h3>
-          <p className="sub">Revenue per day for the selected period</p>
-          <RevenueTrendChart data={salesTrend(filtered, range)} />
-        </div>
-        <div className="card rpt-chart-card">
-          <h3>Sales by Category</h3>
-          <CategoryBarChart data={salesByCategory(filtered)} />
-        </div>
-        <div className="card rpt-chart-card">
-          <h3>Best-Selling Products</h3>
-          <TopProductsChart data={topSellingProducts(filtered, 8)} />
-        </div>
-      </div>
-
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h3 style={{ margin: 0 }}>Sales Transactions</h3>
-          <ReportExport filename="sales-report.csv" columns={exportColumns} rows={filtered} />
-        </div>
-        <ReportTable columns={columns} rows={filtered} />
-      </div>
-    </div>
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      {!totals && !error && <div className="card"><div className="empty">{t('Loading…')}</div></div>}
+      {totals && (
+        <>
+          <SumStrip items={[
+            { label: t('Total revenue'), value: money(totals.net), note: subtitle },
+            { label: t('Gross sales'), value: money(totals.gross) },
+            { label: t('Refunds'), value: money(totals.refunds), down: totals.refunds > 0 },
+            { label: t('Total orders'), value: totals.orders, note: `${t('Average order value')}: ${money(totals.average)}` },
+            { label: t('Total items sold'), value: quantity(totals.items) }
+          ]} />
+          <div className="rpt-charts-grid">
+            <div className="card rpt-chart-card">
+              <div className="section-row">
+                <h3>{t('Sales trend')}</h3>
+                <select name="group" className="filters" aria-label={t('Group by')} value={group} onChange={(event) => setGroup(event.target.value)}>
+                  {Object.entries(GROUPS).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+                </select>
+              </div>
+              <RevenueTrendChart data={data.trend} />
+            </div>
+            <div className="card rpt-chart-card"><h3>{t('Sales by category')}</h3><CategoryBarChart data={data.categories} /></div>
+            <div className="card rpt-chart-card"><h3>{t('Best-selling products')}</h3><TopProductsChart data={[...data.products].sort((a, b) => b.qty - a.qty).slice(0, 8)} /></div>
+          </div>
+          <div className="section-row">
+            <div className="tabs rpt-subtabs">
+              {Object.entries(TABS).map(([key, label]) => <button key={key} type="button" className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{t(label)}</button>)}
+            </div>
+            <ReportExport user={user} title={t(TABS[tab])} subtitle={subtitle} {...exports} />
+          </div>
+          {tab === 'periods' && <ReportTable columns={periodColumns} rows={data.trend} />}
+          {tab === 'categories' && <ReportTable columns={categoryColumns} rows={data.categories} />}
+          {tab === 'products' && <ReportTable columns={productColumns} rows={data.products} />}
+          {tab === 'bills' && (
+            <>
+              {bills.error && <p className="form-error" role="alert">{t(bills.error)}</p>}
+              <TableView columns={billScreen} rows={bills.data?.bills ?? []} loading={!bills.data} sort={bills.sort} dir={bills.dir} onSort={bills.onSort} />
+              {bills.data && bills.data.total > bills.data.pageSize && <Pager page={bills.data.page} pageSize={bills.data.pageSize} total={bills.data.total} onPage={bills.setPage} />}
+            </>
+          )}
+        </>
+      )}
+    </>
   );
 }

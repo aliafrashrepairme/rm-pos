@@ -5,11 +5,13 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
+import { useI18n } from '../../i18n/I18nProvider.jsx';
 
-const COLORS = ['#f6c928', '#4fc3f7', '#81c784', '#ff8a65', '#ba68c8', 'var(--muted)'];
+const COLORS = ['#f6c928', '#18865b', '#3f4248', '#ff8a65', '#4fc3f7', 'var(--muted)'];
 
 export function RevenueTrendChart({ data, height = 260 }) {
-  if (!data || data.length === 0) return <div className="rpt-chart-empty">No sales in this period.</div>;
+  const { t } = useI18n();
+  if (!data || data.every((row) => !row.revenue)) return <div className="rpt-chart-empty">{t('No sales in this period.')}</div>;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data}>
@@ -24,7 +26,8 @@ export function RevenueTrendChart({ data, height = 260 }) {
 }
 
 export function TopProductsChart({ data, height = 260 }) {
-  if (!data || data.length === 0) return <div className="rpt-chart-empty">No product sales in this period.</div>;
+  const { t } = useI18n();
+  if (!data || data.length === 0) return <div className="rpt-chart-empty">{t('No product sales in this period.')}</div>;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
@@ -39,7 +42,8 @@ export function TopProductsChart({ data, height = 260 }) {
 }
 
 export function PaymentMethodChart({ data, height = 260 }) {
-  if (!data || data.length === 0) return <div className="rpt-chart-empty">No payments in this period.</div>;
+  const { t } = useI18n();
+  if (!data || data.length === 0) return <div className="rpt-chart-empty">{t('No payments in this period.')}</div>;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
@@ -54,7 +58,8 @@ export function PaymentMethodChart({ data, height = 260 }) {
 }
 
 export function CategoryBarChart({ data, height = 260 }) {
-  if (!data || data.length === 0) return <div className="rpt-chart-empty">No category sales in this period.</div>;
+  const { t } = useI18n();
+  if (!data || data.length === 0) return <div className="rpt-chart-empty">{t('No category sales in this period.')}</div>;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data}>

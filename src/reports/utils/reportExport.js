@@ -1,23 +1,21 @@
-// CSV export + print helpers. No extra dependency needed — CSV is just
-// delimited text, and print uses the browser's native print dialog.
-
+// CSV is plain delimited text, so this needs no extra library.
 function escapeCsvValue(value) {
-  const str = String(value ?? '');
-  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
-  return str;
+  let text = String(value ?? '');
+  // A spreadsheet would run a typed name starting with these as a formula. Plain numbers stay numbers.
+  if (/^[=+\-@\t\r]/.test(text) && typeof value !== 'number') text = `'${text}`;
+  if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
 }
 
 export function toCsv(columns, rows) {
-  const header = columns.map((c) => escapeCsvValue(c.label)).join(',');
-  const body = rows
-    .map((row) => columns.map((c) => escapeCsvValue(typeof c.value === 'function' ? c.value(row) : row[c.value])).join(','))
-    .join('\n');
-  return `${header}\n${body}`;
+  const header = columns.map((column) => escapeCsvValue(column.label)).join(',');
+  const body = rows.map((row) => columns.map((column) => escapeCsvValue(column.csv ? column.csv(row) : column.value(row))).join(','));
+  // The byte order mark lets Excel read Tamil and Sinhala correctly.
+  return `﻿${[header, ...body].join('\r\n')}`;
 }
 
 export function downloadCsv(filename, columns, rows) {
-  const csv = toCsv(columns, rows);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([toCsv(columns, rows)], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -26,8 +24,4 @@ export function downloadCsv(filename, columns, rows) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-export function printReport() {
-  window.print();
 }

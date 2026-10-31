@@ -43,7 +43,11 @@ function fakeDatabase(tables) {
         updateUserById: async (id, change) => { admin.passwords.push([id, change.password]); return { error: null }; }
       }
     },
-    rpc: async (name) => name === 'dashboard_summary' ? { data: { today: { net: 5 } }, error: null } : { data: null, error: { message: 'unknown' } },
+    rpc: async (name) => {
+      if (name === 'dashboard_summary') return { data: { today: { net: 5 } }, error: null };
+      if (name.startsWith('report_')) return { data: {}, error: null };
+      return { data: null, error: { message: 'unknown' } };
+    },
     from(table) {
       const call = { table, filters: [] };
       calls.push(call);
@@ -320,55 +324,28 @@ test('only the dashboard permission can open the dashboard', async () => {
   });
 });
 
-test('reports read the new tables in the shape the screens expect', async () => {
+test('reports read products in the shape the screens expect', async () => {
   const tables = {
-    products: [{ id: 'p1', name: 'Hammer', sku: 'RM-1', categories: { name: 'Tools' }, cost_price: '980.00', selling_price: '1450.00', stock_qty: '2.500', min_stock: '10.000', updated_at: 't' }],
-    sales: [{ id: 's1', bill_no: 'RM-INV-000001', created_at: 't', grand_total: '1711.00', status: 'Paid', customer_name: 'Walk-in Customer',
-      payments: [{ method_code: 'Bank transfer' }],
-      sale_items: [{ product_id: 'p1', name: 'Hammer', category_name: 'Tools', qty: '1.000', unit_price: '1450.00', line_total: '1711.00' }] }],
-    inventory_ledger: [{ id: 7, created_at: 't', product_id: 'p1', products: { name: 'Hammer' }, change_qty: '-3.000', reference_no: 'RM-INV-000001', reason: 'POS sale' }]
+    products: [{ id: 'p1', name: 'Hammer', sku: 'RM-1', unit_code: 'Piece', active: true, categories: { name: 'Tools' }, cost_price: '980.00', selling_price: '1450.00', stock_qty: '2.500', min_stock: '10.000' }]
   };
   await withApi(tables, async ({ as }) => {
     const { products } = await (await as('owner', '/api/reports/products')).json();
-    assert.deepEqual(products[0], { id: 'p1', name: 'Hammer', sku: 'RM-1', category: 'Tools', unitCost: 980, unitPrice: 1450, stock: 2.5, reorderLevel: 10, updatedAt: 't' });
-
-    const { sales } = await (await as('owner', '/api/reports/sales')).json();
-    assert.equal(sales[0].orderId, 'RM-INV-000001');
-    assert.equal(sales[0].total, 1711);
-    assert.equal(sales[0].status, 'Completed');
-    assert.equal(sales[0].paymentMethod, 'Bank Transfer');
-    assert.equal(sales[0].items[0].qty, 1);
-
-    const { movements } = await (await as('owner', '/api/reports/stock-movements')).json();
-    assert.deepEqual(movements[0], { id: 7, date: 't', productId: 'p1', name: 'Hammer', type: 'Stock Out', quantity: 3, referenceId: 'RM-INV-000001', note: 'POS sale' });
+    assert.deepEqual(products[0], { id: 'p1', name: 'Hammer', sku: 'RM-1', unit: 'Piece', category: 'Tools', unitCost: 980, unitPrice: 1450, stock: 2.5, reorderLevel: 10 });
   });
 });
 
 test('reports return every row past the 1,000-row page limit', async () => {
-  const sales = Array.from({ length: 2345 }, (_, index) => ({ id: `s${index}`, bill_no: `B${index}`, grand_total: '1', status: 'Paid' }));
-  await withApi({ sales }, async ({ as }) => {
-    const body = await (await as('owner', '/api/reports/sales')).json();
-    assert.equal(body.sales.length, 2345);
-  });
-});
-
-test('report date filters are validated and applied', async () => {
-  await withApi({ sales: [] }, async ({ as, database }) => {
-    assert.equal((await as('owner', '/api/reports/sales?start=nonsense')).status, 400);
-    assert.equal((await as('owner', '/api/reports/sales?start=2026-02-01&end=2026-01-01')).status, 400);
-    assert.equal((await as('owner', '/api/reports/sales?start=2026-01-01&end=2026-01-31')).status, 200);
-    const call = database.calls.filter((item) => item.table === 'sales').at(-1);
-    assert.deepEqual(call.filters, [
-      ['gte', 'created_at', '2026-01-01T00:00:00.000Z'],
-      ['lte', 'created_at', '2026-01-31T23:59:59.999Z']
-    ]);
+  const products = Array.from({ length: 2345 }, (_, index) => ({ id: `p${index}`, name: `P${index}`, active: true, cost_price: '1', selling_price: '1', stock_qty: '1', min_stock: '0' }));
+  await withApi({ products }, async ({ as }) => {
+    const body = await (await as('owner', '/api/reports/products')).json();
+    assert.equal(body.products.length, 2345);
   });
 });
 
 test('database failures return a generic message', async (t) => {
   t.mock.method(console, 'error', () => {});
-  await withApi({ sales: { error: { code: 'XX000', message: 'connection to 10.0.0.1 failed' } } }, async ({ as }) => {
-    const response = await as('owner', '/api/reports/sales');
+  await withApi({ products: { error: { code: 'XX000', message: 'connection to 10.0.0.1 failed' } } }, async ({ as }) => {
+    const response = await as('owner', '/api/reports/products');
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), { error: 'The storage service could not complete the request.' });
   });

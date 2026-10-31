@@ -1,86 +1,79 @@
-const PRESET_LABELS = {
+import { useI18n } from '../../i18n/I18nProvider.jsx';
+
+const PRESETS = {
   today: 'Today',
   yesterday: 'Yesterday',
-  last7: 'Last 7 Days',
-  last30: 'Last 30 Days',
-  thisMonth: 'This Month',
-  lastMonth: 'Last Month',
-  thisYear: 'This Year',
-  custom: 'Custom Range'
+  last7: 'Last 7 days',
+  last30: 'Last 30 days',
+  thisMonth: 'This month',
+  lastMonth: 'Last month',
+  thisYear: 'This year',
+  custom: 'Custom range'
 };
 
-export default function ReportFilters({
-  preset,
-  onPresetChange,
-  customRange,
-  onCustomRangeChange,
-  category,
-  categories,
-  onCategoryChange,
-  paymentMethod,
-  paymentMethods,
-  onPaymentMethodChange,
-  search,
-  onSearchChange,
-  onApply,
-  onReset
-}) {
+// Each filter appears only when its value and change handler are passed. Changes apply straight away.
+export default function ReportFilters({ period, category, categories, onCategory, product, products, onProduct, method, methods, onMethod, type, types, onType, search, onSearch, onReset }) {
+  const { t } = useI18n();
   return (
     <div className="card rpt-filters">
       <div className="rpt-filters-row">
-        <label>
-          Date range
-          <select value={preset} onChange={(e) => onPresetChange(e.target.value)}>
-            {Object.entries(PRESET_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </label>
-
-        {preset === 'custom' && (
+        {period && (
+          <label>
+            {t('Date range')}
+            <select name="preset" value={period.preset} onChange={(event) => period.setPreset(event.target.value)}>
+              {Object.entries(PRESETS).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
+            </select>
+          </label>
+        )}
+        {period?.preset === 'custom' && (
           <>
-            <label>
-              Start date
-              <input type="date" value={customRange.start || ''} onChange={(e) => onCustomRangeChange({ ...customRange, start: e.target.value })} />
-            </label>
-            <label>
-              End date
-              <input type="date" value={customRange.end || ''} onChange={(e) => onCustomRangeChange({ ...customRange, end: e.target.value })} />
-            </label>
+            <label>{t('Start date')}<input name="from" type="date" value={period.from} onChange={(event) => period.setFrom(event.target.value)} /></label>
+            <label>{t('End date')}<input name="to" type="date" value={period.to} onChange={(event) => period.setTo(event.target.value)} /></label>
           </>
         )}
-
         {categories && (
           <label>
-            Category
-            <select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
-              <option value="All">All Categories</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {t('Category')}
+            <select name="category" value={category} onChange={(event) => onCategory(event.target.value)}>
+              <option value="">{t('All categories')}</option>
+              {categories.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
           </label>
         )}
-
-        {paymentMethods && (
+        {products && (
           <label>
-            Payment method
-            <select value={paymentMethod} onChange={(e) => onPaymentMethodChange(e.target.value)}>
-              <option value="All">All Methods</option>
-              {paymentMethods.map((m) => <option key={m} value={m}>{m}</option>)}
+            {t('Product')}
+            <select name="product" value={product} onChange={(event) => onProduct(event.target.value)}>
+              <option value="">{t('All products')}</option>
+              {products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
         )}
-
-        {onSearchChange && (
-          <label className="rpt-filters-search">
-            Search
-            <input type="text" placeholder="Search..." value={search} onChange={(e) => onSearchChange(e.target.value)} />
+        {methods && (
+          <label>
+            {t('Payment method')}
+            <select name="method" value={method} onChange={(event) => onMethod(event.target.value)}>
+              <option value="">{t('All methods')}</option>
+              {methods.map((name) => <option key={name} value={name}>{t(name)}</option>)}
+            </select>
           </label>
         )}
-      </div>
-
-      <div className="rpt-filters-actions">
-        <button className="btn-outline" onClick={onReset} type="button">Reset Filters</button>
-        <button className="btn-primary" onClick={onApply} type="button">Apply Filters</button>
+        {types && (
+          <label>
+            {t('Type')}
+            <select name="type" value={type} onChange={(event) => onType(event.target.value)}>
+              <option value="">{t('All types')}</option>
+              {types.map((name) => <option key={name} value={name}>{t(name)}</option>)}
+            </select>
+          </label>
+        )}
+        {onSearch && (
+          <label className="rpt-filters-search">
+            {t('Search')}
+            <input name="reportSearch" type="text" value={search} onChange={(event) => onSearch(event.target.value)} />
+          </label>
+        )}
+        <button type="button" className="btn btn-outline btn-sm rpt-reset" onClick={onReset}>{t('Reset filters')}</button>
       </div>
     </div>
   );
