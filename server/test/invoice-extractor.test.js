@@ -22,6 +22,22 @@ test('without a key there is no extractor, so nothing can pretend to scan', () =
   assert.ok(createInvoiceExtractor({ anthropicApiKey: 'x' }));
 });
 
+test('only the configured key is sent, never a token from the computer', async (t) => {
+  const before = process.env.ANTHROPIC_AUTH_TOKEN;
+  process.env.ANTHROPIC_AUTH_TOKEN = 'token-from-the-computer';
+  t.after(() => {
+    if (before === undefined) delete process.env.ANTHROPIC_AUTH_TOKEN;
+    else process.env.ANTHROPIC_AUTH_TOKEN = before;
+  });
+  let sent;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    sent = new Headers(init.headers);
+    return new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'x', content: [{ type: 'text', text: JSON.stringify(GOOD) }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), { headers: { 'content-type': 'application/json' } });
+  });
+  await read(createInvoiceExtractor({ anthropicApiKey: 'configured-key' }));
+  assert.equal(sent.get('authorization'), 'Bearer configured-key');
+});
+
 test('images and PDFs are sent in the right form, with structured output', async () => {
   const { extractor, calls } = extractorReturning(reply(GOOD));
   await read(extractor);

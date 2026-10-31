@@ -618,7 +618,7 @@ async function saleChecks(sessions) {
   await check('a scanned invoice becomes an order, and stock moves only when received', async () => {
     const madeSupplier = await request('/api/suppliers', { token: manager, body: { name: `Live Scan Supplier ${Date.now()}` } });
     const { supplier } = await madeSupplier.json();
-    scanText = product.sku;
+    scanText = (await database.from('products').select('sku').eq('id', product.id).single()).data.sku;
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
     const send = (body, type) => fetch(`${base}/api/invoice-scans?name=live-check.png`, { method: 'POST', headers: { 'Content-Type': type, Authorization: `Bearer ${manager}` }, body, signal: AbortSignal.timeout(20000) });
     assert.equal((await send(Buffer.from('nope'), 'image/png')).status, 415);
@@ -831,15 +831,15 @@ try {
     const token = sessions.Manager.token;
     const { settings } = await (await request('/api/settings', { token })).json();
     assert.equal(settings.currency, 'LKR');
-    const saved = await request('/api/settings', { token, method: 'PATCH', body: { receipt: { footer: 'Live thanks', showTax: false } } });
-    assert.equal(saved.status, 200, await saved.clone().text());
     try {
+      const saved = await request('/api/settings', { token, method: 'PATCH', body: { receipt: { footer: 'Live thanks', showTax: false } } });
+      assert.equal(saved.status, 200, await saved.clone().text());
       const { bills } = await (await request('/api/transactions/bills?pageSize=1', { token })).json();
       const { bill } = await (await request(`/api/transactions/bills/${bills[0].id}`, { token })).json();
       assert.equal(bill.store.receipt.footer, 'Live thanks');
       assert.equal(bill.store.receipt.showTax, false);
     } finally {
-      await request('/api/settings', { token, method: 'PATCH', body: { receipt: settings.receipt } });
+      await withRetry('restore receipt settings', () => database.from('store_settings').update({ receipt: settings.receipt }).eq('id', true));
     }
     const method = settings.paymentMethods.find((row) => row.code === 'Bank transfer');
     const url = `/api/settings/payment-methods/${encodeURIComponent(method.code)}`;
