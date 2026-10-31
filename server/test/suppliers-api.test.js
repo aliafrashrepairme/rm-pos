@@ -15,7 +15,7 @@ const ID = randomUUID();
 const ROW = { id: ID, code: 'SUP-0001', name: 'Lanka', contact_person: 'M', phone: '077', email: '', address: '', city: '', payment_terms: 'Cash', lead_time_days: 3, rating: '4.5', active: true };
 const STATS = { orders: 1, openOrders: 0, purchased: 100, paid: 40, balance: 60, judged: 1, onTimePercent: 100, products: 2 };
 
-function fakeDatabase({ openOrders = 0 } = {}) {
+function fakeDatabase({ openOrders = 0, owed = 0 } = {}) {
   const database = {
     rpcCalls: [],
     audits: [],
@@ -24,7 +24,7 @@ function fakeDatabase({ openOrders = 0 } = {}) {
     rpc: async (name, args) => {
       database.rpcCalls.push([name, args]);
       if (name === 'supplier_list') return { data: { rows: [{ ...ROW, stats: STATS }], total: 1 }, error: null };
-      if (name === 'supplier_stats') return { data: STATS, error: null };
+      if (name === 'supplier_stats') return { data: { ...STATS, balance: owed }, error: null };
       return { data: ID, error: null };
     },
     from(table) {
@@ -138,6 +138,12 @@ test('a supplier with open orders cannot be deactivated', async () => {
     const response = await as('manager', `/api/suppliers/${ID}`, patch({ active: false }));
     assert.equal(response.status, 409);
     assert.match((await response.json()).error, /2 open order/);
+    assert.equal(database.updates.length, 0);
+  });
+  await withApi({ owed: 60 }, async (as, database) => {
+    const response = await as('manager', `/api/suppliers/${ID}`, patch({ active: false }));
+    assert.equal(response.status, 409);
+    assert.match((await response.json()).error, /still owed/);
     assert.equal(database.updates.length, 0);
   });
   await withApi({}, async (as, database) => {

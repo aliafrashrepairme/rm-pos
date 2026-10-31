@@ -147,6 +147,8 @@ export async function updateSupplier({ database }, user, id, body) {
     const { count, error } = await database.from('purchases').select('id', { count: 'exact', head: true }).eq('supplier_id', id).in('status', ['Draft', 'Ordered', 'Partially Received']);
     unwrap({ error });
     if (count > 0) throw new HttpError(409, `${count} open order(s) use this supplier. Finish or cancel them first.`);
+    const stats = unwrap(await database.rpc('supplier_stats', { p_supplier: id }));
+    if (stats.balance > 0) throw new HttpError(409, 'This supplier is still owed money. Record the payments first.');
   }
 
   const row = unwrap(await database.from('suppliers').update(changes).eq('id', id).select('*').maybeSingle());

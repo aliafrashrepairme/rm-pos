@@ -70,6 +70,8 @@ async function ensureAccount(role, username) {
 }
 
 // A brief network or database outage must not leave working test logins behind.
+const runStarted = new Date().toISOString();
+
 async function withRetry(label, run, attempts = 6) {
   for (let attempt = 1; ; attempt += 1) {
     try {
@@ -104,13 +106,22 @@ const server = createApp({ config, ...clients }).listen(0, '127.0.0.1');
 await new Promise((resolve) => server.once('listening', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
-function request(path, { token, body, method } = {}) {
-  return fetch(base + path, {
+async function request(path, { token, body, method } = {}) {
+  const started = Date.now();
+  const label = `${method || (body ? 'POST' : 'GET')} ${path}`;
+  const reply = fetch(base + path, {
     method: method || (body ? 'POST' : 'GET'),
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(20000)
   });
+  try {
+    return await reply;
+  } finally {
+    // Names the request behind any stall, as the timeout error alone does not.
+    const took = Date.now() - started;
+    if (took > 3000) console.log(`slow ${new Date().toISOString()} ${took}ms ${label}`);
+  }
 }
 
 async function signIn(identifier, secret) {
@@ -685,7 +696,7 @@ try {
   });
 
   await check('login, logout and failures reached the audit log', async () => {
-    const { data } = await database.from('audit_logs').select('action').order('id', { ascending: false }).limit(60);
+    const { data } = await database.from('audit_logs').select('action').gte('created_at', runStarted).in('action', ['User login', 'User logout', 'Login failed', 'Password reset', 'Password changed']);
     const actions = data.map((row) => row.action);
     for (const action of ['User login', 'User logout', 'Login failed', 'Password reset', 'Password changed']) {
       assert.ok(actions.includes(action), `${action} is missing`);
