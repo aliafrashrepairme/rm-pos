@@ -11,7 +11,7 @@ function AddRow({ placeholder, extra, onAdd, label }) {
   const [value, setValue] = useState('');
   return (
     <form className="list-add" onSubmit={async (event) => { event.preventDefault(); if (await onAdd(value)) setValue(''); }}>
-      <input aria-label={placeholder} placeholder={placeholder} value={value} maxLength={60} onChange={(event) => setValue(event.target.value)} required />
+      <input className="inp" aria-label={placeholder} placeholder={placeholder} value={value} maxLength={60} onChange={(event) => setValue(event.target.value)} required />
       {extra}
       <button type="submit" className="btn btn-outline btn-sm">＋ {label}</button>
     </form>
@@ -41,7 +41,7 @@ export default function ListsPage() {
       const reply = await api(path, { method, body: JSON.stringify(body) });
       if (reply.categories) setLists(reply);
       else await load();
-      toast(t('Settings saved.'));
+      toast(t('Saved.'));
       return true;
     } catch (failure) {
       toast(t(failure.message));

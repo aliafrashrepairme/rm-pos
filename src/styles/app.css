@@ -200,3 +200,4 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .list-check { display: flex; align-items: center; gap: 5px; font-size: 13px; }
 .list-check input { width: auto; margin: 0; }
 .list-name { width: 100%; max-width: 240px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }

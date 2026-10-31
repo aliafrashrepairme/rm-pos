@@ -4,8 +4,8 @@ import { writeAudit } from './audit.js';
 
 export async function getLists({ database }) {
   const [categories, units, taxRates, products, sequences] = await Promise.all([
-    selectAll(() => database.from('categories').select('id, name, active').order('name').order('id')),
-    selectAll(() => database.from('units').select('code, allow_decimal_qty, active').order('code')),
+    selectAll(() => database.from('categories').select('id, name, active').order('active', { ascending: false }).order('name').order('id')),
+    selectAll(() => database.from('units').select('code, allow_decimal_qty, active').order('active', { ascending: false }).order('code')),
     selectAll(() => database.from('tax_rates').select('id, name, rate, is_default, active').order('name')),
     selectAll(() => database.from('products').select('category_id, unit_code, tax_rate_id').eq('active', true).order('id')),
     selectAll(() => database.from('number_sequences').select('prefix').order('prefix'))
@@ -19,6 +19,8 @@ export async function getLists({ database }) {
     prefixes: sequences.map((row) => row.prefix)
   };
 }
+
+const onOff = (changes) => Object.entries(changes).map(([key, value]) => `${key === 'active' ? 'status' : 'part quantities'} ${value ? 'on' : 'off'}`).join(', ');
 
 function unitCode(value) {
   const code = typeof value === 'string' ? value.trim() : '';
@@ -50,7 +52,7 @@ export async function updateUnit(clients, user, code, body) {
   }
   const row = unwrap(await clients.database.from('units').update(changes).eq('code', code).select('code').maybeSingle());
   if (!row) throw new HttpError(404, 'Unit not found.');
-  await writeAudit(clients.database, { user, action: 'Unit changed', description: `${code}: ${JSON.stringify(changes)}`, entityType: 'unit', entityId: code });
+  await writeAudit(clients.database, { user, action: 'Unit changed', description: `${code}: ${onOff(changes)}`, entityType: 'unit', entityId: code });
   return getLists(clients);
 }
 

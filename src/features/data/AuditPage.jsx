@@ -47,6 +47,8 @@ export default function AuditPage() {
         type={action}
         types={actions}
         onType={setAction}
+        typeLabel="Action"
+        allTypesLabel="All actions"
         search={typed}
         onSearch={setTyped}
         onReset={() => { period.reset(); setAction(''); setTyped(''); }}

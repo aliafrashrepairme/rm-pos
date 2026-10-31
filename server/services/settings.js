@@ -103,6 +103,6 @@ export async function updatePaymentMethod(clients, user, code, body) {
   }
   const row = unwrap(await database.from('payment_methods').update(changes).eq('code', code).select('code').maybeSingle());
   if (!row) throw new HttpError(404, 'Payment method not found.');
-  await writeAudit(database, { user, action: 'Payment method changed', description: `${code}: ${JSON.stringify(changes)}`, entityType: 'payment_method', entityId: code });
+  await writeAudit(database, { user, action: 'Payment method changed', description: `${code}: ${Object.entries(changes).map(([key, value]) => `${key === 'active' ? 'status' : 'asks for a reference'} ${value ? 'on' : 'off'}`).join(', ')}`, entityType: 'payment_method', entityId: code });
   return getSettings(clients);
 }

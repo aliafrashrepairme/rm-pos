@@ -12,7 +12,7 @@ const PRESETS = {
 };
 
 // Each filter appears only when its value and change handler are passed. Changes apply straight away.
-export default function ReportFilters({ period, category, categories, onCategory, product, products, onProduct, method, methods, onMethod, type, types, onType, search, onSearch, onReset }) {
+export default function ReportFilters({ period, category, categories, onCategory, product, products, onProduct, method, methods, onMethod, type, types, onType, typeLabel = 'Type', allTypesLabel = 'All types', search, onSearch, onReset }) {
   const { t } = useI18n();
   return (
     <div className="card rpt-filters">
@@ -60,9 +60,9 @@ export default function ReportFilters({ period, category, categories, onCategory
         )}
         {types && (
           <label>
-            {t('Type')}
+            {t(typeLabel)}
             <select name="type" value={type} onChange={(event) => onType(event.target.value)}>
-              <option value="">{t('All types')}</option>
+              <option value="">{t(allTypesLabel)}</option>
               {types.map((name) => <option key={name} value={name}>{t(name)}</option>)}
             </select>
           </label>

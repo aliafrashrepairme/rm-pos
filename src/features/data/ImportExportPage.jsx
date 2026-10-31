@@ -36,8 +36,11 @@ export default function ImportExportPage() {
   async function chooseFile(chosen) {
     setReport(null);
     setError('');
+    setFile(null);
+    // The button waits for the text, so a quick click can't check an empty file.
+    const contents = chosen ? await chosen.text() : '';
+    setText(contents);
     setFile(chosen ?? null);
-    setText(chosen ? await chosen.text() : '');
   }
 
   async function validate() {
