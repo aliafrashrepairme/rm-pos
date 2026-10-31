@@ -201,3 +201,6 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .list-check input { width: auto; margin: 0; }
 .list-name { width: 100%; max-width: 240px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+@media print {
+  html, body.print-labels { background: #fff !important; }
+}
