@@ -17,7 +17,7 @@ Prices below were checked in November 2026. Confirm them on each company's prici
 3. On your PC, run `npm --prefix server run db:bundle`. This creates `server/supabase/fresh-project.sql`.
 4. Paste that whole file into the new project's SQL Editor and run it once.
 5. Under **Authentication > Sign In / Providers**, turn off **Allow new users to sign up**. Staff accounts are only created through the app or the command below.
-6. Under **Authentication > Emails > Reset Password**, include `{{ .Token }}` in the template, because the app asks for a code rather than opening a link.
+6. Optional, for emailed password resets: the app asks for a code rather than opening a link, so the **Authentication > Emails > Reset Password** template must include `{{ .Token }}`. Supabase only allows that edit after you set up your own email service (custom SMTP). Until then, emailed resets won't work, and a Manager resets staff passwords from User Management.
 
 ## 2. Save the live settings on your PC
 
