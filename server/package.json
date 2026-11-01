@@ -1,6 +1,6 @@
 {
   "name": "rm-pos-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "index.js",
@@ -11,7 +11,10 @@
     "db:check": "node scripts/check-database.js",
     "user:create": "node scripts/create-user.js",
     "test:live": "node scripts/live-check.js",
-    "db:migrate": "node scripts/migrate.js"
+    "db:migrate": "node scripts/migrate.js",
+    "db:bundle": "node scripts/bundle-migrations.js",
+    "live:db-check": "node --env-file=../.env.live scripts/check-database.js",
+    "live:user-create": "node --env-file=../.env.live scripts/create-user.js"
   },
   "engines": {
     "node": ">=22.13.0"

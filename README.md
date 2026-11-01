@@ -2,6 +2,8 @@
 
 Hardware store POS desktop app — **React + Electron** front end with a **Node.js (Express)** API.
 
+To put it into real use, follow [docs/deployment.md](docs/deployment.md).
+
 ## Project structure
 
 ```
@@ -30,7 +32,7 @@ For email password resets, edit the **Reset Password** template under Supabase A
 
 `npm run dev` starts three things together: the React dev server (Vite), Electron, and the API on port 4000. The backend requires Node.js 22.13 or newer and loads `.env` from the repository root.
 
-The API lives in `server/`: `app.js` builds it, and `routes/`, `services/`, `middleware/` and `validation/` hold the modules. `docs/architecture.md` explains the design. Business modules are being rebuilt phase by phase, so only login, password management, health checks and report reads are available for now. Start the API by itself with `npm --prefix server run dev`, and run its tests with `npm --prefix server test`. `npm --prefix server run test:live` checks login and permissions against the real Supabase project using disabled `smoke.*` accounts. `GET /api/health/ready` reports whether the database can be reached.
+The API lives in `server/`: `app.js` builds it, and `routes/`, `services/`, `middleware/` and `validation/` hold the modules. `docs/architecture.md` explains the design. Start the API by itself with `npm --prefix server run dev`, and run its tests with `npm --prefix server test`. `npm --prefix server run test:live` checks login and permissions against the real Supabase project using disabled `smoke.*` accounts. `GET /api/health/ready` reports whether the database can be reached.
 
 ## Scripts
 
@@ -38,7 +40,10 @@ The API lives in `server/`: `app.js` builds it, and `routes/`, `services/`, `mid
 |---|---|
 | `npm run dev` | Run the app in development (hot reload) |
 | `npm run build` | Build the React UI into `dist/` |
-| `npm run dist` | Build a Windows installer into `release/` |
+| `npm run dist` | Build a Windows installer into `release/`, connected to the hosted server |
+| `npm test` | Run the front-end tests |
+| `npm --prefix server test` | Run the API and database tests |
+| `npm --prefix server run db:bundle` | Join the migrations into one file for a new Supabase project |
 
 ## Team workflow
 

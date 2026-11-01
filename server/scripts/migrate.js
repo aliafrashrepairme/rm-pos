@@ -23,7 +23,8 @@ const APPLIED_BY_HAND = {
   '0013_invoice_scans.sql': "to_regprocedure('public.match_invoice_text(text)') is not null",
   '0014_import_lists.sql': "to_regprocedure('public.audit_actions()') is not null",
   '0015_shifts.sql': "to_regprocedure('public.shift_figures(uuid)') is not null",
-  '0016_store_settings_merge.sql': "to_regprocedure('public.save_store_settings(jsonb, jsonb, uuid)') is not null"
+  '0016_store_settings_merge.sql': "to_regprocedure('public.save_store_settings(jsonb, jsonb, uuid)') is not null",
+  '0017_clear_sample_store_details.sql': "not exists (select 1 from public.store_settings where phone = '021 222 3344')"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

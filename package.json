@@ -1,6 +1,6 @@
 {
   "name": "rm-pos",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "RM POS — hardware store POS desktop app (React + Electron)",
   "author": "Ali Afrash <aliafrash.repairme@gmail.com>",
   "private": true,
@@ -11,7 +11,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "start": "electron .",
-    "dist": "vite build && electron-builder",
+    "dist": "node scripts/check-release-address.js && vite build && electron-builder",
     "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
