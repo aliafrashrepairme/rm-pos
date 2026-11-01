@@ -195,16 +195,13 @@ test('settings are validated and merge with what is saved', async () => {
     assert.equal((await change({ receipt: { size: 'huge' } })).status, 400);
     assert.equal((await change({ receipt: { showTax: 'yes' } })).status, 400);
     assert.equal((await change({ receipt: { footer: 'x'.repeat(201) } })).status, 400);
-    assert.equal(database.updates.length, 0);
+    assert.equal(database.rpcCalls.length, 0);
     assert.equal((await change({ storeName: ' New ', receipt: { footer: ' Thanks ' }, currency_code: 'USD' })).status, 200);
-    const [table, saved] = database.updates[0];
-    assert.equal(table, 'store_settings');
-    assert.equal(saved.store_name, 'New');
-    assert.equal(saved.currency_code, undefined);
-    assert.equal(saved.updated_by, 'manager');
-    assert.equal(saved.receipt.footer, 'Thanks');
-    assert.equal(saved.receipt.showTax, false, 'keeps what was saved');
-    assert.equal(saved.receipt.size, '80mm');
+    const [name, args] = database.rpcCalls[0];
+    assert.equal(name, 'save_store_settings');
+    assert.deepEqual(args.p_store, { store_name: 'New' });
+    assert.equal(args.p_user, 'manager');
+    assert.deepEqual(args.p_receipt, { footer: 'Thanks' }, 'sends only what changed, so a quick second save cannot undo it');
   });
 });
 

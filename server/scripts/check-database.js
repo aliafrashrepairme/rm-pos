@@ -98,5 +98,11 @@ const shiftFunction = await database.rpc('shift_figures', { p_shift: '00000000-0
 if (shiftFunction.error) failed = true;
 console.log(`${shiftFunction.error ? 'FAIL' : 'ok  '} shift functions${shiftFunction.error ? ' (run 0015_shifts.sql)' : ''}`);
 
+// Empty changes are refused by the function itself, so this changes nothing.
+const settingsFunction = await database.rpc('save_store_settings', { p_store: {}, p_receipt: {}, p_user: null });
+const settingsMissing = settingsFunction.error?.code === 'PGRST202';
+if (settingsMissing) failed = true;
+console.log(`${settingsMissing ? 'FAIL' : 'ok  '} store settings function${settingsMissing ? ' (run 0016_store_settings_merge.sql)' : ''}`);
+
 console.log(failed ? '\nThe database does not match. Run the files in server/supabase/migrations/ in number order.' : '\nThe database matches the migrations.');
 process.exit(failed ? 1 : 0);

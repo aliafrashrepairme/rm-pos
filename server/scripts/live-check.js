@@ -884,7 +884,7 @@ try {
       const { data: open } = await database.from('payment_methods').select('code').eq('active', true);
       assert.ok(!open.some((row) => row.code === method.code));
     } finally {
-      await request(url, { token, method: 'PATCH', body: { active: method.active } });
+      await withRetry('restore payment method', () => database.from('payment_methods').update({ active: method.active }).eq('code', method.code));
     }
   });
   await check('imports save all or nothing, and exports read real records', async () => {

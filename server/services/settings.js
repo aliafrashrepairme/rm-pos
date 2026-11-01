@@ -30,8 +30,8 @@ export async function getSettings({ database }) {
   return asSettings(unwrap(store), unwrap(taxRates), unwrap(methods));
 }
 
-function receiptFrom(body, current) {
-  const receipt = { ...DEFAULT_RECEIPT, ...current };
+function receiptFrom(body) {
+  const receipt = {};
   if (body.size !== undefined) {
     if (!RECEIPT_SIZES.includes(body.size)) throw new HttpError(400, 'Choose a valid receipt size.');
     receipt.size = body.size;
@@ -51,21 +51,22 @@ function receiptFrom(body, current) {
 
 export async function updateSettings(clients, user, body) {
   const { database } = clients;
-  const changes = {};
+  const store = {};
   for (const [key, [column, max, label]] of Object.entries(STORE_TEXT)) {
     if (body?.[key] === undefined) continue;
     if (typeof body[key] !== 'string' || body[key].length > max) throw new HttpError(400, `${label} must be ${max} characters or fewer.`);
-    changes[column] = body[key].trim();
+    store[column] = body[key].trim();
   }
-  if (changes.store_name === '') throw new HttpError(400, 'Enter the store name.');
+  if (store.store_name === '') throw new HttpError(400, 'Enter the store name.');
+  let receipt = {};
   if (body?.receipt !== undefined) {
     if (typeof body.receipt !== 'object' || body.receipt === null) throw new HttpError(400, 'Receipt options must be on or off.');
-    const current = unwrap(await database.from('store_settings').select('receipt').single());
-    changes.receipt = receiptFrom(body.receipt, current.receipt);
+    receipt = receiptFrom(body.receipt);
   }
-  if (!Object.keys(changes).length) throw new HttpError(400, 'Nothing to change.');
-  unwrap(await database.from('store_settings').update({ ...changes, updated_by: user.id }).eq('id', true).select('id').single());
-  await writeAudit(database, { user, action: 'Settings changed', description: Object.keys(changes).join(', '), entityType: 'settings' });
+  const changed = [...Object.keys(store), ...(Object.keys(receipt).length ? ['receipt'] : [])];
+  if (!changed.length) throw new HttpError(400, 'Nothing to change.');
+  unwrap(await database.rpc('save_store_settings', { p_store: store, p_receipt: receipt, p_user: user.id }));
+  await writeAudit(database, { user, action: 'Settings changed', description: changed.join(', '), entityType: 'settings' });
   return getSettings(clients);
 }
 

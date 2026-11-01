@@ -6,7 +6,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 
 const read = (name) => readFile(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8');
-const MIGRATIONS = ['0001_core_schema.sql', '0002_dashboard.sql', '0003_products.sql', '0004_inventory.sql', '0005_barcode_counts.sql', '0006_pos.sql', '0007_transactions.sql', '0008_purchases.sql', '0009_suppliers.sql', '0010_customers.sql', '0011_reports.sql', '0012_users_settings.sql'];
+const MIGRATIONS = ['0001_core_schema.sql', '0002_dashboard.sql', '0003_products.sql', '0004_inventory.sql', '0005_barcode_counts.sql', '0006_pos.sql', '0007_transactions.sql', '0008_purchases.sql', '0009_suppliers.sql', '0010_customers.sql', '0011_reports.sql', '0012_users_settings.sql', '0016_store_settings_merge.sql'];
 
 let db;
 
@@ -27,6 +27,19 @@ before(async () => {
     create table auth.users (id uuid primary key);
   `);
   for (const file of MIGRATIONS) await db.exec(await read(file));
+});
+
+test('saving one receipt option keeps the others, even when saves overlap', async () => {
+  const manager = await person('Manager');
+  const save = (store, receipt) => db.query('select public.save_store_settings($1, $2, $3)', [store, receipt, manager]);
+  await Promise.all([save({}, { footer: 'Thanks' }), save({}, { size: '100mm' }), save({ phone: '021' }, { showTax: false })]);
+  const { rows: [row] } = await db.query('select phone, address, receipt, updated_by from public.store_settings');
+  assert.deepEqual([row.receipt.footer, row.receipt.size, row.receipt.showTax, row.receipt.showBalance], ['Thanks', '100mm', false, true]);
+  assert.equal(row.phone, '021');
+  assert.equal(typeof row.address, 'string', 'fields not sent stay as they were');
+  assert.equal(row.updated_by, manager);
+  await assert.rejects(() => save({}, {}), /Nothing to change/);
+  await save({}, { footer: '', size: '80mm', showTax: true });
 });
 
 test('name, email, role and status can be changed', async () => {
