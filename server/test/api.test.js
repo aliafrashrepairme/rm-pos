@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createApp } from '../app.js';
 import { readConfig } from '../config.js';
 import { createLoginLimiter } from '../middleware/loginLimiter.js';
+import { createRequestLimiter } from '../middleware/security.js';
 
 const config = readConfig({ SUPABASE_URL: 'http://x', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' });
 
@@ -103,7 +104,7 @@ fakeAuth.emails = [];
 async function withApi(tableOverrides, run, options = {}) {
   const tables = { profiles: makeProfiles(), store_settings: [{ id: true }], audit_logs: [], ...tableOverrides };
   const database = fakeDatabase(tables);
-  const server = createApp({ config, authClient: fakeAuth(tables), database, limiter: options.limiter }).listen(0);
+  const server = createApp({ config, authClient: fakeAuth(tables), database, limiter: options.limiter, requestLimiter: options.requestLimiter }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = (path, init = {}) => fetch(base + path, {
@@ -168,6 +169,16 @@ test('failed logins are refused alike and audited without the password', async (
     assert.ok(!JSON.stringify(audit()).includes('wrong'));
     assert.equal((await call('/api/auth/login', postJson({ identifier: 'owner' }))).status, 400);
     assert.equal((await call('/api/auth/refresh', postJson({ refreshToken: 'old' }))).status, 401);
+  });
+});
+
+test('a name no account could have is refused without asking the database', async () => {
+  await withApi({}, async ({ call, database }) => {
+    const before = database.calls.filter((item) => item.table === 'profiles').length;
+    const response = await call('/api/auth/login', login("' or 1=1 --", 'x'));
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, 'Incorrect username, email or password.');
+    assert.equal(database.calls.filter((item) => item.table === 'profiles').length, before);
   });
 });
 
@@ -371,4 +382,32 @@ test('only allowed origins get browser access', async () => {
     assert.equal(response.headers.get('access-control-allow-origin'), null);
     assert.equal(response.headers.get('x-powered-by'), null);
   }, { origin: 'http://evil.example' });
+});
+
+test('every reply forbids framing, sniffing and caching', async () => {
+  await withApi({}, async ({ call, as }) => {
+    for (const response of [await call('/api/health'), await as('owner', '/api/auth/me'), await call('/api/auth/me')]) {
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+      assert.equal(response.headers.get('x-frame-options'), 'DENY');
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+      // Plain http is only used on this computer, where HSTS would do nothing.
+      assert.equal(response.headers.get('strict-transport-security'), null);
+    }
+  });
+});
+
+test('one address is slowed down after too many requests, then allowed again', async () => {
+  let time = 0;
+  const requestLimiter = createRequestLimiter({ now: () => time, limit: 3 });
+  await withApi({}, async ({ call }) => {
+    for (let i = 0; i < 3; i += 1) assert.equal((await call('/api/health')).status, 200);
+    const blocked = await call('/api/health');
+    assert.equal(blocked.status, 429);
+    assert.equal(blocked.headers.get('retry-after'), '60');
+    assert.equal(blocked.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+    assert.match((await blocked.json()).error, /Too many requests/);
+    time += 60 * 1000;
+    assert.equal((await call('/api/health')).status, 200);
+  }, { requestLimiter, origin: 'http://localhost:5173' });
 });

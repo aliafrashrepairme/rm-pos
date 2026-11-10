@@ -5,6 +5,7 @@ import { barcodeRoutes } from './routes/barcode.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
+import { createRequestLimiter, securityHeaders } from './middleware/security.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
 import { createInvoiceExtractor } from './services/invoiceExtractor.js';
 import { auditRoutes, dataRoutes, listRoutes } from './routes/data.js';
@@ -22,12 +23,14 @@ import { reportRoutes } from './routes/reports.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
 
-export function createApp({ config, authClient, database, limiter = createLoginLimiter(), extractor = createInvoiceExtractor(config) }) {
+export function createApp({ config, authClient, database, limiter = createLoginLimiter(), requestLimiter = createRequestLimiter(), extractor = createInvoiceExtractor(config) }) {
   const clients = { authClient, database, limiter, extractor };
   const app = express();
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
+  app.use(securityHeaders);
   app.use(cors({ origin: config.corsOrigins }));
+  app.use('/api', requestLimiter);
   app.use(express.json({ limit: '1mb' }));
 
   app.use('/api', healthRoutes(clients));
