@@ -22,8 +22,12 @@ async function endSession(database, accessToken, scope = 'local') {
   if (error && error.name !== 'AuthSessionMissingError') console.error('Could not end session:', error);
 }
 
+const USERNAME = /^[a-z0-9._-]{3,40}$/;
+
 async function emailFor(database, identifier) {
   if (identifier.includes('@')) return identifier.toLowerCase();
+  // No account can have any other name, and Supabase's firewall rejects some of that text outright.
+  if (!USERNAME.test(identifier.toLowerCase())) return null;
   const row = unwrap(await database.from('profiles').select('email').eq('username', identifier.toLowerCase()).maybeSingle());
   return row?.email ?? null;
 }
