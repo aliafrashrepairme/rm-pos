@@ -2,6 +2,8 @@ node_modules/
 dist/
 release/
 out/
+server/data/*.sqlite*
+server/supabase/fresh-project.sql
 .env
 .env.*
 !.env.example

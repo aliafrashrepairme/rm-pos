@@ -2,6 +2,8 @@
 
 Hardware store POS desktop app — **React + Electron** front end with a **Node.js (Express)** API.
 
+To put it into real use, follow [docs/deployment.md](docs/deployment.md).
+
 ## Project structure
 
 ```
@@ -22,37 +24,15 @@ npm --prefix server install
 npm run dev
 ```
 
-`npm run dev` starts three things together: the React dev server (Vite), the Electron window, and the API on port 4000.
+The API uses Supabase Auth and Postgres. Copy `.env.example` to `.env`, then set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from your Supabase project. Keep the service-role key private; it is only read by the server.
 
-Demo login: `manager@rmpos.lk` / `manager123`
+Run the files in `server/supabase/migrations/` in number order in the Supabase SQL Editor, then confirm the result with `npm --prefix server run db:check`. Create staff accounts with `npm --prefix server run user:create`, which keeps the password hidden. This is the only way to create an Owner.
 
-If the window does not open and you see "Electron failed to install correctly", run
-`node node_modules/electron/install.js` once to download the Electron binary.
+For email password resets, edit the **Reset Password** template under Supabase Authentication > Emails so it includes `{{ .Token }}`, because the desktop app asks for a code rather than opening a link. Staff without an email ask their Manager for a reset.
 
-## Barcode scanner
+`npm run dev` starts three things together: the React dev server (Vite), Electron, and the API on port 4000. The backend requires Node.js 22.13 or newer and loads `.env` from the repository root.
 
-Screen: **Barcode Scanner** (Cashier login: `cashier@rmpos.lk` / `cashier123`). Scan a product and its
-name, price, stock, location and supplier appear on screen.
-
-Ways to scan — all go through the same lookup:
-
-| Input | How it works |
-|---|---|
-| USB / Bluetooth scanner | Acts as a keyboard. Works anywhere on the screen; fast key bursts ending in Enter are treated as a scan, normal typing is ignored. |
-| Camera (webcam) | Decoded live with [ZXing](https://github.com/zxing-js/browser). Same barcode is reported once while it stays in view. |
-| Photo | Upload a picture of a barcode. |
-| Manual | Type a barcode or SKU (e.g. `RM-1003`). |
-
-No AI model is trained or needed: barcodes are a fixed standard, and ZXing decodes them exactly.
-EAN-13 / EAN-8 / UPC-A check digits are verified, so a misread shows **"Barcode misread"** instead of
-the wrong product. Supported: EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, ITF, QR.
-
-API: `GET /api/products/lookup?code=<barcode or SKU>` → `200 { product }`, `404` not in catalog,
-`422` failed check digit, `400` missing code. Demo products use barcodes `4791234` + SKU number + check
-digit (e.g. LED Bulb `RM-1003` → `4791234010038`), the same as the prototype's printed labels.
-
-Code: `src/scanner/` (screen, camera, USB-scanner hook, decoder), `shared/barcode.js` (validation,
-used by UI and API), `server/data/catalog.js` (temporary product data — swap for the database).
+The API lives in `server/`: `app.js` builds it, and `routes/`, `services/`, `middleware/` and `validation/` hold the modules. `docs/architecture.md` explains the design. Start the API by itself with `npm --prefix server run dev`, and run its tests with `npm --prefix server test`. `npm --prefix server run test:live` checks login and permissions against the real Supabase project using disabled `smoke.*` accounts. `GET /api/health/ready` reports whether the database can be reached.
 
 ## Scripts
 
@@ -60,7 +40,10 @@ used by UI and API), `server/data/catalog.js` (temporary product data — swap f
 |---|---|
 | `npm run dev` | Run the app in development (hot reload) |
 | `npm run build` | Build the React UI into `dist/` |
-| `npm run dist` | Build a Windows installer into `release/` |
+| `npm run dist` | Build a Windows installer into `release/`, connected to the hosted server |
+| `npm test` | Run the front-end tests |
+| `npm --prefix server test` | Run the API and database tests |
+| `npm --prefix server run db:bundle` | Join the migrations into one file for a new Supabase project |
 
 ## Team workflow
 

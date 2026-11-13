@@ -1,6 +1,6 @@
 {
   "name": "rm-pos",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "RM POS — hardware store POS desktop app (React + Electron)",
   "author": "Ali Afrash <aliafrash.repairme@gmail.com>",
   "private": true,
@@ -9,15 +9,19 @@
   "scripts": {
     "dev": "concurrently -k -n web,app,api -c yellow,cyan,green \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\" \"npm --prefix server run dev\"",
     "dev:web": "vite",
+    "live": "concurrently -k -n web,app,api -c yellow,cyan,green \"cross-env VITE_API_URL=http://localhost:4100 vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\" \"cross-env PORT=4100 npm --prefix server run live:start\"",
     "build": "vite build",
     "start": "electron .",
-    "dist": "vite build && electron-builder"
+    "dist": "node scripts/check-release-address.js && vite build && electron-builder",
+    "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
-    "@zxing/browser": "0.2.1",
-    "@zxing/library": "0.23.0",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
+    "onnxruntime-web": "^1.31.1",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.2",
@@ -31,12 +35,23 @@
   "build": {
     "appId": "lk.repairme.rmpos",
     "productName": "RM POS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "files": [
       "dist/**",
-      "electron/**"
+      "electron/**",
+      "!node_modules/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     }
   }
 }
