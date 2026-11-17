@@ -870,9 +870,12 @@ try {
       const saved = await request('/api/settings', { token, method: 'PATCH', body: { receipt: { footer: 'Live thanks', showTax: false } } });
       assert.equal(saved.status, 200, await saved.clone().text());
       const { bills } = await (await request('/api/transactions/bills?pageSize=1', { token })).json();
-      const { bill } = await (await request(`/api/transactions/bills/${bills[0].id}`, { token })).json();
-      assert.equal(bill.store.receipt.footer, 'Live thanks');
-      assert.equal(bill.store.receipt.showTax, false);
+      // A new project has no bills yet, so then the saved settings are read back instead.
+      const receipt = bills.length
+        ? (await (await request(`/api/transactions/bills/${bills[0].id}`, { token })).json()).bill.store.receipt
+        : (await (await request('/api/settings', { token })).json()).settings.receipt;
+      assert.equal(receipt.footer, 'Live thanks');
+      assert.equal(receipt.showTax, false);
     } finally {
       await withRetry('restore receipt settings', () => database.from('store_settings').update({ receipt: settings.receipt }).eq('id', true));
     }
