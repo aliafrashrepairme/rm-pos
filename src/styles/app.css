@@ -228,3 +228,11 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 #printArea .report-print .total-row { display: flex; justify-content: space-between; color: #000; padding: 2px 0; }
 #printArea .report-print hr { border: 0; border-top: 1px solid #999; }
 .pos-shift-note { margin-bottom: 12px; }
+
+/* The Owner's logo, kept inside the same space as the built-in mark. */
+.brand-logo { width: 42px; height: 42px; border-radius: 13px; object-fit: contain; background: #fff; flex-shrink: 0; }
+.receipt-logo { display: block; max-width: 60%; max-height: 70px; margin: 0 auto 6px; object-fit: contain; }
+.pb-logo { display: block; max-height: 48px; max-width: 160px; margin-bottom: 6px; object-fit: contain; }
+.logo-preview { width: 160px; height: 160px; border: 1px solid var(--line); border-radius: 14px; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.logo-preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
+.logo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }

@@ -455,7 +455,17 @@ export default {
     'Hardware Store Management': 'வன்பொருள் கடை மேலாண்மை',
     'Shifts & Cash': 'ஷிப்ட்கள் & பணம்',
     'Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.': 'பில்லிங், சரக்கு, கொள்முதல் மற்றும் சரக்கு எண்ணிக்கையை நிர்வகிக்க உள்நுழையவும் — உங்கள் பணிப்பொறுப்புக்கு ஏற்ற அணுகலுடன்.',
-    'Forgot your password? Ask your manager to reset it.': 'கடவுச்சொல் மறந்துவிட்டதா? அதை மீட்டமைக்க உங்கள் மேலாளரிடம் கேளுங்கள்.'
+    'Forgot your password? Ask your manager to reset it.': 'கடவுச்சொல் மறந்துவிட்டதா? அதை மீட்டமைக்க உங்கள் மேலாளரிடம் கேளுங்கள்.',
+    'Store Logo': 'கடை லோகோ',
+    'Store logo': 'கடை லோகோ',
+    'Shown in the menu, on the sign-in screen and on printed bills.': 'பட்டியலிலும், உள்நுழைவுத் திரையிலும், அச்சிடப்பட்ட பில்களிலும் காட்டப்படும்.',
+    'Your logo is in use.': 'உங்கள் லோகோ பயன்பாட்டில் உள்ளது.',
+    'The built-in logo is in use.': 'உள்ளமைந்த லோகோ பயன்பாட்டில் உள்ளது.',
+    'Choose a JPG, PNG or WebP image under 1 MB.': '1 MB-க்குக் குறைவான JPG, PNG அல்லது WebP படத்தைத் தேர்ந்தெடுக்கவும்.',
+    'Upload logo': 'லோகோவைப் பதிவேற்று',
+    'Use the built-in logo': 'உள்ளமைந்த லோகோவைப் பயன்படுத்து',
+    'Logo saved.': 'லோகோ சேமிக்கப்பட்டது.',
+    'Logo removed.': 'லோகோ அகற்றப்பட்டது.'
   },
   si: {
     "Today's sales": 'අද විකුණුම්',
@@ -912,6 +922,16 @@ export default {
     'Hardware Store Management': 'දෘඪාංග වෙළඳසැල් කළමනාකරණය',
     'Shifts & Cash': 'මාරු සහ මුදල්',
     'Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.': 'බිල්පත්, තොග, මිලදී ගැනීම් සහ තොග ගණන් කිරීම් කළමනාකරණයට පිවිසෙන්න — ඔබේ භූමිකාවට ගැළපෙන ප්‍රවේශය සමඟ.',
-    'Forgot your password? Ask your manager to reset it.': 'මුරපදය අමතකද? එය යළි සැකසීමට ඔබේ කළමනාකරුගෙන් ඉල්ලන්න.'
+    'Forgot your password? Ask your manager to reset it.': 'මුරපදය අමතකද? එය යළි සැකසීමට ඔබේ කළමනාකරුගෙන් ඉල්ලන්න.',
+    'Store Logo': 'වෙළඳසැල් ලාංඡනය',
+    'Store logo': 'වෙළඳසැල් ලාංඡනය',
+    'Shown in the menu, on the sign-in screen and on printed bills.': 'මෙනුවේ, පිවිසුම් තිරයේ සහ මුද්‍රිත බිල්පත්වල පෙන්වයි.',
+    'Your logo is in use.': 'ඔබේ ලාංඡනය භාවිතයේ ඇත.',
+    'The built-in logo is in use.': 'මුල් ලාංඡනය භාවිතයේ ඇත.',
+    'Choose a JPG, PNG or WebP image under 1 MB.': '1 MB ට අඩු JPG, PNG හෝ WebP රූපයක් තෝරන්න.',
+    'Upload logo': 'ලාංඡනය උඩුගත කරන්න',
+    'Use the built-in logo': 'මුල් ලාංඡනය භාවිත කරන්න',
+    'Logo saved.': 'ලාංඡනය සුරැකිණි.',
+    'Logo removed.': 'ලාංඡනය ඉවත් කළා.'
   }
 };

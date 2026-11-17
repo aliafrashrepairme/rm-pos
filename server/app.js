@@ -11,6 +11,7 @@ import { auditRoutes, dataRoutes, listRoutes } from './routes/data.js';
 import { healthRoutes } from './routes/health.js';
 import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
+import { logoRoutes, publicLogoRoutes } from './routes/logo.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
 import { customerRoutes } from './routes/customers.js';
 import { purchaseRoutes } from './routes/purchases.js';
@@ -33,6 +34,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
 
   app.use('/api', healthRoutes(clients));
   app.use('/api/auth', publicAuthRoutes(clients));
+  app.use('/api/logo', publicLogoRoutes(clients));
 
   app.use('/api', createRequireAuth(clients), requirePasswordCurrent);
   app.use('/api/auth', sessionRoutes(clients));
@@ -47,6 +49,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/suppliers', supplierRoutes(clients));
   app.use('/api/customers', customerRoutes(clients));
   app.use('/api/settings', settingsRoutes(clients));
+  app.use('/api/logo', logoRoutes(clients));
   app.use('/api/data', dataRoutes(clients));
   app.use('/api/lists', listRoutes(clients));
   app.use('/api/shifts', shiftRoutes(clients));

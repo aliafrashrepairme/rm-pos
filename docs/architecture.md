@@ -47,6 +47,7 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 | Supplier payments | | Yes | | |
 | Import/Export, lists, settings | | Yes | | |
 | User management, audit log | | Yes | | |
+| Store logo | Change | | | |
 
 Cashiers read the selling catalogue through a separate response that leaves out cost prices.
 

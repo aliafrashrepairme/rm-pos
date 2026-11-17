@@ -34,4 +34,9 @@ test('a brand-new database is set up by one file and holds no sample records', a
   assert.deepEqual(await holders('transactions.view'), ['Manager', 'Owner']);
   assert.deepEqual(await holders('transactions.monthly'), ['Owner']);
   assert.deepEqual(await holders('ai_scan.use'), []);
+
+  // Only the Owner changes the logo, and a new store starts with the built-in one.
+  assert.deepEqual(await holders('settings.logo'), ['Owner']);
+  const { rows: [logo] } = await db.query('select logo_path from public.store_settings');
+  assert.equal(logo.logo_path, '');
 });

@@ -1,6 +1,7 @@
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { LANGUAGES } from '../i18n/translate.js';
 import { menuFor } from './access.js';
+import { useStoreLogo } from './storeLogo.js';
 
 export function ThemeButton({ theme, onChange }) {
   const { t } = useI18n();
@@ -22,11 +23,12 @@ export function LanguageSelect({ onChange }) {
 
 export default function Layout({ user, page, version, theme, onNavigate, onTheme, onLanguage, onChangePassword, onLogout, children }) {
   const { t } = useI18n();
+  const logo = useStoreLogo();
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">RM</div>
+          {logo ? <img className="brand-logo" src={logo} alt={t('Store logo')} /> : <div className="brand-mark">RM</div>}
           <div className="brand-copy"><strong>RM POS</strong><small>{t('HARDWARE STORE SYSTEM')}</small></div>
         </div>
         <nav className="nav">

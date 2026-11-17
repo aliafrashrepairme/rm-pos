@@ -104,7 +104,7 @@ export async function updateProduct(clients, user, id, changes) {
   return updated;
 }
 
-const IMAGE_TYPES = {
+export const IMAGE_TYPES = {
   'image/jpeg': { extension: 'jpg', matches: (bytes) => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff },
   'image/png': { extension: 'png', matches: (bytes) => bytes.subarray(0, 4).toString('hex') === '89504e47' },
   'image/webp': { extension: 'webp', matches: (bytes) => bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP' }

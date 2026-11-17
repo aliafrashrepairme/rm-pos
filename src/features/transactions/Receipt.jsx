@@ -1,4 +1,5 @@
 import { dateTime, money, quantity } from '../../app/format.js';
+import { useStoreLogo } from '../../app/storeLogo.js';
 import BarcodeImage from '../../components/BarcodeImage.jsx';
 
 const number = (value) => money(value).replace('LKR ', '');
@@ -8,9 +9,11 @@ export default function Receipt({ bill }) {
   const { store, payment } = bill;
   const options = store.receipt ?? {};
   const sizeClass = options.size === 'A4' ? 'receipt-a4' : options.size === '100mm' ? 'receipt-100' : '';
+  const logo = useStoreLogo();
   return (
     <div className={`receipt ${sizeClass}`}>
       <div className="c">
+        {logo && <img className="receipt-logo" src={logo} alt="" />}
         <div className="big">{store.name}</div>
         {store.address}<br />
         {store.phone && <>Tel: {store.phone}</>}{store.vatRegistration && <> · VAT Reg {store.vatRegistration}</>}

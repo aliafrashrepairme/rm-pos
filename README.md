@@ -151,7 +151,7 @@ The full checklist is in [docs/deployment.md](docs/deployment.md).
 
 ## API
 
-All routes are under `/api`. `GET /api/health` answers without signing in; everything else needs a signed-in token.
+All routes are under `/api`. `GET /api/health` and `GET /api/logo` answer without signing in; everything else needs a signed-in token.
 
 | Prefix | Module |
 |---|---|
@@ -166,6 +166,7 @@ All routes are under `/api`. `GET /api/health` answers without signing in; every
 | `/api/shifts` | Cash shifts and expenses |
 | `/api/reports` | Sales, payment and inventory reports |
 | `/api/users`, `/api/settings`, `/api/lists` | Staff, store settings, lists such as units and tax rates |
+| `/api/logo` | Store logo: anyone can read it, only the Owner changes it |
 | `/api/data`, `/api/audit` | Import, export, audit log |
 
 Errors are always `{ "error": "message" }` with a matching status code. The request rules are in [docs/architecture.md](docs/architecture.md), and each module's routes are in `server/routes/`.

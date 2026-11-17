@@ -50,6 +50,12 @@ test('a Manager gets daily but not monthly transactions', () => {
   assert.equal(canOpen(manager, 'Monthly Transactions'), false);
 });
 
+test('only the Owner opens Store Logo', () => {
+  const ownerWithLogo = { permissions: [...owner.permissions, 'settings.logo'] };
+  assert.deepEqual(screensFor(ownerWithLogo), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'Store Logo']);
+  assert.equal(canOpen({ permissions: ['settings.manage', 'users.manage'] }, 'Store Logo'), false);
+});
+
 test('screens outside a role cannot be opened, even by name', () => {
   assert.equal(canOpen(cashier, 'User Management'), false);
   assert.equal(canOpen(cashier, 'Reports'), false);

@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import logo from '../assets/logo.jpg';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { LanguageSelect, ThemeButton } from './Layout.jsx';
+import { useStoreLogo } from './storeLogo.js';
 import PasswordInput from './PasswordInput.jsx';
 
 function SignIn({ notice, onLogin }) {
@@ -43,11 +44,12 @@ function SignIn({ notice, onLogin }) {
 
 export default function Login({ notice, theme, onTheme, onLanguage, onLogin }) {
   const { t } = useI18n();
+  const storeLogo = useStoreLogo();
   return (
     <section className="login-screen">
       <div className="login-brand-panel">
         <div>
-          <img className="login-logo" src={logo} alt="RepairMe company logo" />
+          <img className="login-logo" src={storeLogo || logo} alt={storeLogo ? t('Store logo') : 'RepairMe company logo'} />
           <div className="login-store">{t('RM HARDWARE STORE')}</div>
           <h1>{t('Smarter store operations start here.')}</h1>
           <p>{t('Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.')}</p>
