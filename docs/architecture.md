@@ -27,7 +27,8 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 | Area | Owner | Manager | Cashier | Inventory Staff |
 |---|---|---|---|---|
 | Dashboard | | Yes | | |
-| Daily and Monthly Transactions | View | View | | |
+| Daily Transactions | View | View | | |
+| Monthly Transactions | View | | | |
 | Sales and payment reports | View, print, export | Yes | | |
 | Inventory reports | View, print, export | Yes | | Yes |
 | POS, held orders, payments | | | Yes | |
@@ -44,7 +45,7 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 | Stock adjustments | | Yes | | |
 | Purchases, receiving, suppliers | | Yes | | Yes |
 | Supplier payments | | Yes | | |
-| AI Invoice Scan | | Yes | | |
+| AI Invoice Scan (switched off; granting `ai_scan.use` turns it back on) | | | | |
 | Import/Export, lists, settings | | Yes | | |
 | User management, audit log | | Yes | | |
 

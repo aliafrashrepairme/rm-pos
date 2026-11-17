@@ -8,7 +8,7 @@ export const SCREENS = [
   { name: 'Customers', group: 'WORKSPACE', icon: '♙', anyOf: ['customers.view'] },
   { name: 'Shifts & Cash', group: 'WORKSPACE', icon: '◴', anyOf: ['shifts.own', 'shifts.manage'] },
   { name: 'Daily Transactions', group: 'TRANSACTIONS', icon: '◷', anyOf: ['transactions.view'] },
-  { name: 'Monthly Transactions', group: 'TRANSACTIONS', icon: '▤', anyOf: ['transactions.view'] },
+  { name: 'Monthly Transactions', group: 'TRANSACTIONS', icon: '▤', anyOf: ['transactions.monthly'] },
   { name: 'Inventory', group: 'INVENTORY', icon: '▥', anyOf: ['inventory.view'] },
   { name: 'Products', group: 'INVENTORY', icon: '▨', anyOf: ['products.view'] },
   { name: 'Purchases', group: 'INVENTORY', icon: '⇩', anyOf: ['purchases.view'] },

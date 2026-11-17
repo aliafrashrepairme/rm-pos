@@ -16,7 +16,7 @@ const ACCESS = [
   ['/api/dashboard', ['Manager']],
   ['/api/products', ['Manager', 'Inventory Staff']],
   ['/api/transactions/daily', ['Owner', 'Manager']],
-  ['/api/transactions/monthly', ['Owner', 'Manager']],
+  ['/api/transactions/monthly', ['Owner']],
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
   ['/api/suppliers', ['Manager', 'Inventory Staff']],
   ['/api/customers', ['Manager', 'Cashier']],
@@ -30,9 +30,9 @@ const ACCESS = [
   ['/api/audit/actions', ['Manager']],
   ['/api/data/export/valuation', ['Manager']],
   ['/api/data/import/products/template', ['Manager']],
-  ['/api/invoice-scans', ['Manager']],
-  ['/api/invoice-scans/status', ['Manager']],
-  ['/api/invoice-scans/options', ['Manager']],
+  ['/api/invoice-scans', []],
+  ['/api/invoice-scans/status', []],
+  ['/api/invoice-scans/options', []],
   ['/api/purchases', ['Manager', 'Inventory Staff']],
   ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
@@ -650,7 +650,10 @@ async function saleChecks(sessions) {
     const today = new Date().toISOString().slice(0, 10);
     assert.equal((await request(`/api/transactions/bills?start=${today}&end=${today}`, { token })).status, 200);
   });
-  await check('a scanned invoice becomes an order, and stock moves only when received', async () => {
+  // AI invoice scan is switched off for every role (migration 0018). Its workflow runs again once a role is granted it.
+  const { data: scanners } = await database.from('role_permissions').select('role_code').eq('permission_code', 'ai_scan.use');
+  if (!scanners?.length) console.log('skip the AI invoice scan workflow: no role has ai_scan.use');
+  else await check('a scanned invoice becomes an order, and stock moves only when received', async () => {
     const madeSupplier = await request('/api/suppliers', { token: manager, body: { name: `Live Scan Supplier ${Date.now()}` } });
     const { supplier } = await madeSupplier.json();
     scanText = (await database.from('products').select('sku').eq('id', product.id).single()).data.sku;
