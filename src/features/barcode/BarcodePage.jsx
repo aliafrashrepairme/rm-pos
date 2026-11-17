@@ -24,7 +24,7 @@ export default function BarcodePage({ user }) {
         <button type="button" className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>{t('AI scanner')}</button>
         {showLabels && <button type="button" className={tab === 'labels' ? 'active' : ''} onClick={() => setTab('labels')}>{t('Barcode labels')}</button>}
       </div>
-      {tab === 'ai' ? <BarcodeScanner /> : tab === 'labels' ? <LabelsTab /> : <ScanTab user={user} />}
+      {tab === 'ai' ? <BarcodeScanner user={user} /> : tab === 'labels' ? <LabelsTab /> : <ScanTab user={user} />}
     </>
   );
 }

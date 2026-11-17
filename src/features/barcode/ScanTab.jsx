@@ -8,6 +8,7 @@ import Status from '../../components/Status.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { decodePhoto, startCamera } from './cameraScan.js';
+import { useAddScannedProduct } from './useAddScannedProduct.jsx';
 
 const HISTORY_LENGTH = 8;
 
@@ -34,7 +35,7 @@ function beep() {
   }
 }
 
-function ScanResult({ result }) {
+function ScanResult({ result, onAdd }) {
   const { t } = useI18n();
   if (!result) return <div className="empty"><span>⌸</span>{t('Scan a product to see its details.')}</div>;
   if (result.error) {
@@ -42,6 +43,9 @@ function ScanResult({ result }) {
       <div className="scan-problem" role="alert">
         <b>{t(result.unknown ? 'Unknown barcode' : 'Could not read this code')}</b>
         <p>{t(result.error)}</p>
+        {result.unknown && (onAdd
+          ? <button type="button" className="btn btn-primary" onClick={() => onAdd(result.code)}>＋ {t('Add this product')}</button>
+          : <p>{t('This product is not in the product list. Ask a manager to add it.')}</p>)}
       </div>
     );
   }
@@ -124,10 +128,19 @@ export default function ScanTab({ user }) {
       beep();
     } catch (failure) {
       const unknown = failure.code === 'UNKNOWN_BARCODE';
-      setResult({ error: failure.message, unknown });
+      setResult({ error: failure.message, unknown, code });
       addHistory(t(unknown ? 'Unknown barcode' : 'Could not read this code'), t('Not found'), false);
     }
   }, [t]);
+
+  // After a new product is saved from an unknown scan, show its details straight away.
+  const adding = useAddScannedProduct(user, async (code) => {
+    try {
+      setResult({ product: (await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`)).product });
+    } catch (failure) {
+      setResult({ error: failure.message, unknown: failure.code === 'UNKNOWN_BARCODE', code });
+    }
+  });
 
   // USB and Bluetooth scanners type very quickly and press Enter, anywhere on the page.
   useEffect(() => {
@@ -234,7 +247,7 @@ export default function ScanTab({ user }) {
         </form>
       </div>
       <div>
-        <div className="card scan-result" aria-live="polite"><ScanResult result={result} /></div>
+        <div className="card scan-result" aria-live="polite"><ScanResult result={result} onAdd={adding.canAdd ? adding.start : null} /></div>
         <div className="card dash-gap">
           <div className="section-row">
             <h3>{t('Scan history')}</h3>
@@ -249,6 +262,7 @@ export default function ScanTab({ user }) {
           ))}
         </div>
       </div>
+      {adding.form}
     </div>
   );
 }

@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { api } from '../api.js';
+import { money, quantity } from '../app/format.js';
+import { useAddScannedProduct } from '../features/barcode/useAddScannedProduct.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { loadDetector } from './barcodeDetector.js';
 import { readFrame } from './readFrame.js';
 
 const FRAME_MS = 250;     // how often a frame is checked
 const REPEAT_MS = 2000;   // ignore the same code again for 2 s
 
-export default function BarcodeScanner() {
+const lookUp = async (code) => (await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`)).product;
+
+export default function BarcodeScanner({ user }) {
+  const { t } = useI18n();
   const videoRef = useRef(null);
   const overlayRef = useRef(null);
   const streamRef = useRef(null);
@@ -39,15 +46,26 @@ export default function BarcodeScanner() {
     lastRef.current = { code, at: now };
     let product = null;
     try {
-      product = (await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`)).product;
+      product = await lookUp(code);
     } catch (error) {
       if (error.code !== 'UNKNOWN_BARCODE') {
-        setMessage(error.message || 'Could not look up this barcode.');
+        setMessage(t(error.message || 'Could not look up this barcode.'));
         return;
       }
     }
+    setMessage('');
     setScans((s) => [{ code, method, ms, product, time: new Date().toLocaleTimeString() }, ...s].slice(0, 50));
   }
+
+  // Once a product is added for an unknown code, fill in its details on that code's scans.
+  const adding = useAddScannedProduct(user, async (code) => {
+    try {
+      const product = await lookUp(code);
+      setScans((s) => s.map((scan) => (scan.code === code ? { ...scan, product } : scan)));
+    } catch (error) {
+      setMessage(t(error.message));
+    }
+  });
 
   function drawBoxes(boxes) {
     const v = videoRef.current, c = overlayRef.current;
@@ -155,13 +173,24 @@ export default function BarcodeScanner() {
             <li key={i}>
               <div className="scan-code">{s.code}</div>
               <div className="scan-product">
-                {s.product ? `${s.product.name} · Rs. ${s.product.sellingPrice.toLocaleString()} · stock ${s.product.stock}` : 'Not in product list'}
+                {s.product
+                  ? (
+                    <span>
+                      <b>{s.product.name}</b><br />
+                      {money(s.product.sellingPrice)} · {t('On hand')}: {quantity(s.product.stock)} {t(s.product.unitCode)}
+                      {s.product.location ? ` · ${s.product.location}` : ''}
+                    </span>
+                  )
+                  : adding.canAdd
+                    ? <button type="button" className="btn btn-primary btn-sm" onClick={() => adding.start(s.code)}>＋ {t('Add this product')}</button>
+                    : t('This product is not in the product list. Ask a manager to add it.')}
               </div>
               <div className="scan-meta">{s.time} · {s.method}{s.ms ? ` · ${s.ms} ms` : ''}</div>
             </li>
           ))}
         </ul>
       </aside>
+      {adding.form}
     </div>
   );
 }

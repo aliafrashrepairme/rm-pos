@@ -7,7 +7,7 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-function initialValues(product, options) {
+function initialValues(product, options, barcode) {
   if (product) {
     return {
       name: product.name,
@@ -37,14 +37,15 @@ function initialValues(product, options) {
     location: '',
     preferredSupplierId: '',
     sku: '',
-    barcode: ''
+    barcode: barcode ?? ''
   };
 }
 
-export default function ProductForm({ product, options, onClose, onSaved }) {
+// `barcode` fills in a new product's barcode, for example one that was just scanned.
+export default function ProductForm({ product, options, barcode, onClose, onSaved }) {
   const { t } = useI18n();
   const toast = useToast();
-  const [values, setValues] = useState(() => initialValues(product, options));
+  const [values, setValues] = useState(() => initialValues(product, options, barcode));
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
