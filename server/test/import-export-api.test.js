@@ -71,7 +71,7 @@ const authClient = { auth: { getUser: async (token) => ({ data: { user: { id: to
 
 async function withApi(run, options) {
   const database = fakeDatabase(options);
-  const server = createApp({ config, authClient, database, extractor: null }).listen(0);
+  const server = createApp({ config, authClient, database }).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const as = (user, path, init = {}) => fetch(`http://127.0.0.1:${server.address().port}${path}`, {
     ...init,

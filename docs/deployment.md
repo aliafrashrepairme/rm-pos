@@ -39,7 +39,7 @@ npm --prefix server run live:db-check
 
 1. Push this code to GitHub.
 2. In Render, choose **New > Blueprint**, pick this repository and branch. It reads `render.yaml`.
-3. Enter the three Supabase values when asked. Add `ANTHROPIC_API_KEY` only if you want AI invoice scanning.
+3. Enter the three Supabase values when asked.
 4. The Starter plan is $7 a month. Do not use the free plan: it sleeps after 15 minutes without use, so the first sale afterwards can wait about a minute.
 5. Open `https://YOUR-SERVER.onrender.com/api/health/ready`. It must show `"database":"connected"`.
 
@@ -78,7 +78,6 @@ Try these on the shop's real equipment:
 - Print a receipt and a barcode label. Check the thermal printer doesn't feed blank paper.
 - Open and close a shift, make a sale, refund it and count the cash.
 - Sign in with each role.
-- If AI scanning is on, scan one real invoice and check every line. Invoice files are sent to Anthropic to be read.
 
 Keep the shop PCs on mains power with a steady connection. The app needs the internet: an offline sale keeps its cart and only completes once the connection returns.
 
@@ -93,4 +92,4 @@ Keep the shop PCs on mains power with a steady connection. The app needs the int
 - Supabase keeps the daily backups under **Database > Backups**. Also use **Import / Export** for regular CSV copies you keep yourself.
 - If the app can't connect, open `/api/health/ready`. A `503` means the server can't reach the database, so check the Supabase dashboard. No reply means the server is down, so check Render's logs.
 - Never run `npm --prefix server run test:live` against the live project. It's only for the test project.
-- If a key may have leaked, create a new one in Supabase or Anthropic, then update Render and `.env.live`.
+- If a key may have leaked, create a new one in Supabase, then update Render and `.env.live`.

@@ -43,12 +43,11 @@ test('the Owner sees only transactions and reports', () => {
   assert.deepEqual(screensFor(owner), ['Daily Transactions', 'Monthly Transactions', 'Reports']);
 });
 
-test('a Manager gets daily but not monthly transactions, and no AI invoice scan', () => {
+test('a Manager gets daily but not monthly transactions', () => {
   // The Manager role holds every permission except these, as the database grants it.
   const manager = { permissions: ['dashboard.view', 'transactions.view', 'bills.view', 'purchases.view', 'reports.sales'] };
   assert.equal(canOpen(manager, 'Daily Transactions'), true);
   assert.equal(canOpen(manager, 'Monthly Transactions'), false);
-  assert.equal(canOpen(manager, 'AI Invoice Scan'), false);
 });
 
 test('screens outside a role cannot be opened, even by name', () => {

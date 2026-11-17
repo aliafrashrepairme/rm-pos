@@ -7,12 +7,10 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginLimiter } from './middleware/loginLimiter.js';
 import { createRequestLimiter, securityHeaders } from './middleware/security.js';
 import { publicAuthRoutes, sessionRoutes } from './routes/auth.js';
-import { createInvoiceExtractor } from './services/invoiceExtractor.js';
 import { auditRoutes, dataRoutes, listRoutes } from './routes/data.js';
 import { healthRoutes } from './routes/health.js';
 import { posRoutes } from './routes/pos.js';
 import { inventoryRoutes } from './routes/inventory.js';
-import { invoiceScanRoutes } from './routes/invoiceScans.js';
 import { categoryRoutes, productRoutes } from './routes/products.js';
 import { customerRoutes } from './routes/customers.js';
 import { purchaseRoutes } from './routes/purchases.js';
@@ -23,8 +21,8 @@ import { reportRoutes } from './routes/reports.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
 
-export function createApp({ config, authClient, database, limiter = createLoginLimiter(), requestLimiter = createRequestLimiter(), extractor = createInvoiceExtractor(config) }) {
-  const clients = { authClient, database, limiter, extractor };
+export function createApp({ config, authClient, database, limiter = createLoginLimiter(), requestLimiter = createRequestLimiter() }) {
+  const clients = { authClient, database, limiter };
   const app = express();
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
@@ -49,7 +47,6 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/suppliers', supplierRoutes(clients));
   app.use('/api/customers', customerRoutes(clients));
   app.use('/api/settings', settingsRoutes(clients));
-  app.use('/api/invoice-scans', invoiceScanRoutes(clients));
   app.use('/api/data', dataRoutes(clients));
   app.use('/api/lists', listRoutes(clients));
   app.use('/api/shifts', shiftRoutes(clients));

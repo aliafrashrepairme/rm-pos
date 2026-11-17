@@ -13,7 +13,6 @@ export const SCREENS = [
   { name: 'Products', group: 'INVENTORY', icon: '▨', anyOf: ['products.view'] },
   { name: 'Purchases', group: 'INVENTORY', icon: '⇩', anyOf: ['purchases.view'] },
   { name: 'Suppliers', group: 'INVENTORY', icon: '♧', anyOf: ['suppliers.view'] },
-  { name: 'AI Invoice Scan', group: 'INVENTORY', icon: '✦', anyOf: ['ai_scan.use'] },
   { name: 'Barcode Scanner', group: 'SMART TOOLS', icon: '⌸', anyOf: ['barcode.scan'] },
   { name: 'Reports', group: 'ADMINISTRATION', icon: '◔', anyOf: ['reports.sales', 'reports.inventory'] },
   { name: 'Import / Export', group: 'ADMINISTRATION', icon: '⇅', anyOf: ['import_export.use'] },

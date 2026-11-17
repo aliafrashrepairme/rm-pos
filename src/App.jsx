@@ -19,7 +19,6 @@ import SettingsPage from './features/settings/SettingsPage.jsx';
 import ShiftsPage from './features/shifts/ShiftsPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
 import UsersPage from './features/users/UsersPage.jsx';
-import AiScanPage from './features/aiscan/AiScanPage.jsx';
 import AuditPage from './features/data/AuditPage.jsx';
 import ImportExportPage from './features/data/ImportExportPage.jsx';
 import ListsPage from './features/data/ListsPage.jsx';
@@ -44,7 +43,6 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   if (page === 'Import / Export') return <ImportExportPage />;
   if (page === 'List Management') return <ListsPage />;
   if (page === 'Audit Log') return <AuditPage />;
-  if (page === 'AI Invoice Scan') return <AiScanPage user={user} />;
   if (page === 'User Management') return <UsersPage user={user} />;
   if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
   if (page === 'Shifts & Cash') return <ShiftsPage user={user} />;

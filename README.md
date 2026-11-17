@@ -12,7 +12,6 @@ To put it into real use in a shop, follow [docs/deployment.md](docs/deployment.m
 | API server | Node.js 22.13+ with Express 5 |
 | Database and sign-in | Supabase (Postgres, Auth, private Storage for product photos) |
 | Barcodes | ZXing reader, plus a trained YOLO11n barcode detector run with ONNX Runtime Web |
-| Optional | Anthropic API for reading supplier invoices (AI Invoice Scan) |
 | Tests | Node's built-in test runner; PGlite runs the SQL migrations in memory |
 
 ## How it fits together
@@ -54,7 +53,6 @@ rm-pos/
 │  │  ├─ shifts/             Cash shifts and expenses
 │  │  ├─ reports/            Sales, payment and inventory reports
 │  │  ├─ barcode/            Barcode scanner and label printing
-│  │  ├─ aiscan/             AI invoice scan
 │  │  ├─ dashboard/, users/, settings/, data/ (import, export, audit log)
 │  ├─ scanner/               AI scanner tab: runs the trained barcode model (see below)
 │  ├─ i18n/                  English, Tamil and Sinhala text and the t() function
@@ -108,7 +106,7 @@ Copy `.env.example` to `.env` and fill in:
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the publishable key) and `SUPABASE_SERVICE_ROLE_KEY` (the secret key), from the Supabase project's settings.
 - `VITE_API_URL`, the API address the app calls. Leave it as `http://localhost:4000` for development.
-- Optional: `ANTHROPIC_API_KEY` for AI Invoice Scan, `CORS_ORIGINS` and `TRUST_PROXY` for hosting.
+- Optional: `CORS_ORIGINS` and `TRUST_PROXY` for hosting.
 
 The server stops at start-up if a required setting is missing. Only `VITE_` settings reach the app's screens, so never give a secret a `VITE_` name.
 
@@ -169,7 +167,6 @@ All routes are under `/api`. `GET /api/health` answers without signing in; every
 | `/api/reports` | Sales, payment and inventory reports |
 | `/api/users`, `/api/settings`, `/api/lists` | Staff, store settings, lists such as units and tax rates |
 | `/api/data`, `/api/audit` | Import, export, audit log |
-| `/api/invoice-scans` | AI invoice scan |
 
 Errors are always `{ "error": "message" }` with a matching status code. The request rules are in [docs/architecture.md](docs/architecture.md), and each module's routes are in `server/routes/`.
 
