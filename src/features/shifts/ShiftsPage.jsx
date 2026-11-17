@@ -119,6 +119,17 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
 
   const liveVariance = counted === '' || !shift ? null : Number(counted) - shift.expectedCash;
 
+  // A saved PDF doubles as a preview, because the Windows print dialog shows none for this app.
+  function printReport(kind) {
+    startPrint({
+      kind,
+      fileName: `${shift.shiftNo}.pdf`,
+      className: 'print-report',
+      size: 'a5',
+      content: <div className="report-print"><h1>{t('Shift report')} · {shift.shiftNo}</h1><ShiftReport shift={shift} /></div>
+    });
+  }
+
   return (
     <Modal title={shift ? `${t('Shift report')} · ${shift.shiftNo}` : t('Shift report')} onClose={onClose}>
       {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
@@ -137,7 +148,8 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
             </form>
           ) : (
             <div className="modal-actions-row">
-              <button type="button" className="btn btn-outline" onClick={() => startPrint({ kind: 'print', className: 'print-report', size: 'a5', content: <div className="report-print"><h1>{t('Shift report')} · {shift.shiftNo}</h1><ShiftReport shift={shift} /></div> })}>⎙ {t('Print')}</button>
+              <button type="button" className="btn btn-outline" onClick={() => printReport('print')}>⎙ {t('Print')}</button>
+              <button type="button" className="btn btn-outline" onClick={() => printReport('pdf')}>⇩ {t('Download PDF')}</button>
               <button type="button" className="btn btn-primary" onClick={onClose}>{t('Close')}</button>
             </div>
           )}

@@ -24,7 +24,8 @@ export default function ReportExport({ user, report, title, subtitle, columns, r
         downloadCsv(`rm-report-${report}.csv`, columns, all);
       } else {
         startPrint({
-          kind: 'print',
+          kind,
+          fileName: `rm-report-${report}.pdf`,
           size: 'a4',
           className: 'print-report',
           content: (
@@ -49,6 +50,7 @@ export default function ReportExport({ user, report, title, subtitle, columns, r
   return (
     <div className="rpt-export">
       <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => run('print')}>⎙ {t('Print')}</button>
+      <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => run('pdf')}>⇩ {t('Download PDF')}</button>
       <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => run('csv')}>{t('Export CSV')}</button>
       {printArea}
     </div>
