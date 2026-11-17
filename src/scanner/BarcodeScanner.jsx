@@ -1,36 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from '@zxing/library';
-import { api } from '../api.js';
-import { detectBarcodes, loadDetector } from './barcodeDetector.js';
+import { loadDetector } from './barcodeDetector.js';
+import { readFrame } from './readFrame.js';
 
-const hints = new Map([
-  [DecodeHintType.TRY_HARDER, true],
-  [DecodeHintType.POSSIBLE_FORMATS, [
-    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
-    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF
-  ]]
-]);
-const reader = new BrowserMultiFormatReader(hints);
 const FRAME_MS = 250;     // how often a frame is checked
 const REPEAT_MS = 2000;   // ignore the same code again for 2 s
-
-// Copy part of the video into a canvas (optionally rotated 90°) and try to decode it.
-function decodeRegion(video, box, rotate = false) {
-  const b = box || { x: 0, y: 0, w: video.videoWidth, h: video.videoHeight };
-  const pad = box ? 0.15 : 0;
-  const x = Math.max(0, b.x - b.w * pad), y = Math.max(0, b.y - b.h * pad);
-  const w = Math.min(video.videoWidth - x, b.w * (1 + 2 * pad)), h = Math.min(video.videoHeight - y, b.h * (1 + 2 * pad));
-  if (w < 8 || h < 8) return null;
-  const up = Math.max(1, 480 / Math.max(w, h)); // enlarge small barcodes
-  const c = document.createElement('canvas');
-  c.width = Math.round((rotate ? h : w) * up);
-  c.height = Math.round((rotate ? w : h) * up);
-  const g = c.getContext('2d');
-  if (rotate) { g.translate(c.width, 0); g.rotate(Math.PI / 2); }
-  g.drawImage(video, x, y, w, h, 0, 0, w * up, h * up);
-  try { return reader.decodeFromCanvas(c).getText(); } catch { return null; }
-}
 
 export default function BarcodeScanner() {
   const videoRef = useRef(null);
@@ -96,19 +70,8 @@ export default function BarcodeScanner() {
     if (!streamRef.current) return;
     if (v && v.videoWidth) {
       const t0 = performance.now();
-      let code = null, method = 'ZXing (full frame)';
-      const ai = useAiRef.current && sessionRef.current;
-      if (ai) {
-        const boxes = await detectBarcodes(sessionRef.current, v);
-        drawBoxes(boxes);
-        for (const b of boxes) {
-          code = decodeRegion(v, b) || (b.h > b.w * 1.3 ? decodeRegion(v, b, true) : null);
-          if (code) { method = 'AI box + ZXing'; break; }
-        }
-      } else {
-        drawBoxes([]);
-      }
-      if (!code) code = decodeRegion(v, null);
+      const { code, method, boxes } = await readFrame(v, sessionRef.current, useAiRef.current);
+      drawBoxes(boxes);
       const ms = performance.now() - t0;
       setStats((s) => ({ frames: s.frames + 1, ms: s.ms + ms }));
       if (code) handleCode(code, method, Math.round(ms));
