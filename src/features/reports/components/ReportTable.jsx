@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import Pager from '../../components/Pager.jsx';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
+import Pager from '../../../components/Pager.jsx';
+import { useI18n } from '../../../i18n/I18nProvider.jsx';
 
 const PAGE_SIZE = 25;
 

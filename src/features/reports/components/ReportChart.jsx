@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { useI18n } from '../../../i18n/I18nProvider.jsx';
 
 const COLORS = ['#f6c928', '#18865b', '#4fc3f7', '#ff8a65', '#ba68c8', 'var(--muted)'];
 

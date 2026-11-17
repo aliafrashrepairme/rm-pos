@@ -105,12 +105,13 @@ server/
   index.js            starts the server
   app.js              builds the Express app, so tests can run it
   config.js           reads and checks environment settings
-  middleware/         auth, requirePermission, rate limit, errors
+  db.js               creates the Supabase clients
+  middleware/         auth, requirePermission, login limit, security headers and request limit, errors
   routes/             one file per module: thin, HTTP only
-  services/           business logic and database calls
+  services/           business logic and database calls, including the invoice extractor
   validation/         input checks shared by routes
-  providers/          invoice extraction interface and implementations
   supabase/migrations numbered SQL files, never edited once applied
+  scripts/            database check and setup bundle, staff creation, end-to-end live check
   test/
 ```
 
@@ -126,10 +127,14 @@ API conventions:
 
 ```text
 src/
-  app/          routes, login state, permission checks
-  components/   shared table, modal, card, toast (ported from the prototype)
-  features/     pos, products, inventory, purchases, suppliers, customers,
-                transactions, reports, users, settings, aiscan, ...
+  api.js        the one place that calls the API: token, refresh, errors
+  app/          sign-in screens, layout and menu, permission checks, formatting,
+                list loading and screen refresh hooks
+  components/   shared modal, pager, status badge, toast, barcode image, printing
+  features/     one folder per module: pos, products, inventory, purchases,
+                suppliers, customers, transactions, shifts, reports, barcode,
+                aiscan, dashboard, users, settings, data
+  scanner/      the AI scanner tab, which runs public/models/best.onnx
   i18n/         t() function using the prototype's English, Tamil and Sinhala text
   styles/       the prototype's CSS
 ```
