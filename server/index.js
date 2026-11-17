@@ -1,28 +1,20 @@
-// RM POS API (Node + Express)
-import express from 'express';
-import cors from 'cors';
+import { createApp } from './app.js';
+import { loadEnvFile, readConfig } from './config.js';
+import { createClients } from './db.js';
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+loadEnvFile();
 
-// TEMPORARY demo users — replace with a real database and hashed passwords (bcrypt) before going live.
-const users = [
-  { name: 'Store Owner', role: 'Owner', email: 'owner@rmpos.lk', password: 'owner123' },
-  { name: 'R. Manager', role: 'Manager', email: 'manager@rmpos.lk', password: 'manager123' },
-  { name: 'N. Perera', role: 'Cashier', email: 'cashier@rmpos.lk', password: 'cashier123' },
-  { name: 'K. Fernando', role: 'Inventory Staff', email: 'inventory@rmpos.lk', password: 'inventory123' }
-];
+let config;
+try {
+  config = readConfig();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 
-app.get('/api/health', (req, res) => res.json({ ok: true, service: 'rm-pos-server' }));
+const app = createApp({ config, ...createClients(config) });
+const server = app.listen(config.port, () => console.log(`RM POS API running on http://localhost:${config.port} (Supabase storage)`));
 
-app.post('/api/auth/login', (req, res) => {
-  const { email = '', password = '' } = req.body || {};
-  const user = users.find((u) => u.email === email.trim().toLowerCase() && u.password === password);
-  if (!user) return res.status(401).json({ error: 'Incorrect email or password.' });
-  const { password: _hidden, ...safe } = user;
-  res.json({ user: safe });
-});
-
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`RM POS API running on http://localhost:${PORT}`));
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => server.close(() => process.exit(0)));
+}

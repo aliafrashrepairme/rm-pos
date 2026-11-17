@@ -1,77 +1,207 @@
-import { useEffect, useState } from 'react';
-import { api } from './api.js';
+import { useCallback, useEffect, useState } from 'react';
+import { api, getAuthToken, setAuthToken, SESSION_EXPIRED_EVENT } from './api.js';
+import { canOpen, screensFor } from './app/access.js';
+import ChangePassword from './app/ChangePassword.jsx';
+import Layout from './app/Layout.jsx';
+import Login from './app/Login.jsx';
+import { applyTheme, loadDevicePreferences, saveDevicePreference } from './app/preferences.js';
+import { useHashRoute } from './app/useHashRoute.js';
+import { useI18n } from './i18n/I18nProvider.jsx';
+import BarcodePage from './features/barcode/BarcodePage.jsx';
+import Dashboard from './features/dashboard/Dashboard.jsx';
+import InventoryPage from './features/inventory/InventoryPage.jsx';
+import { CartProvider } from './features/pos/CartContext.jsx';
+import HeldOrdersPage from './features/pos/HeldOrdersPage.jsx';
+import PosPage from './features/pos/PosPage.jsx';
+import PurchasesPage from './features/purchases/PurchasesPage.jsx';
+import CustomersPage from './features/customers/CustomersPage.jsx';
+import SettingsPage from './features/settings/SettingsPage.jsx';
+import ShiftsPage from './features/shifts/ShiftsPage.jsx';
+import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
+import UsersPage from './features/users/UsersPage.jsx';
+import AiScanPage from './features/aiscan/AiScanPage.jsx';
+import AuditPage from './features/data/AuditPage.jsx';
+import ImportExportPage from './features/data/ImportExportPage.jsx';
+import ListsPage from './features/data/ListsPage.jsx';
+import BillsPage from './features/transactions/BillsPage.jsx';
+import DailyPage from './features/transactions/DailyPage.jsx';
+import MonthlyPage from './features/transactions/MonthlyPage.jsx';
+import ProductsPage from './features/products/ProductsPage.jsx';
+import ReportsModule from './reports/pages/ReportsModule.jsx';
 
-const MENU = {
-  Owner: ['Daily Transactions', 'Monthly Transactions', 'Reports'],
-  Manager: ['Dashboard', 'Daily Transactions', 'Monthly Transactions', 'Inventory', 'Purchases', 'Suppliers', 'Reports', 'Settings', 'User Management'],
-  Cashier: ['POS Billing', 'Barcode Scanner'],
-  'Inventory Staff': ['Inventory', 'Purchases', 'Suppliers']
-};
-
-function Login({ onLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  async function submit(e) {
-    e.preventDefault();
-    setError('');
-    try {
-      const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-      onLogin(user);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  return (
-    <div className="login">
-      <div className="login-brand">
-        <div className="mark">RM</div>
-        <h1>Smarter store operations start here.</h1>
+function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) {
+  const { t } = useI18n();
+  if (!canOpen(user, page)) {
+    return (
+      <div className="card access-denied">
+        <p className="form-error" role="alert">{t('Your role does not have access to this section.')}</p>
+        <button type="button" className="btn btn-primary" onClick={onHome}>{t('Go to my home screen')}</button>
       </div>
-      <form className="login-card" onSubmit={submit}>
-        <h2>Welcome back</h2>
-        <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-        <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit">Sign in to RM POS →</button>
-        <p className="hint">Demo: manager@rmpos.lk / manager123</p>
-      </form>
-    </div>
-  );
+    );
+  }
+  if (page === 'Dashboard') return <Dashboard user={user} onNavigate={onNavigate} />;
+  if (page === 'Barcode Scanner') return <BarcodePage user={user} />;
+  if (page === 'Import / Export') return <ImportExportPage />;
+  if (page === 'List Management') return <ListsPage />;
+  if (page === 'Audit Log') return <AuditPage />;
+  if (page === 'AI Invoice Scan') return <AiScanPage user={user} />;
+  if (page === 'User Management') return <UsersPage user={user} />;
+  if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
+  if (page === 'Shifts & Cash') return <ShiftsPage user={user} />;
+  if (page === 'Customers') return <CustomersPage user={user} />;
+  if (page === 'Suppliers') return <SuppliersPage user={user} />;
+  if (page === 'Purchases') return <PurchasesPage user={user} />;
+  if (page === 'Bills Register') return <BillsPage user={user} />;
+  if (page === 'Daily Transactions') return <DailyPage user={user} />;
+  if (page === 'Monthly Transactions') return <MonthlyPage user={user} onNavigate={onNavigate} />;
+  if (page === 'POS Billing') return <PosPage user={user} onNavigate={onNavigate} />;
+  if (page === 'Held Orders') return <HeldOrdersPage onNavigate={onNavigate} />;
+  if (page === 'Inventory') return <InventoryPage user={user} />;
+  if (page === 'Products') return <ProductsPage user={user} />;
+  return <ReportsModule user={user} />;
 }
 
 export default function App() {
+  const { t, setLanguage } = useI18n();
+  const { slug, screen, navigate } = useHashRoute();
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState('');
   const [version, setVersion] = useState('');
+  const [authReady, setAuthReady] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [offline, setOffline] = useState('');
+  const [theme, setThemeState] = useState(() => loadDevicePreferences().theme);
+
+  useEffect(() => applyTheme(theme), [theme]);
+
+  const enter = useCallback((nextUser) => {
+    setUser(nextUser);
+    setNotice('');
+    setOffline('');
+    api('/api/auth/preferences')
+      .then(({ preferences }) => {
+        if (!preferences) return;
+        setThemeState(preferences.theme);
+        saveDevicePreference('theme', preferences.theme);
+        setLanguage(preferences.language);
+      })
+      .catch((error) => console.error('Could not load preferences:', error.message));
+  }, [setLanguage]);
+
+  const leave = useCallback((message = '') => {
+    setAuthToken(null);
+    setUser(null);
+    setChangingPassword(false);
+    setNotice(message);
+    navigate('');
+  }, [navigate]);
+
+  const restoreSession = useCallback(() => {
+    if (!getAuthToken()) {
+      setAuthReady(true);
+      return;
+    }
+    setOffline('');
+    api('/api/auth/me')
+      .then(({ user: currentUser }) => enter(currentUser))
+      .catch((error) => {
+        // A network failure keeps the session, so it can continue once the connection returns.
+        if (error.status === 0) setOffline(error.message);
+        else leave(error.status === 403 ? error.message : '');
+      })
+      .finally(() => setAuthReady(true));
+  }, [enter, leave]);
 
   useEffect(() => {
     window.rmpos?.getVersion().then(setVersion);
-  }, []);
+    restoreSession();
+    const expired = () => leave('Your session has ended. Please sign in again.');
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
+  }, [restoreSession, leave]);
 
-  if (!user) return <Login onLogin={(u) => { setUser(u); setPage(MENU[u.role][0]); }} />;
+  const signedIn = Boolean(user);
+  const savePreferences = useCallback((change) => {
+    if (!signedIn) return;
+    api('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(change) })
+      .catch((error) => console.error('Could not save preferences:', error.message));
+  }, [signedIn]);
+
+  function changeTheme(next) {
+    setThemeState(next);
+    saveDevicePreference('theme', next);
+    savePreferences({ theme: next });
+  }
+
+  function changeLanguage(next) {
+    setLanguage(next);
+    savePreferences({ language: next });
+  }
+
+  async function logout() {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      if (error.status !== 401) console.error('Logout could not reach the server:', error.message);
+    }
+    leave();
+  }
+
+  if (!authReady) return null;
+  if (offline) {
+    return (
+      <div className="center-screen">
+        <div className="login-card">
+          <h2>{t('Server unavailable')}</h2>
+          <p className="form-error" role="alert">{t(offline)}</p>
+          <button type="button" className="btn btn-primary login-submit" onClick={restoreSession}>{t('Try again')}</button>
+        </div>
+      </div>
+    );
+  }
+  if (!user) {
+    return (
+      <Login
+        notice={notice}
+        theme={theme}
+        onTheme={changeTheme}
+        onLanguage={changeLanguage}
+        onLogin={({ user: nextUser, token, refreshToken }) => {
+          setAuthToken(token, refreshToken);
+          enter(nextUser);
+        }}
+      />
+    );
+  }
+  if (user.mustChangePassword || changingPassword) {
+    return (
+      <ChangePassword
+        required={user.mustChangePassword}
+        onChanged={() => leave('Password changed. Sign in with your new password.')}
+        onCancel={user.mustChangePassword ? logout : () => setChangingPassword(false)}
+      />
+    );
+  }
+
+  const home = screensFor(user)[0] || '';
+  // An empty address opens the role's home screen. A typed address that isn't allowed is refused.
+  const page = slug ? (screen ?? slug) : home;
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand"><span className="mark">RM</span> RM POS</div>
-        {MENU[user.role].map((item) => (
-          <button key={item} className={item === page ? 'active' : ''} onClick={() => setPage(item)}>{item}</button>
-        ))}
-        <div className="side-foot">{user.name} · {user.role}{version && ` · v${version}`}</div>
-      </aside>
-      <main className="main">
-        <header className="topbar">
-          <b>{page}</b>
-          <button onClick={() => setUser(null)}>Log out</button>
-        </header>
-        <section className="content">
-          <h1>{page}</h1>
-          <p>Build this screen next — copy the layout from the HTML prototype.</p>
-        </section>
-      </main>
-    </div>
+    <CartProvider key={user.id}>
+    <Layout
+      user={user}
+      page={screen ?? (slug ? '' : home)}
+      version={version}
+      theme={theme}
+      onNavigate={navigate}
+      onTheme={changeTheme}
+      onLanguage={changeLanguage}
+      onChangePassword={() => setChangingPassword(true)}
+      onLogout={logout}
+    >
+      <Screen user={user} page={page} onHome={() => navigate(home)} onNavigate={navigate} theme={theme} onTheme={changeTheme} onLanguage={changeLanguage} />
+    </Layout>
+    </CartProvider>
   );
 }

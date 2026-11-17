@@ -1,0 +1,25 @@
+# The hosted API. Secret values are typed into Render's dashboard, never saved here.
+services:
+  - type: web
+    name: rm-pos-api
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CORS_ORIGINS
+        value: app://rmpos

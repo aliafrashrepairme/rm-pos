@@ -1,0 +1,37 @@
+/* Reports layout. Colours and shared pieces come from the prototype's styles. */
+.rpt-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.rpt-page > * { min-width: 0; }
+.rpt-page .tabs, .rpt-page .sum-strip, .rpt-page .page-head { margin-bottom: 0; }
+.rpt-heading { margin: 0 0 10px; }
+
+.rpt-subtabs { flex: 1; min-width: 0; }
+.rpt-page .section-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0; }
+
+.rpt-charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 14px; }
+.rpt-chart-card { padding: 18px; min-width: 0; }
+.rpt-chart-card h3 { margin: 0 0 4px; font-size: 15px; }
+.rpt-chart-card .sub { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.rpt-chart-empty { display: grid; place-items: center; height: 200px; color: var(--muted); font-size: 13px; }
+
+.rpt-filters { padding: 16px; }
+.rpt-filters-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
+.rpt-filters-row label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; min-width: 150px; }
+.rpt-filters-row select, .rpt-filters-row input { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); width: 100%; }
+.rpt-filters-search { flex: 1; min-width: 200px; }
+
+.rpt-sort { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+.rpt-sort-arrow { color: var(--yellow); }
+.rpt-export { display: flex; gap: 8px; }
+
+#printArea .report-print { color: #000; background: #fff; font-size: 11px; }
+#printArea .report-print h1 { font-size: 16px; margin: 0 0 4px; color: #000; }
+#printArea .report-print p { margin: 0 0 10px; color: #000; }
+#printArea .report-print table { width: 100%; border-collapse: collapse; }
+#printArea .report-print th, #printArea .report-print td { border-bottom: 1px solid #999; padding: 3px 5px; text-align: left; color: #000; background: #fff; }
+#printArea .report-print th { text-transform: none; font-weight: 700; }
+#printArea .report-print tr { break-inside: avoid; }
+
+@media (max-width: 720px) {
+  .rpt-filters-row { flex-direction: column; align-items: stretch; }
+  .rpt-filters-row label { min-width: 0; }
+}
