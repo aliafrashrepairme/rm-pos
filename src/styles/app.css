@@ -245,3 +245,5 @@ body:not(.dark) .login-store { color: #a27a00; }
 body:not(.dark) .login-foot { color: var(--muted); }
 body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0 0 1px rgba(162, 122, 0, .18); }
 .login-screen, .login-brand-panel, .login-card { transition: background .2s, color .2s; }
+/* An uploaded logo can be any shape, so show all of it instead of cropping it to the built-in banner. */
+.login-logo-custom { object-fit: contain; background: var(--panel); padding: 18px; }

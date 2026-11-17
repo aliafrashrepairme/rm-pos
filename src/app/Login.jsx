@@ -49,7 +49,7 @@ export default function Login({ notice, theme, onTheme, onLanguage, onLogin }) {
     <section className="login-screen">
       <div className="login-brand-panel">
         <div>
-          <img className="login-logo" src={storeLogo || logo} alt={storeLogo ? t('Store logo') : 'RepairMe company logo'} />
+          <img className={storeLogo ? 'login-logo login-logo-custom' : 'login-logo'} src={storeLogo || logo} alt={storeLogo ? t('Store logo') : 'RepairMe company logo'} />
           <div className="login-store">{t('RM HARDWARE STORE')}</div>
           <h1>{t('Smarter store operations start here.')}</h1>
           <p>{t('Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.')}</p>
