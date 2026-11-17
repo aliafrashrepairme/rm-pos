@@ -5,9 +5,9 @@ import { useDebounced, useListRequest } from '../../app/useListRequest.js';
 import Pager from '../../components/Pager.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
-import ReportFilters from '../../reports/components/ReportFilters.jsx';
-import '../../reports/styles/reports.css';
-import { queryString, usePeriod } from '../../reports/utils/useReportData.js';
+import ReportFilters from '../reports/components/ReportFilters.jsx';
+import '../reports/styles/reports.css';
+import { queryString, usePeriod } from '../reports/utils/useReportData.js';
 import { saveFile } from './saveFile.js';
 
 export default function AuditPage() {

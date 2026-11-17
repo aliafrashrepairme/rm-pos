@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { api } from '../../api.js';
-import { can } from '../../app/access.js';
-import { usePrintDocument } from '../../components/usePrintDocument.jsx';
-import { useToast } from '../../components/Toast.jsx';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { api } from '../../../api.js';
+import { can } from '../../../app/access.js';
+import { usePrintDocument } from '../../../components/usePrintDocument.jsx';
+import { useToast } from '../../../components/Toast.jsx';
+import { useI18n } from '../../../i18n/I18nProvider.jsx';
 import { downloadCsv } from '../utils/reportExport.js';
 
 // `loadRows` fetches every matching row, for reports the screen shows a page at a time.

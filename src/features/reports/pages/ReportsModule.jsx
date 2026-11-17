@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { can } from '../../app/access.js';
-import { useI18n } from '../../i18n/I18nProvider.jsx';
+import { can } from '../../../app/access.js';
+import { useI18n } from '../../../i18n/I18nProvider.jsx';
 import InventoryReport from './InventoryReport.jsx';
 import PaymentReport from './PaymentReport.jsx';
 import ReportsDashboard from './ReportsDashboard.jsx';

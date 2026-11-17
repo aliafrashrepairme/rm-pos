@@ -27,7 +27,7 @@ import BillsPage from './features/transactions/BillsPage.jsx';
 import DailyPage from './features/transactions/DailyPage.jsx';
 import MonthlyPage from './features/transactions/MonthlyPage.jsx';
 import ProductsPage from './features/products/ProductsPage.jsx';
-import ReportsModule from './reports/pages/ReportsModule.jsx';
+import ReportsModule from './features/reports/pages/ReportsModule.jsx';
 
 function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) {
   const { t } = useI18n();
