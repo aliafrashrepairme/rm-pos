@@ -454,7 +454,8 @@ export default {
     'Toggle theme': 'தீமை மாற்று',
     'Hardware Store Management': 'வன்பொருள் கடை மேலாண்மை',
     'Shifts & Cash': 'ஷிப்ட்கள் & பணம்',
-    'Sign in to manage billing, inventory, purchasing, stock counts and AI invoice capture — with access tailored to your role.': 'பில்லிங், சரக்கு, கொள்முதல், சரக்கு எண்ணிக்கை மற்றும் AI விலைப்பட்டியல் பதிவை நிர்வகிக்க உள்நுழையவும் — உங்கள் பணிப்பொறுப்புக்கு ஏற்ற அணுகலுடன்.'
+    'Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.': 'பில்லிங், சரக்கு, கொள்முதல் மற்றும் சரக்கு எண்ணிக்கையை நிர்வகிக்க உள்நுழையவும் — உங்கள் பணிப்பொறுப்புக்கு ஏற்ற அணுகலுடன்.',
+    'Forgot your password? Ask your manager to reset it.': 'கடவுச்சொல் மறந்துவிட்டதா? அதை மீட்டமைக்க உங்கள் மேலாளரிடம் கேளுங்கள்.'
   },
   si: {
     "Today's sales": 'අද විකුණුම්',
@@ -910,6 +911,7 @@ export default {
     'Toggle theme': 'තේමාව මාරු කරන්න',
     'Hardware Store Management': 'දෘඪාංග වෙළඳසැල් කළමනාකරණය',
     'Shifts & Cash': 'මාරු සහ මුදල්',
-    'Sign in to manage billing, inventory, purchasing, stock counts and AI invoice capture — with access tailored to your role.': 'බිල්පත්, තොග, මිලදී ගැනීම්, තොග ගණන් කිරීම් සහ AI ඉන්වොයිස් ග්‍රහණය කළමනාකරණයට පිවිසෙන්න — ඔබේ භූමිකාවට ගැළපෙන ප්‍රවේශය සමඟ.'
+    'Sign in to manage billing, inventory, purchasing and stock counts — with access tailored to your role.': 'බිල්පත්, තොග, මිලදී ගැනීම් සහ තොග ගණන් කිරීම් කළමනාකරණයට පිවිසෙන්න — ඔබේ භූමිකාවට ගැළපෙන ප්‍රවේශය සමඟ.',
+    'Forgot your password? Ask your manager to reset it.': 'මුරපදය අමතකද? එය යළි සැකසීමට ඔබේ කළමනාකරුගෙන් ඉල්ලන්න.'
   }
 };

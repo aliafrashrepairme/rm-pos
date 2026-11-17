@@ -279,31 +279,15 @@ test('staff password reset needs permission and protects Owners and yourself', a
   });
 });
 
-test('forgot password gives one answer and only emails active real addresses', async () => {
+test('there is no emailed password reset: only a Manager resets passwords', async () => {
   fakeAuth.emails = [];
-  await withApi({
-    profiles: [...makeProfiles(), profile('nomail', 'Cashier', [], { email: 'nomail@staff.rm-pos.local' })]
-  }, async ({ call }) => {
-    const ask = (email) => call('/api/auth/forgot-password', postJson({ email }));
-    const known = await ask('owner@x.lk');
-    const unknown = await ask('nobody@x.lk');
-    await ask('disabled@x.lk');
-    await ask('nomail@staff.rm-pos.local');
-    assert.equal(known.status, 200);
-    assert.deepEqual(await known.json(), await unknown.json());
-    assert.deepEqual(fakeAuth.emails, ['owner@x.lk']);
-  });
-});
-
-test('a reset code sets the new password; a bad code does not', async () => {
-  await withApi({}, async ({ call, database }) => {
-    const reset = (code, password = 'long-enough-1') => call('/api/auth/reset-password', postJson({ email: 'owner@x.lk', code, password }));
-    assert.equal((await reset('000000')).status, 400);
-    assert.equal((await reset('123456', 'short')).status, 400);
-    assert.deepEqual(database.admin.passwords, []);
-    assert.equal((await reset('123456')).status, 204);
-    assert.deepEqual(database.admin.passwords, [['owner', 'long-enough-1']]);
-    assert.deepEqual(database.admin.signOuts.at(-1), ['at', 'global']);
+  await withApi({}, async ({ call, as }) => {
+    for (const path of ['/api/auth/forgot-password', '/api/auth/reset-password']) {
+      // Without signing in the route is refused; signed in, it simply does not exist.
+      assert.equal((await call(path, postJson({ email: 'owner@x.lk', code: '123456', password: 'long-enough-1' }))).status, 401);
+      assert.equal((await as('manager', path, { method: 'POST' })).status, 404);
+    }
+    assert.deepEqual(fakeAuth.emails, []);
   });
 });
 

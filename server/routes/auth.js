@@ -31,28 +31,7 @@ export function publicAuthRoutes(clients) {
     res.json(await auth.refresh(clients, requiredText(req.body?.refreshToken, 'Refresh token')));
   });
 
-  router.post('/forgot-password', async (req, res) => {
-    const email = requiredText(req.body?.email, 'Email');
-    limiter.check(req.ip, email, res);
-    limiter.fail(req.ip, email);
-    await auth.requestPasswordReset(clients, email);
-    res.json({ message: 'If this email belongs to an account, a reset code has been sent.' });
-  });
-
-  router.post('/reset-password', async (req, res) => {
-    const email = requiredText(req.body?.email, 'Email');
-    const code = requiredText(req.body?.code, 'Reset code');
-    const password = newPassword(req.body?.password);
-    limiter.check(req.ip, email, res);
-    try {
-      await auth.resetPasswordWithCode(clients, email, code, password);
-    } catch (error) {
-      limiter.fail(req.ip, email);
-      throw error;
-    }
-    res.status(204).end();
-  });
-
+  // There is no emailed reset: a Manager resets staff passwords from User Management.
   return router;
 }
 
