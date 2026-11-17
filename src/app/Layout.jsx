@@ -5,9 +5,11 @@ import { useStoreLogo } from './storeLogo.js';
 
 export function ThemeButton({ theme, onChange }) {
   const { t } = useI18n();
+  const next = theme === 'dark' ? 'light' : 'dark';
+  const label = t(next === 'light' ? 'Switch to light mode' : 'Switch to dark mode');
   return (
-    <button type="button" className="icon-btn" title={t('Toggle theme')} aria-label={t('Toggle theme')} onClick={() => onChange(theme === 'dark' ? 'light' : 'dark')}>
-      {theme === 'dark' ? '☀' : '☾'}
+    <button type="button" className="icon-btn theme-btn" title={label} aria-label={label} onClick={() => onChange(next)}>
+      {next === 'light' ? '☀️' : '🌙'}
     </button>
   );
 }

@@ -236,3 +236,12 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .logo-preview { width: 160px; height: 160px; border: 1px solid var(--line); border-radius: 14px; background: #fff; display: grid; place-items: center; overflow: hidden; }
 .logo-preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
 .logo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* Sign-in page in light mode: the brand side follows the theme instead of staying black. */
+.theme-btn { font-size: 17px; line-height: 1; }
+body:not(.dark) .login-brand-panel { background: linear-gradient(160deg, #fff8d9 0%, #f7f8fa 70%); color: var(--text); border-right: 1px solid var(--line); }
+body:not(.dark) .login-brand-panel p { color: var(--muted); }
+body:not(.dark) .login-store { color: #a27a00; }
+body:not(.dark) .login-foot { color: var(--muted); }
+body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0 0 1px rgba(162, 122, 0, .18); }
+.login-screen, .login-brand-panel, .login-card { transition: background .2s, color .2s; }
