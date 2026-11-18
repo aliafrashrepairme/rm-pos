@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { api } from '../api.js';
+import { beep } from '../app/beep.js';
+import { decodePhoto } from '../features/barcode/cameraScan.js';
 import { money, quantity } from '../app/format.js';
 import { useAddScannedProduct } from '../features/barcode/useAddScannedProduct.jsx';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { loadDetector } from './barcodeDetector.js';
-import { readFrame } from './readFrame.js';
+import { readFrame, readPicture } from './readFrame.js';
 
 const FRAME_MS = 250;     // how often a frame is checked
 const REPEAT_MS = 2000;   // ignore the same code again for 2 s
@@ -54,7 +56,40 @@ export default function BarcodeScanner({ user }) {
       }
     }
     setMessage('');
+    if (product) beep();
     setScans((s) => [{ code, method, ms, product, time: new Date().toLocaleTimeString() }, ...s].slice(0, 50));
+  }
+
+  // A photo is read like the camera: the plain reader first (with a white margin added for tightly
+  // cropped pictures), then the AI model's boxes.
+  async function scanPhoto(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setMessage('');
+    let code = await decodePhoto(file);
+    let method = 'Photo · ZXing';
+    if (!code && sessionRef.current) {
+      const url = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        canvas.getContext('2d').drawImage(image, 0, 0);
+        const result = await readPicture(canvas, sessionRef.current);
+        drawBoxes([]);
+        ({ code, method } = result);
+      } catch {
+        code = null;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    if (code) handleCode(code, method, 0);
+    else setMessage(t('No barcode found in that photo.'));
   }
 
   // Once a product is added for an unknown code, fill in its details on that code's scans.
@@ -143,6 +178,7 @@ export default function BarcodeScanner({ user }) {
           {running
             ? <button className="btn" onClick={stop}>Stop camera</button>
             : <button className="btn primary" onClick={start}>Start camera</button>}
+          <label className="btn">🖼 {t('Scan from photo')}<input type="file" accept="image/*" hidden onChange={scanPhoto} /></label>
           <select value={cameraId} onChange={(e) => setCameraId(e.target.value)} disabled={running}>
             <option value="">Default camera</option>
             {cameras.map((c, i) => <option key={c.deviceId || i} value={c.deviceId}>{c.label || `Camera ${i + 1}`}</option>)}

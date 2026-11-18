@@ -89,9 +89,11 @@ export async function readFrame(source, session, useAi, now = performance.now())
     const found = await detectBarcodes(session, source);
     lastDetection = { boxes: found, at: now + (performance.now() - started) };
   }
-  const { boxes } = lastDetection;
   // Frames between model runs only get the quick reader, so they stay fast.
-  const readers = fresh ? [quickReader, carefulReader] : [quickReader];
+  return readBoxes(source, lastDetection.boxes, fresh ? [quickReader, carefulReader] : [quickReader]);
+}
+
+function readBoxes(source, boxes, readers) {
   for (const box of boxes) {
     for (const reader of readers) {
       for (const pad of [0.15, 0.5]) {
@@ -102,4 +104,14 @@ export async function readFrame(source, session, useAi, now = performance.now())
     }
   }
   return { code: null, method: '', boxes };
+}
+
+// Reads a still picture, such as an uploaded photo: the careful reader on the whole picture, then the
+// AI model's boxes. It leaves the camera's once-a-second model timing alone.
+export async function readPicture(source, session) {
+  const whole = decodeRegion(source, null);
+  if (whole) return { code: whole, method: 'Photo · ZXing', boxes: [] };
+  if (!session) return { code: null, method: '', boxes: [] };
+  const found = await readBoxes(source, await detectBarcodes(session, source), [quickReader, carefulReader]);
+  return found.code ? { ...found, method: 'Photo · AI box + ZXing' } : found;
 }
