@@ -19,6 +19,7 @@ export const SCREENS = [
   { name: 'List Management', group: 'ADMINISTRATION', icon: '≣', anyOf: ['lists.manage'] },
   { name: 'Settings', group: 'ADMINISTRATION', icon: '⚙', anyOf: ['settings.manage'] },
   { name: 'Store Logo', group: 'ADMINISTRATION', icon: '◈', anyOf: ['settings.logo'] },
+  { name: 'Backups & Status', group: 'ADMINISTRATION', icon: '⟲', anyOf: ['backups.manage'] },
   { name: 'User Management', group: 'ADMINISTRATION', icon: '♔', anyOf: ['users.manage'] },
   { name: 'Audit Log', group: 'ADMINISTRATION', icon: '☰', anyOf: ['audit.view'] }
 ];

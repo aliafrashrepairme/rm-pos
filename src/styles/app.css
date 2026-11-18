@@ -245,3 +245,7 @@ body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0
 .login-screen, .login-brand-panel, .login-card { transition: background .2s, color .2s; }
 /* An uploaded logo can be any shape, so show all of it instead of cropping it to the built-in banner. */
 .login-logo-custom { object-fit: contain; background: var(--panel); padding: 18px; }
+.status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.status-grid > div { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.status-grid b { font-size: 16px; }
+@media (max-width: 900px) { .status-grid { grid-template-columns: 1fr; } }

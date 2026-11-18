@@ -1,6 +1,8 @@
 import cors from 'cors';
 import express from 'express';
 import { createRequireAuth, requirePasswordCurrent } from './middleware/auth.js';
+import { createRequestLog } from './middleware/requestLog.js';
+import { backupRoutes, systemRoutes } from './routes/backups.js';
 import { barcodeRoutes } from './routes/barcode.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { errorHandler, notFound } from './middleware/errors.js';
@@ -22,11 +24,15 @@ import { reportRoutes } from './routes/reports.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { userRoutes } from './routes/users.js';
 
-export function createApp({ config, authClient, database, limiter = createLoginLimiter(), requestLimiter = createRequestLimiter() }) {
+// Tests run quietly; the running server writes a log line per request.
+const quietUnderTest = () => createRequestLog({ log: process.env.NODE_TEST_CONTEXT ? () => {} : console.log });
+
+export function createApp({ config, authClient, database, limiter = createLoginLimiter(), requestLimiter = createRequestLimiter(), requestLog = quietUnderTest() }) {
   const clients = { authClient, database, limiter };
   const app = express();
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', config.trustProxy);
+  app.use(requestLog.middleware);
   app.use(securityHeaders);
   app.use(cors({ origin: config.corsOrigins }));
   app.use('/api', requestLimiter);
@@ -56,6 +62,8 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/audit', auditRoutes(clients));
   app.use('/api/reports', reportRoutes(clients));
   app.use('/api/users', userRoutes(clients));
+  app.use('/api/backups', backupRoutes(clients));
+  app.use('/api/system', systemRoutes(clients, requestLog.stats));
 
   app.use('/api', notFound);
   app.use(errorHandler);

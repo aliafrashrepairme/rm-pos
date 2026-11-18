@@ -17,6 +17,7 @@ import PurchasesPage from './features/purchases/PurchasesPage.jsx';
 import CustomersPage from './features/customers/CustomersPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
 import StoreLogoPage from './features/settings/StoreLogoPage.jsx';
+import BackupsPage from './features/settings/BackupsPage.jsx';
 import ShiftsPage from './features/shifts/ShiftsPage.jsx';
 import SuppliersPage from './features/suppliers/SuppliersPage.jsx';
 import UsersPage from './features/users/UsersPage.jsx';
@@ -47,6 +48,7 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   if (page === 'User Management') return <UsersPage user={user} />;
   if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
   if (page === 'Store Logo') return <StoreLogoPage />;
+  if (page === 'Backups & Status') return <BackupsPage />;
   if (page === 'Shifts & Cash') return <ShiftsPage user={user} />;
   if (page === 'Customers') return <CustomersPage user={user} />;
   if (page === 'Suppliers') return <SuppliersPage user={user} />;

@@ -56,6 +56,12 @@ test('only the Owner opens Store Logo', () => {
   assert.equal(canOpen({ permissions: ['settings.manage', 'users.manage'] }, 'Store Logo'), false);
 });
 
+test('only someone with backups.manage opens Backups & Status', () => {
+  assert.equal(canOpen({ permissions: ['settings.manage', 'backups.manage'] }, 'Backups & Status'), true);
+  assert.equal(canOpen(owner, 'Backups & Status'), false);
+  assert.equal(canOpen(cashier, 'Backups & Status'), false);
+});
+
 test('screens outside a role cannot be opened, even by name', () => {
   assert.equal(canOpen(cashier, 'User Management'), false);
   assert.equal(canOpen(cashier, 'Reports'), false);
