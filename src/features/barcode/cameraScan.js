@@ -16,8 +16,10 @@ async function createReader() {
 // Returns a function that stops the camera.
 export async function startCamera(video, onCode) {
   const reader = await createReader();
+  // Without a size, most webcams send 640 x 480, where thin bars are one or two pixels wide.
+  // Continuous focus is asked for where the camera has it; cameras without it ignore the request.
   const controls = await reader.decodeFromConstraints(
-    { video: { facingMode: 'environment' } },
+    { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, advanced: [{ focusMode: 'continuous' }] } },
     video,
     (result) => {
       if (result) onCode(result.getText());
