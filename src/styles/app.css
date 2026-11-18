@@ -223,3 +223,19 @@ body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0
 .status-grid b { font-size: 16px; }
 @media (max-width: 900px) { .status-grid { grid-template-columns: 1fr; } }
 .barcode-missing { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+/* Labels: price per unit and SKU, sized so name, barcode, price and SKU fit a 50 × 25 mm label. */
+.bc-label .lu { font-weight: 600; font-size: .85em; }
+.bc-label .lsku { font-size: 10px; color: #444; letter-spacing: .3px; }
+.quick-label { display: flex; justify-content: center; padding: 14px; background: var(--bg); border-radius: 10px; margin-bottom: 12px; }
+.quick-label .label-grid { display: block; width: 240px; }
+.quick-label-controls { justify-content: center; }
+.scan-print { margin-top: 10px; }
+@media print {
+  #printArea .bc-label { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .3mm; font-family: Arial, sans-serif; border: 0; }
+  #printArea .bc-label .pname { width: 100%; font-size: 7.5pt; line-height: 1.1; }
+  #printArea .bc-label .barcode-image { width: 100%; max-height: 12.5mm; }
+  #printArea .bc-label .lp { font-size: 9pt; line-height: 1.1; }
+  #printArea .bc-label .lsku { font-size: 6pt; line-height: 1; }
+  #printArea .bc-label.roll-38 .pname { font-size: 6.5pt; }
+  #printArea .bc-label.roll-38 .lp { font-size: 8pt; }
+}

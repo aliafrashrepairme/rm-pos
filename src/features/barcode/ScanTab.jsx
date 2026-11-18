@@ -9,6 +9,7 @@ import Status from '../../components/Status.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { decodePhoto, startCamera } from './cameraScan.js';
+import PrintLabelModal from './PrintLabelModal.jsx';
 import { useAddScannedProduct } from './useAddScannedProduct.jsx';
 
 const HISTORY_LENGTH = 8;
@@ -19,7 +20,7 @@ function stateOf(product) {
   return product.stock <= product.minStock ? 'Low Stock' : 'In Stock';
 }
 
-function ScanResult({ result, onAdd }) {
+function ScanResult({ result, onAdd, onPrint }) {
   const { t } = useI18n();
   if (!result) return <div className="empty"><span>⌸</span>{t('Scan a product to see its details.')}</div>;
   if (result.error) {
@@ -53,6 +54,7 @@ function ScanResult({ result, onAdd }) {
         </div>
       </div>
       {product.barcode && <div className="barcode-box"><BarcodeImage code={product.barcode} /></div>}
+      {onPrint && product.barcode && <button type="button" className="btn btn-outline scan-print" onClick={() => onPrint(product)}>🏷 {t('Print label')}</button>}
       {result.counted !== undefined && <p className="notice">{t('Counted')}: <b>{quantity(result.counted)}</b></p>}
     </>
   );
@@ -62,6 +64,8 @@ export default function ScanTab({ user }) {
   const { t } = useI18n();
   const toast = useToast();
   const canCount = can(user, 'counts.manage');
+  const canLabel = can(user, 'barcode.labels');
+  const [labelFor, setLabelFor] = useState(null);
   const [mode, setMode] = useState('lookup');
   const [counts, setCounts] = useState([]);
   const [countId, setCountId] = useState('');
@@ -117,10 +121,12 @@ export default function ScanTab({ user }) {
     }
   }, [t]);
 
-  // After a new product is saved from an unknown scan, show its details straight away.
+  // After a new product is saved from an unknown scan, show its details and offer its label straight away.
   const adding = useAddScannedProduct(user, async (code) => {
     try {
-      setResult({ product: (await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`)).product });
+      const { product } = await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`);
+      setResult({ product });
+      if (canLabel) setLabelFor({ product, title: 'Product added: print its label' });
     } catch (failure) {
       setResult({ error: failure.message, unknown: failure.code === 'UNKNOWN_BARCODE', code });
     }
@@ -231,7 +237,7 @@ export default function ScanTab({ user }) {
         </form>
       </div>
       <div>
-        <div className="card scan-result" aria-live="polite"><ScanResult result={result} onAdd={adding.canAdd ? adding.start : null} /></div>
+        <div className="card scan-result" aria-live="polite"><ScanResult result={result} onAdd={adding.canAdd ? adding.start : null} onPrint={canLabel ? (product) => setLabelFor({ product }) : null} /></div>
         <div className="card dash-gap">
           <div className="section-row">
             <h3>{t('Scan history')}</h3>
@@ -247,6 +253,7 @@ export default function ScanTab({ user }) {
         </div>
       </div>
       {adding.form}
+      {labelFor && <PrintLabelModal product={labelFor.product} title={labelFor.title} onClose={() => setLabelFor(null)} />}
     </div>
   );
 }
