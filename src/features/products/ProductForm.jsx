@@ -84,12 +84,12 @@ export default function ProductForm({ product, options, barcode, onClose, onSave
         } catch (failure) {
           // The details are saved, so say what didn't happen rather than reporting a failed save.
           toast(`${saved.sku}: ${t(failure.message)}`);
-          onSaved();
+          onSaved(saved);
           return;
         }
       }
       toast(`${t(product ? 'Product updated.' : 'Product added.')} ${saved.sku}`);
-      onSaved();
+      onSaved(saved);
     } catch (failure) {
       setError(failure.message);
       setBusy(false);

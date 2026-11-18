@@ -8,6 +8,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import CategoriesModal from './CategoriesModal.jsx';
 import ProductForm from './ProductForm.jsx';
+import PrintLabelModal from '../barcode/PrintLabelModal.jsx';
 
 const PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 300;
@@ -26,6 +27,9 @@ export default function ProductsPage({ user }) {
   const { t } = useI18n();
   const toast = useToast();
   const canManage = can(user, 'products.manage');
+  // After a new product is added, a Manager is offered its barcode label straight away.
+  const canLabel = can(user, 'barcode.labels');
+  const [labelFor, setLabelFor] = useState(null);
   const [options, setOptions] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -170,12 +174,15 @@ export default function ProductsPage({ user }) {
           product={editing.id ? editing : null}
           options={options}
           onClose={() => setEditing(null)}
-          onSaved={() => {
+          onSaved={(saved) => {
+            const added = !editing.id;
             setEditing(null);
             loadProducts();
+            if (added && canLabel && saved?.barcode) setLabelFor(saved);
           }}
         />
       )}
+      {labelFor && <PrintLabelModal product={labelFor} title="Product added: print its label" onClose={() => setLabelFor(null)} />}
       {showCategories && (
         <CategoriesModal
           categories={options?.categories ?? []}
