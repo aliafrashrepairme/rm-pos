@@ -1,6 +1,6 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
-import { getProduct } from './products.js';
+import { codeEquivalents, getProduct } from './products.js';
 
 const CODE_FORMAT = /^[0-9A-Za-z._/-]{1,40}$/;
 
@@ -15,16 +15,8 @@ export function cleanCode(value) {
   return code;
 }
 
-// The same printed code can reach us as 12 digits (UPC) or 13 (EAN with a leading zero).
-function equivalents(code) {
-  const codes = new Set([code, code.toUpperCase()]);
-  if (/^\d{12}$/.test(code)) codes.add(`0${code}`);
-  if (/^0\d{12}$/.test(code)) codes.add(code.slice(1));
-  return [...codes];
-}
-
 export async function findProductIdByCode({ database }, code) {
-  const filters = equivalents(code).flatMap((value) => [`barcode.eq."${value}"`, `sku.eq."${value}"`]).join(',');
+  const filters = codeEquivalents(code).flatMap((value) => [`barcode.eq."${value}"`, `sku.eq."${value}"`]).join(',');
   const rows = unwrap(await database.from('products').select('id').or(filters).limit(1));
   if (!rows.length) throw new HttpError(404, `No product has the code ${code}.`, 'UNKNOWN_BARCODE');
   return rows[0].id;
@@ -49,4 +41,20 @@ export async function recordLabelsPrinted({ database }, user, labels) {
   const count = Number(labels);
   if (!Number.isInteger(count) || count < 1) throw new HttpError(400, 'Choose at least one label.');
   await writeAudit(database, { user, action: 'Barcode labels printed', description: `${count} label(s)` });
+}
+
+// How many products still have no barcode, for the Barcode labels screen.
+export async function missingBarcodeCount({ database }) {
+  const { count, error } = await database.from('products').select('id', { count: 'exact', head: true }).is('barcode', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+// Gives every product without a barcode a new store barcode; products with one keep theirs.
+export async function generateMissingBarcodes({ database }, user) {
+  const generated = Number(unwrap(await database.rpc('fill_missing_barcodes')));
+  if (generated) {
+    await writeAudit(database, { user, action: 'Barcodes generated', description: `${generated} product(s) had no barcode`, entityType: 'product' });
+  }
+  return generated;
 }

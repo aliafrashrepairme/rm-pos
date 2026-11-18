@@ -48,6 +48,7 @@ function fakeDatabase({ rows = [ROW], failWith } = {}) {
         insert: (row) => { call.insert = row; return chain; },
         update: (change) => { call.update = change; return chain; },
         eq: (column, value) => { call.filters.push([column, value]); return chain; },
+        in: (column, values) => { call.in = [column, values]; return chain; },
         range: (from, to) => { call.range = [from, to]; return chain; },
         maybeSingle: () => { call.single = true; return chain; },
         single: () => { call.single = true; return chain; },
@@ -60,6 +61,7 @@ function fakeDatabase({ rows = [ROW], failWith } = {}) {
             });
           }
           if (table === 'audit_logs') return resolve({ data: null, error: null });
+          if (table === 'products' && call.in) return resolve({ data: rows.filter((row) => call.in[1].includes(row[call.in[0]])), error: null });
           if (table === 'products') return resolve({ data: call.single ? rows[0] ?? null : rows, count: rows.length, error: null });
           resolve({ data: [], error: null });
         }
@@ -153,6 +155,22 @@ test('duplicate SKU and barcode get a specific message', async () => {
   });
   await withApi({ failWith: duplicate('products_barcode_key') }, async (as) => {
     assert.match((await (await as('manager', '/api/products', post({ ...VALID, barcode: '12345' }))).json()).error, /barcode is already used/);
+  });
+});
+
+test('a barcode already saved is detected and the message names its product', async () => {
+  await withApi({}, async (as, database) => {
+    const response = await as('manager', '/api/products', post({ ...VALID, barcode: ROW.barcode }));
+    assert.equal(response.status, 409);
+    const body = await response.json();
+    assert.equal(body.error, 'This barcode is already used by Hammer (RM-000001).');
+    assert.equal(body.code, 'BARCODE_TAKEN');
+    assert.equal(database.rpcCalls.length, 0, 'nothing is saved');
+  });
+  await withApi({}, async (as) => {
+    // The product's own barcode is not a clash when it is edited.
+    const response = await as('manager', '/api/products/p1', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barcode: ROW.barcode }) });
+    assert.equal(response.status, 200);
   });
 });
 

@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { can } from '../../app/access.js';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import LabelsTab from './LabelsTab.jsx';
-import BarcodeScanner from '../../scanner/BarcodeScanner.jsx';
+import ScanTab from './ScanTab.jsx';
 
-// The AI scanner is the one scanning screen; stock counts have their own scan box in Inventory.
 export default function BarcodePage({ user }) {
   const { t } = useI18n();
   const showLabels = can(user, 'barcode.labels');
-  const [tab, setTab] = useState('ai');
+  const [tab, setTab] = useState('scan');
 
   return (
     <>
@@ -21,11 +20,11 @@ export default function BarcodePage({ user }) {
       </div>
       {showLabels && (
         <div className="tabs">
-          <button type="button" className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>{t('AI scanner')}</button>
+          <button type="button" className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>{t('Scan')}</button>
           <button type="button" className={tab === 'labels' ? 'active' : ''} onClick={() => setTab('labels')}>{t('Barcode labels')}</button>
         </div>
       )}
-      {showLabels && tab === 'labels' ? <LabelsTab /> : <BarcodeScanner user={user} />}
+      {showLabels && tab === 'labels' ? <LabelsTab /> : <ScanTab user={user} />}
     </>
   );
 }

@@ -133,7 +133,6 @@ src/
   features/     one folder per module: pos, products, inventory, purchases,
                 suppliers, customers, transactions, shifts, reports, barcode,
                 dashboard, users, settings, data
-  scanner/      the AI scanner tab, which runs public/models/best.onnx
   i18n/         t() function using the prototype's English, Tamil and Sinhala text
   styles/       the prototype's CSS
 ```
