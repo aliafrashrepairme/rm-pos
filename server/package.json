@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node --watch index.js",
+    "dev": "node --watch-path=index.js --watch-path=app.js --watch-path=config.js --watch-path=db.js --watch-path=errors.js --watch-path=routes --watch-path=services --watch-path=middleware --watch-path=validation index.js",
     "start": "node index.js",
     "test": "node --test",
     "db:check": "node scripts/check-database.js",
