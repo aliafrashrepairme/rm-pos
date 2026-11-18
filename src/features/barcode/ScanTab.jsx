@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
+import { beep } from '../../app/beep.js';
 import { money, quantity } from '../../app/format.js';
 import BarcodeImage from '../../components/BarcodeImage.jsx';
 import Status from '../../components/Status.jsx';
@@ -16,23 +17,6 @@ function stateOf(product) {
   if (!product.active) return 'Inactive';
   if (product.stock <= 0) return 'Out of Stock';
   return product.stock <= product.minStock ? 'Low Stock' : 'In Stock';
-}
-
-let audioContext;
-function beep() {
-  try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.frequency.value = 1400;
-    gain.gain.value = 0.05;
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.08);
-  } catch {
-    // A missing sound never stops a scan.
-  }
 }
 
 function ScanResult({ result, onAdd }) {

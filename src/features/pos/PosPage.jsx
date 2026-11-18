@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
+import { beep } from '../../app/beep.js';
+import { decodePhoto } from '../barcode/cameraScan.js';
 import { money, quantity } from '../../app/format.js';
 import { useDebounced, useListRequest } from '../../app/useListRequest.js';
 import Pager from '../../components/Pager.jsx';
@@ -102,15 +104,16 @@ export default function PosPage({ user, onNavigate }) {
   // Any change to the bill makes it a new checkout, with its own request ID.
   useEffect(() => { pendingRequest.current = null; }, [lines, customer, couponCode, method, cashGiven, reference]);
 
+  // Returns whether the product went onto the bill.
   const addProduct = useCallback((product) => {
     if (product.stock <= 0) {
       toast(`${product.name}: ${t('Out of stock')}`);
-      return;
+      return false;
     }
     const inCart = linesRef.current.find((line) => line.id === product.id);
     if (inCart && inCart.qty + 1 > product.stock) {
       toast(`${product.name}: ${t('Only')} ${quantity(product.stock)} ${t('in stock')}`);
-      return;
+      return false;
     }
     setLines((current) => {
       const existing = current.find((line) => line.id === product.id);
@@ -119,6 +122,7 @@ export default function PosPage({ user, onNavigate }) {
       if (existing.qty + 1 > product.stock) return current;
       return current.map((line) => (line.id === product.id ? { ...line, qty: line.qty + 1, stock: product.stock, price: product.price } : line));
     });
+    return true;
   }, [setLines, t, toast]);
 
   const addByCode = useCallback(async (code) => {
@@ -128,7 +132,7 @@ export default function PosPage({ user, onNavigate }) {
         toast(`${product.name}: ${t('This product is not for sale.')}`);
         return;
       }
-      addProduct({
+      const added = addProduct({
         id: product.id,
         name: product.name,
         sku: product.sku,
@@ -138,10 +142,26 @@ export default function PosPage({ user, onNavigate }) {
         stock: product.stock,
         imageUrl: product.imageUrl
       });
+      // A beep and a message, so the cashier knows the scan worked without looking at the bill.
+      if (added) {
+        beep();
+        toast(`✓ ${product.name} · ${money(product.sellingPrice)}`);
+      }
     } catch (failure) {
-      toast(t(failure.message));
+      toast(failure.code === 'UNKNOWN_BARCODE'
+        ? `${code}: ${t('This product is not in the product list. Ask a manager to add it.')}`
+        : t(failure.message));
     }
   }, [addProduct, t, toast]);
+
+  async function scanPhoto(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const code = await decodePhoto(file);
+    if (code) await addByCode(code);
+    else toast(t('No barcode found in that photo.'));
+  }
 
   // USB and Bluetooth scanners work anywhere on this screen.
   const feedScanner = useMemo(() => createScannerBuffer(), []);
@@ -164,11 +184,13 @@ export default function PosPage({ user, onNavigate }) {
     event.preventDefault();
     const code = typed.trim();
     if (!code) return;
-    const exactMatch = data?.products.length === 1 ? data.products[0] : null;
+    // Only trust a single search result if it is for this exact text. A fast scanner presses Enter
+    // before the search catches up, and the list on screen may still be from an earlier search.
+    const exactMatch = search === code && data?.products.length === 1 ? data.products[0] : null;
     if (canScan && /^[0-9A-Za-z._/-]+$/.test(code) && !exactMatch) {
       await addByCode(code);
-    } else if (exactMatch) {
-      addProduct(exactMatch);
+    } else if (exactMatch && addProduct(exactMatch)) {
+      beep();
     }
     setTyped('');
     searchBox.current?.focus();
@@ -309,6 +331,7 @@ export default function PosPage({ user, onNavigate }) {
         </div>
         <div className="toolbar head-actions">
           {canScan && <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowCamera(true)}>⌸ {t('Camera scan')}</button>}
+          {canScan && <label className="btn btn-outline btn-sm">🖼 {t('Scan from photo')}<input type="file" accept="image/*" hidden onChange={scanPhoto} /></label>}
           <span className="badge">{user.name}</span>
         </div>
       </div>
