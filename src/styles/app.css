@@ -168,8 +168,6 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .order-lines { margin-top: 10px; }
 .order-total { margin-top: 10px; }
 .order-statuses { display: flex; gap: 8px; margin-bottom: 10px; }
-.received-cell { display: flex; align-items: center; gap: 7px; min-width: 90px; }
-.received-cell .meter { flex: 1; }
 .receive-scan { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .receive-scan .search { flex: 1; }
 .receive-note { margin-top: 10px; }
