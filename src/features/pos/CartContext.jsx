@@ -7,6 +7,8 @@ export function CartProvider({ children }) {
   const [lines, setLines] = useState([]);
   const [customer, setCustomer] = useState(null);
   const [couponCode, setCouponCode] = useState('');
+  // The accepted quotation this bill was started from, if any: { id, quoteNo }.
+  const [quotation, setQuotation] = useState(null);
   const value = useMemo(() => ({
     lines,
     setLines,
@@ -14,12 +16,15 @@ export function CartProvider({ children }) {
     setCustomer,
     couponCode,
     setCouponCode,
+    quotation,
+    setQuotation,
     clear() {
       setLines([]);
       setCustomer(null);
       setCouponCode('');
+      setQuotation(null);
     }
-  }), [lines, customer, couponCode]);
+  }), [lines, customer, couponCode, quotation]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../api.js';
 import { money } from '../../app/format.js';
+import { useStoreLogo } from '../../app/storeLogo.js';
 import BarcodeImage from '../../components/BarcodeImage.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 
@@ -14,17 +15,49 @@ export const LABEL_SIZES = [
 ];
 export const MAX_COPIES = 50;
 
-// One shelf or product label: name, scannable barcode with its digits, price per unit, SKU.
+// The store name and phone for the label header, fetched once and shared by every label.
+let storeInfo = null;
+let storeRequest = null;
+function useLabelStore() {
+  const [store, setStore] = useState(storeInfo);
+  useEffect(() => {
+    if (storeInfo) return undefined;
+    let current = true;
+    storeRequest ||= api('/api/barcode/label-store').then(({ store: found }) => { storeInfo = found; return found; }).catch(() => null);
+    storeRequest.then((found) => { if (current && found) setStore(found); });
+    return () => { current = false; };
+  }, []);
+  return store;
+}
+
+// dd/mm/yyyy, the way dates are written in Sri Lanka.
+export function labelDate(date = new Date()) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+// One shelf or product label: the store's logo and name, the product name, a scannable barcode with its digits,
+// price per unit, and the SKU, store phone and the date the label was printed.
 export function Label({ product, size }) {
   const { t } = useI18n();
+  const logo = useStoreLogo();
+  const store = useLabelStore();
   const unit = product.unitCode || product.unit;
   const { barcodeMm } = LABEL_SIZES.find((option) => option.key === size) ?? LABEL_SIZES[0];
+  const small = size === 'roll-38';
   return (
     <div className={`bc-label ${size}`}>
+      <div className="lhead">
+        {logo ? <img className="llogo" src={logo} alt="" /> : <span className="llogo-mark">RM</span>}
+        <span className="lstore">{store?.name || 'RM Hardware Store'}</span>
+      </div>
       <b className="pname">{product.name}</b>
       <BarcodeImage code={product.barcode} printWidthMm={barcodeMm} />
       <div className="lp">{money(product.sellingPrice ?? product.price)}{unit ? <span className="lu"> / {t(unit)}</span> : null}</div>
-      {size !== 'roll-38' && product.sku && <div className="lsku">{product.sku}</div>}
+      <div className="lfoot">
+        {!small && product.sku && <span>{product.sku}</span>}
+        {!small && store?.phone && <span>☎ {store.phone}</span>}
+        <span>{labelDate()}</span>
+      </div>
     </div>
   );
 }
@@ -46,7 +79,9 @@ export function useLabelPrinter() {
     };
     document.body.classList.add('print-labels');
     window.addEventListener('afterprint', finish);
-    window.print();
+    // In the desktop app, labels go to the label printer chosen in Printers.
+    if (window.rmpos?.print) window.rmpos.print(undefined, 'label').catch(() => {}).finally(finish);
+    else window.print();
     return () => {
       window.removeEventListener('afterprint', finish);
       document.body.classList.remove('print-labels');

@@ -15,6 +15,8 @@ export function posRoutes(clients) {
     res.status(result.replayed ? 200 : 201).json(result);
   });
 
+  router.post('/points-cap', SELL, async (req, res) => res.json(await pos.pointsCap(clients, req.body)));
+
   router.get('/customers', requirePermission('customers.view'), async (req, res) => {
     res.json({ customers: await pos.searchCustomers(clients, req.query) });
   });

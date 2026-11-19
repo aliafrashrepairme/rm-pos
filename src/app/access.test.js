@@ -50,6 +50,16 @@ test('a Manager gets daily but not monthly transactions', () => {
   assert.equal(canOpen(manager, 'Monthly Transactions'), false);
 });
 
+test('only the Owner opens Counters and Printers', () => {
+  const ownerSetup = { permissions: [...owner.permissions, 'counters.manage', 'printers.manage'] };
+  assert.equal(canOpen(ownerSetup, 'Counters'), true);
+  assert.equal(canOpen(ownerSetup, 'Printers'), true);
+  const managerLike = { permissions: ['settings.manage', 'users.manage', 'shifts.manage', 'lists.manage'] };
+  assert.equal(canOpen(managerLike, 'Counters'), false);
+  assert.equal(canOpen(managerLike, 'Printers'), false);
+  assert.equal(canOpen(cashier, 'Counters'), false);
+});
+
 test('only the Owner opens Store Logo', () => {
   const ownerWithLogo = { permissions: [...owner.permissions, 'settings.logo'] };
   assert.deepEqual(screensFor(ownerWithLogo), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'Store Logo']);

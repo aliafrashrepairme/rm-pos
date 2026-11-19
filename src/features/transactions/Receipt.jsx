@@ -35,9 +35,10 @@ export default function Receipt({ bill }) {
       {bill.discount > 0 && <div className="r"><span>{bill.discountLabel || 'Discount'}</span><span>− {money(bill.discount)}</span></div>}
       {options.showTax !== false && <div className="r"><span>VAT</span><span>{money(bill.tax)}</span></div>}
       <div className="r big"><span>TOTAL</span><span>{money(bill.total)}</span></div>
+      {bill.pointsRedeemed > 0 && <div className="r"><span>Paid with points ({bill.pointsRedeemed})</span><span>− {money(bill.pointsRedeemed)}</span></div>}
       {payment && (
         <>
-          <div className="r"><span>Paid by</span><span>{payment.method}</span></div>
+          <div className="r"><span>{payment.method === 'Credit' ? 'On credit' : 'Paid by'}</span><span>{payment.method === 'Credit' ? money(payment.amount) : payment.method}</span></div>
           {payment.reference && <div className="r"><span>Reference</span><span>{payment.reference}</span></div>}
           {payment.tendered !== null && (
             <>

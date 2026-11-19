@@ -58,3 +58,8 @@ export async function generateMissingBarcodes({ database }, user) {
   }
   return generated;
 }
+
+export async function labelStore({ database }) {
+  const row = unwrap(await database.from('store_settings').select('store_name, phone').single());
+  return { name: row.store_name, phone: row.phone };
+}

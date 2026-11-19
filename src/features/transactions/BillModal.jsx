@@ -73,7 +73,8 @@ function RefundForm({ bill, onDone, onCancel }) {
           lines: chosen.map((line) => ({ saleItemId: line.id, qty: Number(quantities[line.id]), restock: !damaged[line.id] }))
         })
       });
-      onDone(result.bill, `${result.refundNo} · ${t('Refund recorded.')}`);
+      const points = result.pointsReturned ? ` · ${result.pointsReturned} ${t('points returned')} · ${t('pay out')} ${money(result.paidOut)}` : '';
+      onDone(result.bill, `${result.refundNo} · ${t('Refund recorded.')}${points}`);
     } catch (failure) {
       setError(failure.message);
       setBusy(false);
@@ -108,7 +109,7 @@ function RefundForm({ bill, onDone, onCancel }) {
         <label className="field">{t('Reason')}<input name="refundReason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} required /></label>
         <label className="field">{t('Refund method')}
           <select name="refundMethod" value={method} onChange={(event) => setMethod(event.target.value)}>
-            {['Cash', 'Card', 'Bank transfer'].map((item) => <option key={item} value={item}>{t(item)}</option>)}
+            {['Cash', 'Card', 'Bank transfer', ...(bill.customerId ? ['Credit'] : [])].map((item) => <option key={item} value={item}>{t(item)}</option>)}
           </select>
         </label>
       </div>
