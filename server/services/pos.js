@@ -1,4 +1,5 @@
 import { hasCreditSchema, selectAll } from '../db.js';
+import { regularDiscountSettings } from './settings.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
 import { createCustomer as saveCustomer } from './customers.js';
@@ -8,6 +9,20 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function cleanSearch(value) {
   return typeof value === 'string' ? value.replace(/[%*_\\"]/g, ' ').trim().slice(0, 100) : '';
+}
+
+// Whether this customer currently earns the regular-customer discount, so the till shows the same
+// total the sale will charge (create_sale applies the same rule).
+export async function regularOffer(clients, customerId) {
+  if (typeof customerId !== 'string' || !UUID.test(customerId)) throw new HttpError(400, 'Choose a valid customer.');
+  const rule = await regularDiscountSettings(clients);
+  if (!rule?.enabled) return { qualifies: false, enabled: false };
+  const since = new Date(Date.now() - rule.periodDays * 86400000).toISOString();
+  const { count, error } = await clients.database.from('sales').select('id', { count: 'exact', head: true })
+    .eq('customer_id', customerId).neq('status', 'Voided').gte('created_at', since);
+  if (error) throw error;
+  const visits = count ?? 0;
+  return { qualifies: visits >= rule.minVisits, enabled: true, visits, minVisits: rule.minVisits, periodDays: rule.periodDays, rate: rule.rate };
 }
 
 export async function options({ database }) {

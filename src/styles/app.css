@@ -294,6 +294,12 @@ body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0
   #printArea .bc-label .pname { font-size: 6.5pt; line-height: 1; }
   #printArea .bc-label .lp { font-size: 8pt; line-height: 1; }
   #printArea .bc-label .lfoot { font-size: 5pt; gap: 1.5mm; line-height: 1; }
+  #printArea .bc-label > * { flex-shrink: 0; }
+  /* prototype.css sets every .pname to 16.5px !important and every label <b> to its own block line; labels need print sizes. */
+  #printArea .bc-label .pname { font-size: 6.5pt !important; }
+  #printArea .bc-label.roll-38 .pname { font-size: 5.5pt !important; }
+  #printArea .bc-label .lregular b { display: inline; font-size: inherit; margin: 0; }
+  #printArea .bc-label .lregular { font-size: 5pt; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   #printArea .bc-label.roll-38 .lstore { font-size: 4.5pt; }
   #printArea .bc-label.roll-38 .pname { font-size: 5.5pt; }
   #printArea .bc-label.roll-38 .lp { font-size: 7pt; }
@@ -311,3 +317,4 @@ body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0
 .printer-card { display: grid; gap: 10px; align-content: start; }
 .printer-card .btn { justify-self: start; }
 .printer-test { display: grid; gap: 2mm; padding: 4mm; text-align: center; font-family: Arial, sans-serif; color: #000; }
+.bc-label .lregular { font-size: 10px; color: #111; }

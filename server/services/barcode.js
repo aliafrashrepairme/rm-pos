@@ -59,7 +59,9 @@ export async function generateMissingBarcodes({ database }, user) {
   return generated;
 }
 
+// The store name and phone for label headers, and the regular-customer price line when that discount is on.
 export async function labelStore({ database }) {
-  const row = unwrap(await database.from('store_settings').select('store_name, phone').single());
-  return { name: row.store_name, phone: row.phone };
+  const row = unwrap(await database.from('store_settings').select('*').single());
+  const regular = row.regular_discount_enabled ? { rate: Number(row.regular_discount_rate) } : null;
+  return { name: row.store_name, phone: row.phone, regularDiscount: regular };
 }

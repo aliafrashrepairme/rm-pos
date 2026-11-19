@@ -21,10 +21,15 @@ export default function SettingsPage({ theme, onTheme, onLanguage }) {
   const [store, setStore] = useState(null);
   const [footer, setFooter] = useState('');
   const [rates, setRates] = useState({});
+  const [regular, setRegular] = useState(null);
   const [error, setError] = useState('');
 
   function show(next) {
     setSettings(next);
+    if (next.regularDiscount) {
+      const { minVisits, periodDays, rate } = next.regularDiscount;
+      setRegular({ minVisits: String(minVisits), periodDays: String(periodDays), percent: String(Math.round(rate * 10000) / 100) });
+    }
     setStore({ storeName: next.storeName, address: next.address, phone: next.phone, vatRegistration: next.vatRegistration });
     setFooter(next.receipt.footer);
     setRates(Object.fromEntries(next.taxRates.map((rate) => [rate.id, String(rate.rate)])));
@@ -99,6 +104,33 @@ export default function SettingsPage({ theme, onTheme, onLanguage }) {
           </label>
           <button type="button" className="btn btn-primary settings-save" onClick={() => saveReceipt({ footer })}>{t('Save message')}</button>
         </div>
+
+        {settings.regularDiscount && regular && (
+          <form
+            className="card"
+            onSubmit={(event) => {
+              event.preventDefault();
+              save('/api/settings', 'PATCH', { regularDiscount: { minVisits: Number(regular.minVisits), periodDays: Number(regular.periodDays), rate: Math.round(Number(regular.percent) * 100) / 10000 } });
+            }}
+          >
+            <h3>{t('Regular-customer discount')}</h3>
+            <p className="sub">{t('A saved customer who buys often gets this discount automatically. If a coupon or member offer is bigger, that applies instead.')}</p>
+            <div className="setting-line">
+              <span><strong>{t('Discount for regular customers')}</strong><small>{t('Switch off to stop this discount.')}</small></span>
+              <Switch on={settings.regularDiscount.enabled} label={t('Discount for regular customers')} onChange={(value) => save('/api/settings', 'PATCH', { regularDiscount: { enabled: value } })} />
+            </div>
+            <label className="field settings-field">{t('Purchases needed')}
+              <input name="regularVisits" type="number" min="1" max="100" step="1" required value={regular.minVisits} onChange={(event) => setRegular((current) => ({ ...current, minVisits: event.target.value }))} />
+            </label>
+            <label className="field settings-field">{t('Within the last (days)')}
+              <input name="regularDays" type="number" min="7" max="365" step="1" required value={regular.periodDays} onChange={(event) => setRegular((current) => ({ ...current, periodDays: event.target.value }))} />
+            </label>
+            <label className="field settings-field">{t('Discount (%)')}
+              <input name="regularPercent" type="number" min="0.01" max="50" step="0.01" required value={regular.percent} onChange={(event) => setRegular((current) => ({ ...current, percent: event.target.value }))} />
+            </label>
+            <button type="submit" className="btn btn-primary settings-save">{t('Save discount')}</button>
+          </form>
+        )}
 
         <div className="card">
           <h3>{t('Tax configuration')}</h3>

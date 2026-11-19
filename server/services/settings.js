@@ -7,6 +7,39 @@ const RECEIPT_SWITCHES = ['showTax', 'showBalance', 'printAfterSale'];
 
 export const DEFAULT_RECEIPT = { size: '80mm', showTax: true, showBalance: true, printAfterSale: false, footer: '' };
 
+// Regular-customer discount settings (migration 0026), or null before it is applied.
+function asRegularDiscount(row) {
+  if (row.regular_discount_enabled === undefined) return null;
+  return { enabled: row.regular_discount_enabled, minVisits: row.regular_min_visits, periodDays: row.regular_period_days, rate: Number(row.regular_discount_rate) };
+}
+
+export async function regularDiscountSettings({ database }) {
+  return asRegularDiscount(unwrap(await database.from('store_settings').select('*').single()));
+}
+
+function regularDiscountFrom(body) {
+  if (typeof body !== 'object' || body === null) throw new HttpError(400, 'Regular-customer discount settings are not valid.');
+  const changes = {};
+  if (body.enabled !== undefined) {
+    if (typeof body.enabled !== 'boolean') throw new HttpError(400, 'The regular-customer discount must be on or off.');
+    changes.regular_discount_enabled = body.enabled;
+  }
+  if (body.minVisits !== undefined) {
+    if (!Number.isInteger(body.minVisits) || body.minVisits < 1 || body.minVisits > 100) throw new HttpError(400, 'Purchases needed must be a whole number from 1 to 100.');
+    changes.regular_min_visits = body.minVisits;
+  }
+  if (body.periodDays !== undefined) {
+    if (!Number.isInteger(body.periodDays) || body.periodDays < 7 || body.periodDays > 365) throw new HttpError(400, 'The period must be from 7 to 365 days.');
+    changes.regular_period_days = body.periodDays;
+  }
+  if (body.rate !== undefined) {
+    const rate = Number(body.rate);
+    if (!Number.isFinite(rate) || rate <= 0 || rate > 0.5 || Math.abs(Math.round(rate * 10000) - rate * 10000) > 1e-6) throw new HttpError(400, 'The discount must be more than 0% and at most 50%.');
+    changes.regular_discount_rate = rate;
+  }
+  return changes;
+}
+
 function asSettings(row, taxRates, methods) {
   return {
     storeName: row.store_name,
@@ -16,6 +49,7 @@ function asSettings(row, taxRates, methods) {
     currency: row.currency_code,
     timeZone: row.time_zone,
     receipt: { ...DEFAULT_RECEIPT, ...row.receipt },
+    regularDiscount: asRegularDiscount(row),
     taxRates: taxRates.map((rate) => ({ id: rate.id, name: rate.name, rate: Number(rate.rate), isDefault: rate.is_default })),
     paymentMethods: methods.map((method) => ({ code: method.code, isCash: method.is_cash, requiresReference: method.requires_reference, active: method.active }))
   };
@@ -63,9 +97,15 @@ export async function updateSettings(clients, user, body) {
     if (typeof body.receipt !== 'object' || body.receipt === null) throw new HttpError(400, 'Receipt options must be on or off.');
     receipt = receiptFrom(body.receipt);
   }
-  const changed = [...Object.keys(store), ...(Object.keys(receipt).length ? ['receipt'] : [])];
+  const regular = body?.regularDiscount !== undefined ? regularDiscountFrom(body.regularDiscount) : {};
+  const changed = [...Object.keys(store), ...(Object.keys(receipt).length ? ['receipt'] : []), ...(Object.keys(regular).length ? ['regular-customer discount'] : [])];
   if (!changed.length) throw new HttpError(400, 'Nothing to change.');
-  unwrap(await database.rpc('save_store_settings', { p_store: store, p_receipt: receipt, p_user: user.id }));
+  if (Object.keys(store).length || Object.keys(receipt).length) {
+    unwrap(await database.rpc('save_store_settings', { p_store: store, p_receipt: receipt, p_user: user.id }));
+  }
+  if (Object.keys(regular).length) {
+    unwrap(await database.from('store_settings').update({ ...regular, updated_by: user.id, updated_at: new Date().toISOString() }).eq('id', true));
+  }
   await writeAudit(database, { user, action: 'Settings changed', description: changed.join(', '), entityType: 'settings' });
   return getSettings(clients);
 }

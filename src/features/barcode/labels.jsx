@@ -44,6 +44,10 @@ export function Label({ product, size }) {
   const unit = product.unitCode || product.unit;
   const { barcodeMm } = LABEL_SIZES.find((option) => option.key === size) ?? LABEL_SIZES[0];
   const small = size === 'roll-38';
+  const price = product.sellingPrice ?? product.price;
+  // While the regular-customer discount is on, the label also shows what regulars pay.
+  const regularRate = store?.regularDiscount?.rate;
+  const regularPrice = regularRate ? Math.round(price * (1 - regularRate) * 100) / 100 : null;
   return (
     <div className={`bc-label ${size}`}>
       <div className="lhead">
@@ -51,8 +55,12 @@ export function Label({ product, size }) {
         <span className="lstore">{store?.name || 'RM Hardware Store'}</span>
       </div>
       <b className="pname">{product.name}</b>
-      <BarcodeImage code={product.barcode} printWidthMm={barcodeMm} />
-      <div className="lp">{money(product.sellingPrice ?? product.price)}{unit ? <span className="lu"> / {t(unit)}</span> : null}</div>
+      {/* Shorter bars make room for the regular-customer line on a 25 mm label; they still scan. */}
+      <BarcodeImage code={product.barcode} printWidthMm={barcodeMm} printBarsMm={regularPrice !== null ? 6.5 : undefined} />
+      <div className="lp">{money(price)}{unit ? <span className="lu"> / {t(unit)}</span> : null}</div>
+      {regularPrice !== null && (
+        <div className="lregular">{t('Regular customers')}: <b>{money(regularPrice)}</b> (−{Math.round(regularRate * 1000) / 10}%)</div>
+      )}
       <div className="lfoot">
         {!small && product.sku && <span>{product.sku}</span>}
         {!small && store?.phone && <span>☎ {store.phone}</span>}

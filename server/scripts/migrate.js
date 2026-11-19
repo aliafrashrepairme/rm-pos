@@ -28,7 +28,8 @@ const APPLIED_BY_HAND = {
   '0022_quotations.sql': "to_regprocedure('public.save_quotation(jsonb, uuid)') is not null",
   '0023_credit.sql': "to_regprocedure('public.record_credit_payment(jsonb, uuid)') is not null",
   '0024_inventory_staff_adjustments.sql': "exists (select 1 from public.role_permissions where role_code = 'Inventory Staff' and permission_code = 'adjustments.manage')",
-  '0025_owner_counters_printers.sql': "to_regprocedure('public.save_counter(uuid, text, boolean)') is not null"
+  '0025_owner_counters_printers.sql': "to_regprocedure('public.save_counter(uuid, text, boolean)') is not null",
+  '0026_regular_customer_discount.sql': "to_regprocedure('public.recent_visits(uuid, integer)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);
