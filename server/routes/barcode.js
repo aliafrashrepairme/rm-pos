@@ -7,6 +7,10 @@ export function barcodeRoutes(clients) {
   router.get('/lookup', requirePermission('barcode.scan'), async (req, res) => {
     res.json(await barcode.lookup(clients, req.user, req.query.code));
   });
+  // Store name and phone printed on labels. Anyone who can print a label can read them.
+  router.get('/label-store', requirePermission('barcode.scan', 'barcode.labels'), async (req, res) => {
+    res.json({ store: await barcode.labelStore(clients) });
+  });
   router.get('/missing', requirePermission('barcode.labels'), async (req, res) => {
     res.json({ count: await barcode.missingBarcodeCount(clients) });
   });

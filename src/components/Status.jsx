@@ -1,5 +1,5 @@
-const WARN = ['Low Stock', 'Part Paid', 'Unpaid', 'Pending', 'Partially Received', 'Partially Refunded', 'In Progress', 'Submitted'];
-const RED = ['Refunded', 'Voided', 'Out of Stock', 'Rejected', 'Disabled'];
+const WARN = ['Low Stock', 'Part Paid', 'Unpaid', 'Pending', 'Partially Received', 'Partially Refunded', 'In Progress', 'Submitted', 'Sent'];
+const RED = ['Refunded', 'Voided', 'Out of Stock', 'Rejected', 'Disabled', 'Expired', 'Overdue'];
 const GRAY = ['Closed', 'Inactive', 'Draft', 'Ordered', 'Cancelled'];
 
 export default function Status({ value, label }) {

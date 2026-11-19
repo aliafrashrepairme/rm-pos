@@ -12,8 +12,9 @@ import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 function OpenShift({ options, onClose, onDone }) {
   const { t } = useI18n();
-  const [counterId, setCounterId] = useState(options.counters[0]?.id ?? '');
+  const [counterId, setCounterId] = useState(options.defaultCounterId ?? options.counters[0]?.id ?? '');
   const [openingCash, setOpeningCash] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -22,29 +23,42 @@ function OpenShift({ options, onClose, onDone }) {
     setError('');
     setBusy(true);
     try {
-      await api('/api/shifts', { method: 'POST', body: JSON.stringify({ counterId, openingCash }) });
+      await api('/api/shifts', { method: 'POST', body: JSON.stringify({ counterId, openingCash, password }) });
       onDone();
     } catch (failure) {
       setError(failure.message);
+      setPassword('');
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={t('Open cash shift')} description={t('Enter the opening float.')} onClose={onClose}>
+    <Modal className="shift-modal" title={t('Open cash shift')} description={t('Choose your counter, enter the opening float and confirm with your password.')} onClose={onClose}>
       <form onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field">{t('Counter')}
-            <select name="counterId" value={counterId} onChange={(event) => setCounterId(event.target.value)}>
-              {options.counters.map((counter) => <option key={counter.id} value={counter.id}>{counter.name}</option>)}
-            </select>
-          </label>
-          <label className="field">{t('Opening cash (LKR)')}<input name="openingCash" type="number" min="0" step="0.01" value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} required autoFocus /></label>
+        <div className="field">{t('Counter')}
+          <div className="counter-choices" role="radiogroup" aria-label={t('Counter')}>
+            {options.counters.map((counter) => (
+              <button
+                key={counter.id}
+                type="button"
+                role="radio"
+                aria-checked={counterId === counter.id}
+                className={`counter-choice ${counterId === counter.id ? 'active' : ''}`}
+                disabled={counter.inUse}
+                onClick={() => setCounterId(counter.id)}
+              >
+                <b>{counter.name}</b>
+                <small>{counter.inUse ? t('In use') : counter.id === options.defaultCounterId ? t('Your counter') : t('Available')}</small>
+              </button>
+            ))}
+          </div>
         </div>
+        <label className="field">{t('Opening cash (LKR)')}<input name="openingCash" type="number" min="0" step="0.01" value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} required autoFocus /></label>
+        <label className="field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
         <div className="modal-actions-row">
-          <button type="button" className="btn btn-outline" onClick={onClose}>{t('Cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>{t('Open shift')}</button>
+          <button type="button" className="btn btn-outline btn-lg" onClick={onClose}>{t('Cancel')}</button>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={busy || !counterId}>{t('Open shift')}</button>
         </div>
       </form>
     </Modal>
@@ -69,6 +83,7 @@ function ShiftReport({ shift }) {
       <hr />
       <div className="total-row"><span>{t('Opening cash')}</span><span>{money(shift.openingCash)}</span></div>
       <div className="total-row"><span>+ {t('Cash sales')}</span><span>{money(figures.cashSales)}</span></div>
+      {figures.cashCollected > 0 && <div className="total-row"><span>+ {t('Credit repayments in cash')}</span><span>{money(figures.cashCollected)}</span></div>}
       <div className="total-row"><span>− {t('Cash refunds')}</span><span>{money(figures.cashRefunds)}</span></div>
       <div className="total-row"><span>− {t('Cash expenses')}</span><span>{money(figures.cashExpenses)}</span></div>
       <div className="total-row grand"><span>{t('Expected cash')}</span><span>{money(shift.expectedCash)}</span></div>
@@ -87,6 +102,7 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
   const toast = useToast();
   const [shift, setShift] = useState(null);
   const [counted, setCounted] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const { printArea, startPrint } = usePrintDocument();
@@ -106,13 +122,14 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
     setError('');
     setBusy(true);
     try {
-      const { variance } = await api(`/api/shifts/${shiftId}/close`, { method: 'POST', body: JSON.stringify({ countedCash: counted }) });
+      const { variance } = await api(`/api/shifts/${shiftId}/close`, { method: 'POST', body: JSON.stringify({ countedCash: counted, password }) });
       toast(`${t('Shift closed. Cash variance:')} ${money(variance)}`);
       onChanged();
       await load();
     } catch (failure) {
       setError(failure.message);
     } finally {
+      setPassword('');
       setBusy(false);
     }
   }
@@ -131,7 +148,7 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
   }
 
   return (
-    <Modal title={shift ? `${t('Shift report')} · ${shift.shiftNo}` : t('Shift report')} onClose={onClose}>
+    <Modal className="shift-modal" title={shift ? `${t('Shift report')} · ${shift.shiftNo}` : t('Shift report')} onClose={onClose}>
       {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
       {!shift && !error && <div className="empty">{t('Loading…')}</div>}
       {shift && (
@@ -140,10 +157,11 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
           {shift.status === 'Open' ? (
             <form onSubmit={close}>
               <label className="field settings-field">{t('Cash counted (LKR)')}<input name="countedCash" type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} required /></label>
+              <label className="field settings-field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
               {liveVariance !== null && <div className={`total-row ${liveVariance !== 0 ? 'qty-down' : ''}`}><span>{t('Variance')}</span><b>{money(liveVariance)}</b></div>}
               <div className="modal-actions-row">
                 <button type="button" className="btn btn-outline" onClick={onClose}>{t('Cancel')}</button>
-                <button type="submit" className="btn btn-primary" disabled={busy}>{t('Close & reconcile')}</button>
+                <button type="submit" className="btn btn-primary btn-lg" disabled={busy}>{t('Close & reconcile')}</button>
               </div>
             </form>
           ) : (
@@ -234,10 +252,15 @@ export default function ShiftsPage({ user }) {
         {options.data && (
           <div className="toolbar head-actions">
             <button type="button" className="btn btn-outline" onClick={() => setDialog({ kind: 'expense' })}>＋ {t('Record expense')}</button>
-            {canOpen && <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'open' })}>＋ {t('Open shift')}</button>}
           </div>
         )}
       </div>
+      {canOpen && (
+        <button type="button" className="btn btn-primary open-shift-hero" onClick={() => setDialog({ kind: 'open' })}>
+          <span aria-hidden="true">◴</span>
+          <span><b>{t('Open shift')}</b><small>{t('Start your cash drawer for today')}</small></span>
+        </button>
+      )}
       {error && <p className="form-error" role="alert">{t(error)}</p>}
       <div className="tabs">
         {[['shifts', 'Shifts'], ['expenses', 'Expenses']].map(([key, label]) => <button key={key} type="button" className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{t(label)}</button>)}

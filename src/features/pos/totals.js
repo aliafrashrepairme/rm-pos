@@ -12,6 +12,12 @@ export function bestOffer(customer, coupon) {
   return { rate: 0.03, label: 'Bronze member offer', tier: 'Bronze' };
 }
 
+// Same rule as create_sale: 1 point per LKR 100 paid, doubled for Gold members. Walk-in bills earn nothing.
+export function pointsFor(customer, offer, total) {
+  if (!customer || !(total > 0)) return 0;
+  return Math.floor(total / 100) * (offer.tier === 'Gold' ? 2 : 1);
+}
+
 export function couponProblem(coupon, customer) {
   if (!coupon) return 'This coupon code is not valid.';
   if (coupon.firstPurchaseOnly && (!customer || customer.purchaseCount > 0)) return `${coupon.code} is only for first-time buyers.`;

@@ -1,3 +1,4 @@
+import { hasCreditSchema } from '../db.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
 
@@ -45,7 +46,7 @@ export async function listBills({ database }, query) {
       total: Number(row.grand_total),
       createdAt: row.created_at,
       items: row.sale_items.reduce((sum, item) => sum + Number(item.qty), 0),
-      payment: row.payments[0]?.method_code || ''
+      payment: row.payments.find((item) => item.method_code !== 'Loyalty points')?.method_code || row.payments[0]?.method_code || ''
     })),
     total: result.count ?? 0,
     page,
@@ -59,17 +60,18 @@ export async function getBill({ database }, id) {
     .select(`*, cashier:profiles!sales_cashier_id_fkey(full_name),
       sale_items(id, line_no, name, sku, qty, refunded_qty, unit_price, tax_rate, discount_amount, tax_amount, line_total),
       payments(method_code, amount, amount_tendered, change_given, reference),
-      refunds(refund_no, reason, total, method_code, created_at, refund_items(sale_item_id, qty, amount, restock))`)
+      refunds(refund_no, reason, total, ${await hasCreditSchema(database) ? 'points_returned, ' : ''}method_code, created_at, refund_items(sale_item_id, qty, amount, restock))`)
     .eq('id', id)
     .maybeSingle());
   if (!row) throw new HttpError(404, 'Bill not found.');
   const store = unwrap(await database.from('store_settings').select('store_name, address, phone, vat_registration, time_zone, receipt').single());
-  const payment = row.payments[0];
+  const payment = row.payments.find((item) => item.method_code !== 'Loyalty points');
   return {
     id: row.id,
     billNo: row.bill_no,
     status: row.status,
     customer: row.customer_name,
+    customerId: row.customer_id,
     cashier: row.cashier?.full_name || '',
     createdAt: row.created_at,
     subtotal: Number(row.subtotal),
@@ -78,6 +80,7 @@ export async function getBill({ database }, id) {
     tax: Number(row.tax_total),
     total: Number(row.grand_total),
     pointsEarned: row.points_earned,
+    pointsRedeemed: row.points_redeemed ?? 0,
     voidReason: row.void_reason,
     payment: payment ? {
       method: payment.method_code,
@@ -100,6 +103,7 @@ export async function getBill({ database }, id) {
       refundNo: refund.refund_no,
       reason: refund.reason,
       total: Number(refund.total),
+      pointsReturned: refund.points_returned ?? 0,
       method: refund.method_code,
       createdAt: refund.created_at
     })),
@@ -144,7 +148,7 @@ export async function refundBill(clients, user, id, body) {
   if (!result.replayed) {
     await writeAudit(clients.database, { user, action: 'Refund processed', description: `${result.refundNo} · ${bill.billNo} · ${result.total} · ${reason}`, entityType: 'sale', entityId: id });
   }
-  return { bill, refundNo: result.refundNo, replayed: result.replayed };
+  return { bill, refundNo: result.refundNo, pointsReturned: result.pointsReturned ?? 0, paidOut: result.paidOut === undefined ? null : Number(result.paidOut), replayed: result.replayed };
 }
 
 export async function recordPrinted({ database }, user, id, kind) {

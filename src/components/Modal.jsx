@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export default function Modal({ title, description, wide, onClose, children }) {
+export default function Modal({ title, description, wide, className = '', onClose, children }) {
   useEffect(() => {
     const onKey = (event) => {
       if (event.key === 'Escape') onClose();
@@ -17,7 +17,7 @@ export default function Modal({ title, description, wide, onClose, children }) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal ${wide ? 'wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <h2>{title}</h2>
         {description && <p>{description}</p>}
         {children}

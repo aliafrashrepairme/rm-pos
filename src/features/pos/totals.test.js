@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bestOffer, cartTotals, couponProblem, roundUpTo } from './totals.js';
+import { bestOffer, cartTotals, couponProblem, pointsFor, roundUpTo } from './totals.js';
+
+test('loyalty points follow the bill total, doubled for Gold, none for walk-ins', () => {
+  const silver = { loyaltyPoints: 500, purchaseCount: 3 };
+  const gold = { loyaltyPoints: 1200, purchaseCount: 3 };
+  assert.equal(pointsFor(null, bestOffer(null, null), 5000), 0);
+  assert.equal(pointsFor(silver, bestOffer(silver, null), 25459.2), 254);
+  assert.equal(pointsFor(gold, bestOffer(gold, null), 25459.2), 508);
+  assert.equal(pointsFor(gold, bestOffer(gold, { code: 'X', rate: 0.1 }), 25459.2), 254, 'a coupon replaces the Gold bonus');
+  assert.equal(pointsFor(silver, bestOffer(silver, null), 99), 0);
+});
 
 test('totals add tax after discount and avoid floating-point errors', () => {
   assert.deepEqual(cartTotals([{ price: 1450, qty: 2, taxRate: 18 }]), { subtotal: 2900, discount: 0, tax: 522, total: 3422 });

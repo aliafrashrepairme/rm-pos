@@ -39,7 +39,7 @@ const ACCESS = [
   ['/api/inventory/summary', ['Manager', 'Inventory Staff']],
   ['/api/inventory/movements', ['Manager', 'Inventory Staff']],
   ['/api/inventory/counts', ['Manager', 'Inventory Staff']],
-  ['/api/inventory/adjustments', ['Manager']],
+  ['/api/inventory/adjustments', ['Manager', 'Inventory Staff']],
   ['/api/products/options', ['Manager', 'Inventory Staff']],
   ['/api/reports/sales', ['Owner', 'Manager']],
   ['/api/reports/products', ['Owner', 'Manager', 'Inventory Staff']],

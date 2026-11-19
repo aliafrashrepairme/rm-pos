@@ -18,7 +18,6 @@ function initialValues(product, options, barcode) {
       costPrice: String(product.costPrice),
       sellingPrice: String(product.sellingPrice),
       minStock: String(product.minStock),
-      location: product.location,
       preferredSupplierId: product.preferredSupplierId ?? '',
       sku: product.sku,
       barcode: product.barcode ?? ''
@@ -34,7 +33,6 @@ function initialValues(product, options, barcode) {
     sellingPrice: '',
     openingStock: '0',
     minStock: '10',
-    location: '',
     preferredSupplierId: '',
     sku: '',
     barcode: barcode ?? ''
@@ -102,7 +100,7 @@ export default function ProductForm({ product, options, barcode, onClose, onSave
     <Modal
       wide
       title={t(product ? 'Edit product' : 'Add product')}
-      description={t(product ? 'Stock changes go through Stock Adjustments.' : 'Leave SKU and barcode blank to generate them automatically.')}
+      description={t(product ? 'Stock changes go through Stock Adjustments.' : 'The SKU is generated automatically. Leave the barcode blank to generate one too.')}
       onClose={onClose}
     >
       <form onSubmit={submit}>
@@ -129,14 +127,15 @@ export default function ProductForm({ product, options, barcode, onClose, onSave
             </label>
             {!product && <label className="field">{t('Opening stock')}<input {...field('openingStock')} type="number" min="0" step="any" /></label>}
             <label className="field">{t('Reorder level')}<input {...field('minStock')} type="number" min="0" step="any" /></label>
-            <label className="field">{t('Location')}<input {...field('location')} maxLength={100} /></label>
             <label className="field">{t('Preferred supplier')}
               <select {...field('preferredSupplierId')}>
                 <option value="">—</option>
                 {options.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
               </select>
             </label>
-            <label className="field">{t('SKU')}<input {...field('sku')} required={Boolean(product)} maxLength={40} /></label>
+            {product
+              ? <label className="field">{t('SKU')}<input {...field('sku')} required maxLength={40} /></label>
+              : <label className="field">{t('SKU')}<input name="sku" value="" placeholder={t('Auto-generated on save (RM-000123)')} readOnly disabled /></label>}
             <label className="field">{t('Barcode')}<input {...field('barcode')} required={Boolean(product)} maxLength={32} /></label>
             <label className="field full">{t('Description')}<textarea {...field('description')} rows="2" maxLength={2000} /></label>
             <div className="field full">
