@@ -3,7 +3,6 @@ import { loadActiveProfile } from '../middleware/auth.js';
 import { writeAudit } from './audit.js';
 
 const INVALID_LOGIN = 'Incorrect username, email or password.';
-const INVALID_RESET = 'This reset code is not valid. Request a new one.';
 
 // Accounts created without an email get an address under this domain, which can't receive mail.
 export const NO_EMAIL_DOMAIN = 'staff.rm-pos.local';
@@ -89,25 +88,3 @@ export async function changePassword({ authClient, database }, user, token, curr
   await endSession(database, token, 'global');
 }
 
-// Always succeeds from the caller's view, so it can't reveal which addresses have accounts.
-export async function requestPasswordReset({ authClient, database }, email) {
-  const address = email.toLowerCase();
-  if (address.endsWith(`@${NO_EMAIL_DOMAIN}`)) return;
-  const row = unwrap(await database.from('profiles').select('active').eq('email', address).maybeSingle());
-  if (!row?.active) return;
-  const { error } = await authClient.auth.resetPasswordForEmail(address);
-  if (error) console.error('Password reset email failed:', error);
-}
-
-export async function resetPasswordWithCode({ authClient, database }, email, code, password) {
-  const { data, error } = await authClient.auth.verifyOtp({ email: email.toLowerCase(), token: code, type: 'recovery' });
-  if (error || !data.session || !data.user) throw new HttpError(400, INVALID_RESET);
-  try {
-    const user = await loadActiveProfile(database, data.user.id);
-    await savePassword(database, user.id, password);
-    unwrap(await database.from('profiles').update({ must_change_password: false }).eq('id', user.id));
-    await writeAudit(database, { user, action: 'Password reset by email', entityType: 'user', entityId: user.id });
-  } finally {
-    await endSession(database, data.session.access_token, 'global');
-  }
-}

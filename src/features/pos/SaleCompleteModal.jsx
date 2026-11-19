@@ -44,7 +44,8 @@ export default function SaleCompleteModal({ sale, onClose }) {
         {sale.discount > 0 && <div className="total-row disc"><span>{t(sale.discountLabel)}</span><b>− {money(sale.discount)}</b></div>}
         <div className="total-row"><span>{t('VAT')}</span><b>{money(sale.tax)}</b></div>
         <div className="total-row grand"><span>{t('TOTAL')}</span><span>{money(sale.total)}</span></div>
-        {payment && <div className="total-row"><span>{t('Paid by')}</span><b>{t(payment.method)}</b></div>}
+        {sale.pointsRedeemed > 0 && <div className="total-row disc"><span>⭐ {t('Paid with points')} ({sale.pointsRedeemed})</span><b>− {money(sale.pointsRedeemed)}</b></div>}
+        {payment && <div className="total-row"><span>{t(payment.method === 'Credit' ? 'On credit' : 'Paid by')}</span><b>{payment.method === 'Credit' ? money(payment.amount) : t(payment.method)}</b></div>}
         {sale.pointsEarned > 0 && <div className="total-row"><span>{t('Loyalty points earned')}</span><b>+{sale.pointsEarned}</b></div>}
       </div>
       <div className="modal-actions-row">

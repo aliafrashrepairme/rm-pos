@@ -86,25 +86,8 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .vf-icon { font-size: 30px; margin-bottom: 6px; }
 .barcode-box { margin-top: 12px; max-width: 280px; }
 .barcode-image { display: block; width: 100%; height: auto; }
-.scanner { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, .8fr); gap: 16px; align-items: start; }
-.scanner-video { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: #101114; }
-.scanner-video video, .scanner-video canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.scanner-video canvas { pointer-events: none; }
-.scanner-idle { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
-.scanner-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
-.scanner-controls select { flex: 1 1 150px; min-width: 0; }
-.scanner-controls .toggle { display: flex; align-items: center; gap: 6px; }
-.scanner-controls .toggle input { width: auto; }
-.scanner-controls .pill { border-radius: 999px; padding: 4px 8px; background: var(--soft); font-size: 12px; }
-.scanner-controls .pill.missing { color: var(--muted); }
-.scanner-manual { display: flex; gap: 8px; margin-top: 12px; }
-.scanner-manual input { flex: 1; min-width: 0; }
-.scanner-stats { display: flex; flex-wrap: wrap; gap: 14px; }
-.scanner-stats > div { display: grid; gap: 2px; }
-.scanner-stats span { color: var(--muted); font-size: 12px; }
-.scan-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.scan-list li { border-top: 1px solid var(--line); padding-top: 10px; }
-.scan-meta { color: var(--muted); font-size: 12px; }
+/* Printed barcodes keep their exact size in mm: stretching them makes uneven bars that fail to scan. */
+.barcode-image.barcode-print { max-width: none; flex-shrink: 0; margin: 0 auto; }
 .label-picker { max-height: 220px; overflow-y: auto; margin-bottom: 8px; }
 .copies-field { flex-direction: row; align-items: center; gap: 6px; }
 .label-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
@@ -120,7 +103,7 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
   #printArea .bc-label.roll-50 { width: 50mm; height: 25mm; page-break-after: always; }
   #printArea .bc-label.roll-38 { width: 38mm; height: 25mm; page-break-after: always; font-size: 8px; }
   #printArea .label-grid.sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2mm; }
-  #printArea .bc-label .barcode-image { max-height: 14mm; }
+  #printArea .bc-label .barcode-image:not(.barcode-print) { max-height: 14mm; }
 }
 .pos-search { flex: 1 1 260px; }
 .product-tile:disabled { opacity: .55; cursor: not-allowed; }
@@ -157,7 +140,6 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .refund-fields { margin-top: 12px; }
 .refund-total { margin-top: 10px; }
 .heat-legend { align-items: center; }
-@media (max-width: 700px) { .scanner { grid-template-columns: minmax(0, 1fr); } }
 .heat-legend i { width: 22px; height: 12px; margin: 0; border-radius: 3px; }
 @media print {
   #printArea.print-receipt .receipt { box-shadow: none; width: 72mm; max-width: 100%; margin: 0; padding: 0 2mm; }
@@ -168,8 +150,6 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .order-lines { margin-top: 10px; }
 .order-total { margin-top: 10px; }
 .order-statuses { display: flex; gap: 8px; margin-bottom: 10px; }
-.received-cell { display: flex; align-items: center; gap: 7px; min-width: 90px; }
-.received-cell .meter { flex: 1; }
 .receive-scan { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .receive-scan .search { flex: 1; }
 .receive-note { margin-top: 10px; }
@@ -203,13 +183,6 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 .scan-off { border-color: var(--yellow); }
 .scan-layout { align-items: start; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 .scan-panel { min-width: 0; }
-.scan-preview { display: block; width: 100%; height: 620px; max-height: 70vh; margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; object-fit: contain; }
-.scan-open { margin-top: 8px; }
-.scan-lines { margin-top: 10px; }
-.scan-text { width: 150px; }
-.scan-product { width: 170px; }
-.scan-note { margin-top: 10px; }
-.scan-history { margin-top: 16px; }
 .dropzone .btn.disabled { opacity: .5; cursor: not-allowed; }
 .conf.low { background: var(--yellow); color: #171717; }
 @media (max-width: 1100px) { .scan-layout { grid-template-columns: minmax(0, 1fr); } }
@@ -228,3 +201,113 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 #printArea .report-print .total-row { display: flex; justify-content: space-between; color: #000; padding: 2px 0; }
 #printArea .report-print hr { border: 0; border-top: 1px solid #999; }
 .pos-shift-note { margin-bottom: 12px; }
+
+/* The Owner's logo, kept inside the same space as the built-in mark. */
+.brand-logo { width: 42px; height: 42px; border-radius: 13px; object-fit: contain; background: #fff; flex-shrink: 0; }
+.receipt-logo { display: block; max-width: 60%; max-height: 70px; margin: 0 auto 6px; object-fit: contain; }
+.pb-logo { display: block; max-height: 48px; max-width: 160px; margin-bottom: 6px; object-fit: contain; }
+.logo-preview { width: 160px; height: 160px; border: 1px solid var(--line); border-radius: 14px; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.logo-preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
+.logo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* Sign-in page in light mode: the brand side follows the theme instead of staying black. */
+.theme-btn { font-size: 17px; line-height: 1; }
+body:not(.dark) .login-brand-panel { background: linear-gradient(160deg, #fff8d9 0%, #f7f8fa 70%); color: var(--text); border-right: 1px solid var(--line); }
+body:not(.dark) .login-brand-panel p { color: var(--muted); }
+body:not(.dark) .login-store { color: #a27a00; }
+body:not(.dark) .login-foot { color: var(--muted); }
+body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0 0 1px rgba(162, 122, 0, .18); }
+.login-screen, .login-brand-panel, .login-card { transition: background .2s, color .2s; }
+/* An uploaded logo can be any shape, so show all of it instead of cropping it to the built-in banner. */
+.login-logo-custom { object-fit: contain; background: var(--panel); padding: 18px; }
+.status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+.status-grid > div { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.status-grid b { font-size: 16px; }
+@media (max-width: 900px) { .status-grid { grid-template-columns: 1fr; } }
+.barcode-missing { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+/* Labels: price per unit and SKU, sized so name, barcode, price and SKU fit a 50 × 25 mm label. */
+.bc-label .lu { font-weight: 600; font-size: .85em; }
+.bc-label .lsku { font-size: 10px; color: #444; letter-spacing: .3px; }
+.quick-label { display: flex; justify-content: center; padding: 14px; background: var(--bg); border-radius: 10px; margin-bottom: 12px; }
+.quick-label .label-grid { display: block; width: 240px; }
+.quick-label-controls { justify-content: center; }
+.scan-print { margin-top: 10px; }
+@media print {
+  #printArea .bc-label { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .3mm; font-family: Arial, sans-serif; border: 0; }
+  #printArea .bc-label .pname { width: 100%; font-size: 7.5pt; line-height: 1.1; }
+  #printArea .bc-label .barcode-image:not(.barcode-print) { width: 100%; max-height: 12.5mm; }
+  #printArea .bc-label .lp { font-size: 9pt; line-height: 1.1; }
+  #printArea .bc-label .lsku { font-size: 6pt; line-height: 1; }
+  #printArea .bc-label.roll-38 .pname { font-size: 6.5pt; }
+  #printArea .bc-label.roll-38 .lp { font-size: 8pt; }
+}
+.camera-hint { margin: 8px 0 0; text-align: center; }
+
+/* Shifts: a large Open Shift button and roomy shift dialogs for touch tills. */
+.open-shift-hero { width: 100%; justify-content: center; gap: 16px; padding: 22px 24px; margin-bottom: 18px; font-size: 22px; border-radius: 14px; }
+.open-shift-hero > span:first-child { font-size: 34px; line-height: 1; }
+.open-shift-hero > span:last-child { display: flex; flex-direction: column; align-items: flex-start; }
+.open-shift-hero small { font-size: 14px; font-weight: 600; opacity: .75; }
+.modal.shift-modal { width: min(720px, 100%); padding: 30px; }
+.modal.shift-modal h2 { font-size: 26px; }
+.modal.shift-modal p { font-size: 15px; }
+.modal.shift-modal .field { font-size: 15px; margin-bottom: 16px; }
+.modal.shift-modal .field input { font-size: 20px; padding: 14px 16px; }
+.btn.btn-lg { padding: 14px 22px; font-size: 17px; }
+.counter-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 4px; }
+.counter-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px; border: 2px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); text-align: left; }
+.counter-choice b { font-size: 18px; }
+.counter-choice small { font-size: 13px; color: var(--muted); font-weight: 600; }
+.counter-choice.active { border-color: var(--yellow); background: var(--soft); }
+.counter-choice:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Quotations */
+.quote-tabs { flex-wrap: wrap; }
+.tab-count { display: inline-block; min-width: 20px; margin-left: 4px; padding: 1px 6px; border-radius: 10px; background: var(--soft); color: var(--text); font-size: 12px; font-weight: 800; text-align: center; }
+.quote-actions { flex-wrap: wrap; }
+.quote-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Credit management and spending points at POS */
+.points-redeem { display: grid; gap: 6px; padding: 10px 0; border-top: 1px dashed var(--line); font-size: 14px; }
+.points-redeem-row { display: flex; gap: 8px; }
+.points-redeem-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: var(--panel); color: var(--text); font-size: 16px; }
+.credit-note { margin: 10px 0; }
+.credit-note.over { border-color: var(--red); color: var(--red); }
+.credit-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 12px 0; }
+.credit-forms .inline-panel { display: grid; gap: 8px; }
+.loyalty-rules { margin-bottom: 14px; }
+.section-title { margin: 22px 0 10px; font-size: 16px; }
+
+/* Label header (store logo and name) and footer (SKU, phone, print date) */
+.bc-label .lhead { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 2px; }
+.bc-label .llogo { height: 16px; max-width: 34px; object-fit: contain; }
+.bc-label .llogo-mark { display: inline-grid; place-items: center; height: 14px; padding: 0 3px; border-radius: 3px; background: #111; color: #f6c928; font-size: 8px; font-weight: 900; }
+.bc-label .lstore { font-size: 9px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-label .lfoot { display: flex; justify-content: center; gap: 6px; font-size: 9px; color: #444; white-space: nowrap; overflow: hidden; }
+/* On a 25 mm label the barcode takes a fixed 11.6 mm so it scans; the rest shares about 11 mm. */
+@media print {
+  #printArea .bc-label { padding: .8mm 1mm; gap: .2mm; }
+  #printArea .bc-label .lhead { margin: 0; gap: .8mm; width: 100%; height: 2.6mm; }
+  #printArea .bc-label .llogo { height: 2.6mm; max-width: 8mm; }
+  #printArea .bc-label .llogo-mark { height: 2.4mm; font-size: 4.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #printArea .bc-label .lstore { font-size: 5pt; line-height: 1; }
+  #printArea .bc-label .pname { font-size: 6.5pt; line-height: 1; }
+  #printArea .bc-label .lp { font-size: 8pt; line-height: 1; }
+  #printArea .bc-label .lfoot { font-size: 5pt; gap: 1.5mm; line-height: 1; }
+  #printArea .bc-label.roll-38 .lstore { font-size: 4.5pt; }
+  #printArea .bc-label.roll-38 .pname { font-size: 5.5pt; }
+  #printArea .bc-label.roll-38 .lp { font-size: 7pt; }
+}
+
+/* Owner set-up: counters and printers */
+.counter-add { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.counter-add .field { flex: 1 1 240px; }
+.inline-edit { display: flex; gap: 6px; align-items: center; }
+.inline-edit input { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--panel); color: var(--text); }
+.row-actions { display: flex; gap: 6px; }
+.counter-hint { margin-top: 10px; }
+.link-btn { background: none; padding: 0; color: var(--text); text-decoration: underline; font-weight: 700; }
+.printer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 12px 0; }
+.printer-card { display: grid; gap: 10px; align-content: start; }
+.printer-card .btn { justify-self: start; }
+.printer-test { display: grid; gap: 2mm; padding: 4mm; text-align: center; font-family: Arial, sans-serif; color: #000; }

@@ -17,8 +17,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: TRUST_PROXY
         value: "1"
       - key: CORS_ORIGINS

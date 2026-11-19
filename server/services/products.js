@@ -75,7 +75,24 @@ export async function getProduct({ database }, id) {
   return asProduct(row, await signedImageUrls(database, [row]));
 }
 
+// The same printed code can reach us as 12 digits (UPC) or 13 (EAN with a leading zero).
+export function codeEquivalents(code) {
+  const codes = new Set([code, code.toUpperCase()]);
+  if (/^\d{12}$/.test(code)) codes.add(`0${code}`);
+  if (/^0\d{12}$/.test(code)) codes.add(code.slice(1));
+  return [...codes];
+}
+
+// Names the product that already has this barcode, so nobody saves a duplicate by mistake.
+async function assertBarcodeFree(database, code, ownId = null) {
+  if (!code) return;
+  const rows = unwrap(await database.from('products').select('id, name, sku').in('barcode', codeEquivalents(code)).limit(2));
+  const other = (rows ?? []).find((row) => row.id !== ownId);
+  if (other) throw new HttpError(409, `This barcode is already used by ${other.name} (${other.sku}).`, 'BARCODE_TAKEN');
+}
+
 export async function createProduct(clients, user, product) {
+  await assertBarcodeFree(clients.database, product.barcode);
   const id = unwrap(await clients.database.rpc('create_product', { p_product: product, p_created_by: user.id }));
   const created = await getProduct(clients, id);
   await writeAudit(clients.database, {
@@ -91,6 +108,7 @@ export async function createProduct(clients, user, product) {
 export async function updateProduct(clients, user, id, changes) {
   const before = unwrap(await clients.database.from('products').select('id').eq('id', id).maybeSingle());
   if (!before) throw new HttpError(404, 'Product not found.');
+  if ('barcode' in changes) await assertBarcodeFree(clients.database, changes.barcode, id);
   unwrap(await clients.database.from('products').update(changes).eq('id', id));
   const updated = await getProduct(clients, id);
   const onlyStatus = Object.keys(changes).length === 1 && 'active' in changes;
@@ -104,7 +122,7 @@ export async function updateProduct(clients, user, id, changes) {
   return updated;
 }
 
-const IMAGE_TYPES = {
+export const IMAGE_TYPES = {
   'image/jpeg': { extension: 'jpg', matches: (bytes) => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff },
   'image/png': { extension: 'png', matches: (bytes) => bytes.subarray(0, 4).toString('hex') === '89504e47' },
   'image/webp': { extension: 'webp', matches: (bytes) => bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP' }

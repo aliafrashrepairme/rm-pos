@@ -26,4 +26,22 @@ test('a brand-new database is set up by one file and holds no sample records', a
 
   const { rows: [store] } = await db.query('select address, phone, vat_registration from public.store_settings');
   assert.deepEqual(store, { address: '', phone: '', vat_registration: '' });
+
+  // Managers keep daily transactions but lose monthly figures and AI invoice scan.
+  const holders = async (permission) => (await db.query(
+    'select role_code from public.role_permissions where permission_code = $1 order by role_code', [permission]
+  )).rows.map((row) => row.role_code);
+  assert.deepEqual(await holders('transactions.view'), ['Manager', 'Owner']);
+  assert.deepEqual(await holders('transactions.monthly'), ['Owner']);
+  assert.deepEqual(await holders('ai_scan.use'), []);
+
+  // Stock counts and adjustments belong to Managers and Inventory Staff; only Managers approve counts.
+  assert.deepEqual(await holders('counts.manage'), ['Inventory Staff', 'Manager']);
+  assert.deepEqual(await holders('adjustments.manage'), ['Inventory Staff', 'Manager']);
+  assert.deepEqual(await holders('counts.approve'), ['Manager']);
+
+  // Only the Owner changes the logo, and a new store starts with the built-in one.
+  assert.deepEqual(await holders('settings.logo'), ['Owner']);
+  const { rows: [logo] } = await db.query('select logo_path from public.store_settings');
+  assert.equal(logo.logo_path, '');
 });

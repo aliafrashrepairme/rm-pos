@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
+import { beep } from '../../app/beep.js';
 import { money, quantity } from '../../app/format.js';
 import BarcodeImage from '../../components/BarcodeImage.jsx';
 import Status from '../../components/Status.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import { decodePhoto, startCamera } from './cameraScan.js';
+import PrintLabelModal from './PrintLabelModal.jsx';
+import { useAddScannedProduct } from './useAddScannedProduct.jsx';
 
 const HISTORY_LENGTH = 8;
 
@@ -17,24 +20,7 @@ function stateOf(product) {
   return product.stock <= product.minStock ? 'Low Stock' : 'In Stock';
 }
 
-let audioContext;
-function beep() {
-  try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.frequency.value = 1400;
-    gain.gain.value = 0.05;
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.08);
-  } catch {
-    // A missing sound never stops a scan.
-  }
-}
-
-function ScanResult({ result }) {
+function ScanResult({ result, onAdd, onPrint }) {
   const { t } = useI18n();
   if (!result) return <div className="empty"><span>⌸</span>{t('Scan a product to see its details.')}</div>;
   if (result.error) {
@@ -42,6 +28,9 @@ function ScanResult({ result }) {
       <div className="scan-problem" role="alert">
         <b>{t(result.unknown ? 'Unknown barcode' : 'Could not read this code')}</b>
         <p>{t(result.error)}</p>
+        {result.unknown && (onAdd
+          ? <button type="button" className="btn btn-primary" onClick={() => onAdd(result.code)}>＋ {t('Add this product')}</button>
+          : <p>{t('This product is not in the product list. Ask a manager to add it.')}</p>)}
       </div>
     );
   }
@@ -65,6 +54,7 @@ function ScanResult({ result }) {
         </div>
       </div>
       {product.barcode && <div className="barcode-box"><BarcodeImage code={product.barcode} /></div>}
+      {onPrint && product.barcode && <button type="button" className="btn btn-outline scan-print" onClick={() => onPrint(product)}>🏷 {t('Print label')}</button>}
       {result.counted !== undefined && <p className="notice">{t('Counted')}: <b>{quantity(result.counted)}</b></p>}
     </>
   );
@@ -74,6 +64,8 @@ export default function ScanTab({ user }) {
   const { t } = useI18n();
   const toast = useToast();
   const canCount = can(user, 'counts.manage');
+  const canLabel = can(user, 'barcode.labels');
+  const [labelFor, setLabelFor] = useState(null);
   const [mode, setMode] = useState('lookup');
   const [counts, setCounts] = useState([]);
   const [countId, setCountId] = useState('');
@@ -124,10 +116,21 @@ export default function ScanTab({ user }) {
       beep();
     } catch (failure) {
       const unknown = failure.code === 'UNKNOWN_BARCODE';
-      setResult({ error: failure.message, unknown });
+      setResult({ error: failure.message, unknown, code });
       addHistory(t(unknown ? 'Unknown barcode' : 'Could not read this code'), t('Not found'), false);
     }
   }, [t]);
+
+  // After a new product is saved from an unknown scan, show its details and offer its label straight away.
+  const adding = useAddScannedProduct(user, async (code) => {
+    try {
+      const { product } = await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`);
+      setResult({ product });
+      if (canLabel) setLabelFor({ product, title: 'Product added: print its label' });
+    } catch (failure) {
+      setResult({ error: failure.message, unknown: failure.code === 'UNKNOWN_BARCODE', code });
+    }
+  });
 
   // USB and Bluetooth scanners type very quickly and press Enter, anywhere on the page.
   useEffect(() => {
@@ -216,6 +219,7 @@ export default function ScanTab({ user }) {
           <div className="vf-frame" />
           {cameraOn && <div className="vf-laser" />}
         </div>
+        {cameraOn && <p className="sub camera-hint">{t('Hold the barcode about 20 cm from the camera, straight and still, inside the box.')}</p>}
         <div className="scan-actions">
           <button type="button" className="btn btn-primary" disabled={cameraBusy} onClick={toggleCamera}>{cameraOn ? `■ ${t('Stop camera')}` : `● ${t('Start camera')}`}</button>
           <label className="btn btn-outline">🖼 {t('Scan from photo')}<input type="file" accept="image/*" hidden onChange={scanFromPhoto} /></label>
@@ -234,7 +238,7 @@ export default function ScanTab({ user }) {
         </form>
       </div>
       <div>
-        <div className="card scan-result" aria-live="polite"><ScanResult result={result} /></div>
+        <div className="card scan-result" aria-live="polite"><ScanResult result={result} onAdd={adding.canAdd ? adding.start : null} onPrint={canLabel ? (product) => setLabelFor({ product }) : null} /></div>
         <div className="card dash-gap">
           <div className="section-row">
             <h3>{t('Scan history')}</h3>
@@ -249,6 +253,8 @@ export default function ScanTab({ user }) {
           ))}
         </div>
       </div>
+      {adding.form}
+      {labelFor && <PrintLabelModal product={labelFor.product} title={labelFor.title} onClose={() => setLabelFor(null)} />}
     </div>
   );
 }

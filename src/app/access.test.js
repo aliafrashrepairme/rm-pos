@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { hasTranslation } from '../i18n/translate.js';
 import { canOpen, menuFor, screenFromSlug, SCREENS, screensFor, slugFor } from './access.js';
 
-const owner = { permissions: ['transactions.view', 'reports.sales', 'reports.inventory', 'reports.export'] };
+const owner = { permissions: ['transactions.view', 'transactions.monthly', 'reports.sales', 'reports.inventory', 'reports.export'] };
 const cashier = { permissions: ['pos.sell', 'held.manage', 'bills.view', 'bills.print', 'shifts.own', 'customers.view', 'customers.manage', 'barcode.scan'] };
 const stock = { permissions: ['reports.inventory', 'barcode.scan', 'products.view', 'products.manage', 'inventory.view', 'counts.manage', 'purchases.view', 'purchases.manage', 'suppliers.view', 'suppliers.manage'] };
 
@@ -41,6 +41,35 @@ test('every label on the built screens exists in Tamil and Sinhala', () => {
 
 test('the Owner sees only transactions and reports', () => {
   assert.deepEqual(screensFor(owner), ['Daily Transactions', 'Monthly Transactions', 'Reports']);
+});
+
+test('a Manager gets daily but not monthly transactions', () => {
+  // The Manager role holds every permission except these, as the database grants it.
+  const manager = { permissions: ['dashboard.view', 'transactions.view', 'bills.view', 'purchases.view', 'reports.sales'] };
+  assert.equal(canOpen(manager, 'Daily Transactions'), true);
+  assert.equal(canOpen(manager, 'Monthly Transactions'), false);
+});
+
+test('only the Owner opens Counters and Printers', () => {
+  const ownerSetup = { permissions: [...owner.permissions, 'counters.manage', 'printers.manage'] };
+  assert.equal(canOpen(ownerSetup, 'Counters'), true);
+  assert.equal(canOpen(ownerSetup, 'Printers'), true);
+  const managerLike = { permissions: ['settings.manage', 'users.manage', 'shifts.manage', 'lists.manage'] };
+  assert.equal(canOpen(managerLike, 'Counters'), false);
+  assert.equal(canOpen(managerLike, 'Printers'), false);
+  assert.equal(canOpen(cashier, 'Counters'), false);
+});
+
+test('only the Owner opens Store Logo', () => {
+  const ownerWithLogo = { permissions: [...owner.permissions, 'settings.logo'] };
+  assert.deepEqual(screensFor(ownerWithLogo), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'Store Logo']);
+  assert.equal(canOpen({ permissions: ['settings.manage', 'users.manage'] }, 'Store Logo'), false);
+});
+
+test('only someone with backups.manage opens Backups & Status', () => {
+  assert.equal(canOpen({ permissions: ['settings.manage', 'backups.manage'] }, 'Backups & Status'), true);
+  assert.equal(canOpen(owner, 'Backups & Status'), false);
+  assert.equal(canOpen(cashier, 'Backups & Status'), false);
 });
 
 test('screens outside a role cannot be opened, even by name', () => {

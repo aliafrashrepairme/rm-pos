@@ -1,13 +1,15 @@
 import { dateTime, money, quantity } from '../../app/format.js';
+import { useStoreLogo } from '../../app/storeLogo.js';
 
 const number = (value) => money(value).replace('LKR ', '');
 
 export default function PurchaseBill({ purchase }) {
   const { store, supplier } = purchase;
+  const logo = useStoreLogo();
   return (
     <div className="pbill">
       <div className="pb-band">
-        <div><b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
+        <div>{logo && <img className="pb-logo" src={logo} alt="" />}<b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
         <div className="pb-title"><b>PURCHASE BILL</b><br /><span>{purchase.poNo}</span></div>
       </div>
       <div className="pb-meta">

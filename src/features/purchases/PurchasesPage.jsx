@@ -91,17 +91,16 @@ export default function PurchasesPage({ user }) {
       {error && <p className="form-error" role="alert">{t(error)}</p>}
       <div className="table-wrap">
         <table>
-          <thead><tr>{['PO no.', 'Supplier', 'Expected', 'Total', 'Received', 'Payment', 'Status', 'Actions'].map((heading) => <th key={heading}>{t(heading)}</th>)}</tr></thead>
+          <thead><tr>{['PO no.', 'Supplier', 'Expected', 'Total', 'Payment', 'Status', 'Actions'].map((heading) => <th key={heading}>{t(heading)}</th>)}</tr></thead>
           <tbody>
-            {!data && !error && <tr><td colSpan="8"><div className="empty">{t('Loading…')}</div></td></tr>}
-            {data?.purchases.length === 0 && <tr><td colSpan="8"><div className="empty">{t('No records found.')}</div></td></tr>}
+            {!data && !error && <tr><td colSpan="7"><div className="empty">{t('Loading…')}</div></td></tr>}
+            {data?.purchases.length === 0 && <tr><td colSpan="7"><div className="empty">{t('No records found.')}</div></td></tr>}
             {data?.purchases.map((row) => (
               <tr key={row.id}>
                 <td><b>{row.poNo}</b>{row.source === 'AI Scan' && <> <span className="ai-badge">AI</span></>}</td>
                 <td>{row.supplier}</td>
                 <td>{row.expectedAt ?? '—'}</td>
                 <td>{money(row.total)}</td>
-                <td><div className="received-cell"><div className="meter"><i style={{ width: `${row.receivedPercent}%` }} /></div><span className="muted">{row.receivedPercent}%</span></div></td>
                 <td><Status value={row.paymentStatus} label={t(row.paymentStatus)} /></td>
                 <td><Status value={row.status} label={t(row.status)} /></td>
                 <td>

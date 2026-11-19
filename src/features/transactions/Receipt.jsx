@@ -1,4 +1,5 @@
 import { dateTime, money, quantity } from '../../app/format.js';
+import { useStoreLogo } from '../../app/storeLogo.js';
 import BarcodeImage from '../../components/BarcodeImage.jsx';
 
 const number = (value) => money(value).replace('LKR ', '');
@@ -8,9 +9,11 @@ export default function Receipt({ bill }) {
   const { store, payment } = bill;
   const options = store.receipt ?? {};
   const sizeClass = options.size === 'A4' ? 'receipt-a4' : options.size === '100mm' ? 'receipt-100' : '';
+  const logo = useStoreLogo();
   return (
     <div className={`receipt ${sizeClass}`}>
       <div className="c">
+        {logo && <img className="receipt-logo" src={logo} alt="" />}
         <div className="big">{store.name}</div>
         {store.address}<br />
         {store.phone && <>Tel: {store.phone}</>}{store.vatRegistration && <> · VAT Reg {store.vatRegistration}</>}
@@ -32,9 +35,10 @@ export default function Receipt({ bill }) {
       {bill.discount > 0 && <div className="r"><span>{bill.discountLabel || 'Discount'}</span><span>− {money(bill.discount)}</span></div>}
       {options.showTax !== false && <div className="r"><span>VAT</span><span>{money(bill.tax)}</span></div>}
       <div className="r big"><span>TOTAL</span><span>{money(bill.total)}</span></div>
+      {bill.pointsRedeemed > 0 && <div className="r"><span>Paid with points ({bill.pointsRedeemed})</span><span>− {money(bill.pointsRedeemed)}</span></div>}
       {payment && (
         <>
-          <div className="r"><span>Paid by</span><span>{payment.method}</span></div>
+          <div className="r"><span>{payment.method === 'Credit' ? 'On credit' : 'Paid by'}</span><span>{payment.method === 'Credit' ? money(payment.amount) : payment.method}</span></div>
           {payment.reference && <div className="r"><span>Reference</span><span>{payment.reference}</span></div>}
           {payment.tendered !== null && (
             <>
@@ -51,7 +55,7 @@ export default function Receipt({ bill }) {
       {bill.voidReason && <div className="c"><b>VOID:</b> {bill.voidReason}</div>}
       <hr />
       {options.footer ? <div className="c">{options.footer}</div> : <div className="c">Thank you for shopping with us!<br /><span className="muted">Goods once sold can be exchanged within 7 days with this bill.</span></div>}
-      <div className="receipt-code"><BarcodeImage code={bill.billNo} height={40} /></div>
+      <div className="receipt-code"><BarcodeImage code={bill.billNo} printWidthMm={60} /></div>
     </div>
   );
 }

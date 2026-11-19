@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
+import { beep } from '../../app/beep.js';
+import { decodePhoto } from '../barcode/cameraScan.js';
 import { money, quantity } from '../../app/format.js';
 import { useDebounced, useListRequest } from '../../app/useListRequest.js';
 import Pager from '../../components/Pager.jsx';
@@ -11,9 +13,9 @@ import CameraModal from './CameraModal.jsx';
 import { useCart } from './CartContext.jsx';
 import CustomerPicker from './CustomerPicker.jsx';
 import SaleCompleteModal from './SaleCompleteModal.jsx';
-import { bestOffer, cartTotals, couponProblem, roundUpTo } from './totals.js';
+import { bestOffer, cartTotals, couponProblem, pointsFor, roundUpTo } from './totals.js';
 
-const PAY_ICONS = { Cash: '💵', Card: '💳', 'Bank transfer': '🏦' };
+const PAY_ICONS = { Cash: '💵', Card: '💳', 'Bank transfer': '🏦', Credit: '📒' };
 
 function toLine(product) {
   return {
@@ -97,20 +99,43 @@ export default function PosPage({ user, onNavigate }) {
     if (options && !payment && options.paymentMethods[0]) setMethod(options.paymentMethods[0].code);
   }, [options, payment]);
   const given = cashGiven === '' ? null : Number(cashGiven);
+
+  // Loyalty points: 1 point = LKR 1, never more than the profit on this cart (the database works out that limit).
+  const [pointsInput, setPointsInput] = useState('');
+  const [pointsCap, setPointsCap] = useState(null);
+  const canUsePoints = Boolean(customer && customer.loyaltyPoints > 0 && lines.length > 0);
+  useEffect(() => {
+    if (!canUsePoints) {
+      setPointsCap(null);
+      return undefined;
+    }
+    let current = true;
+    const timer = setTimeout(() => {
+      api('/api/pos/points-cap', { method: 'POST', body: JSON.stringify({ items: lines.map((line) => ({ productId: line.id, qty: line.qty })), discountRate: offer.rate }) })
+        .then(({ cap }) => { if (current) setPointsCap(cap); })
+        .catch(() => { if (current) setPointsCap(0); });
+    }, 300);
+    return () => { current = false; clearTimeout(timer); };
+  }, [canUsePoints, lines, offer.rate]);
+  const maxPoints = canUsePoints && pointsCap !== null ? Math.max(Math.min(pointsCap, customer.loyaltyPoints, Math.floor(totals.total)), 0) : 0;
+  const redeem = Math.min(Math.max(Math.floor(Number(pointsInput) || 0), 0), maxPoints);
+  const due = Math.round((totals.total - redeem) * 100) / 100;
+  const isCredit = method === 'Credit';
   const decimalUnits = options?.decimalUnits ?? [];
 
   // Any change to the bill makes it a new checkout, with its own request ID.
-  useEffect(() => { pendingRequest.current = null; }, [lines, customer, couponCode, method, cashGiven, reference]);
+  useEffect(() => { pendingRequest.current = null; }, [lines, customer, couponCode, method, cashGiven, reference, pointsInput]);
 
+  // Returns whether the product went onto the bill.
   const addProduct = useCallback((product) => {
     if (product.stock <= 0) {
       toast(`${product.name}: ${t('Out of stock')}`);
-      return;
+      return false;
     }
     const inCart = linesRef.current.find((line) => line.id === product.id);
     if (inCart && inCart.qty + 1 > product.stock) {
       toast(`${product.name}: ${t('Only')} ${quantity(product.stock)} ${t('in stock')}`);
-      return;
+      return false;
     }
     setLines((current) => {
       const existing = current.find((line) => line.id === product.id);
@@ -119,6 +144,7 @@ export default function PosPage({ user, onNavigate }) {
       if (existing.qty + 1 > product.stock) return current;
       return current.map((line) => (line.id === product.id ? { ...line, qty: line.qty + 1, stock: product.stock, price: product.price } : line));
     });
+    return true;
   }, [setLines, t, toast]);
 
   const addByCode = useCallback(async (code) => {
@@ -128,7 +154,7 @@ export default function PosPage({ user, onNavigate }) {
         toast(`${product.name}: ${t('This product is not for sale.')}`);
         return;
       }
-      addProduct({
+      const added = addProduct({
         id: product.id,
         name: product.name,
         sku: product.sku,
@@ -138,10 +164,26 @@ export default function PosPage({ user, onNavigate }) {
         stock: product.stock,
         imageUrl: product.imageUrl
       });
+      // A beep and a message, so the cashier knows the scan worked without looking at the bill.
+      if (added) {
+        beep();
+        toast(`✓ ${product.name} · ${money(product.sellingPrice)}`);
+      }
     } catch (failure) {
-      toast(t(failure.message));
+      toast(failure.code === 'UNKNOWN_BARCODE'
+        ? `${code}: ${t('This product is not in the product list. Ask a manager to add it.')}`
+        : t(failure.message));
     }
   }, [addProduct, t, toast]);
+
+  async function scanPhoto(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const code = await decodePhoto(file);
+    if (code) await addByCode(code);
+    else toast(t('No barcode found in that photo.'));
+  }
 
   // USB and Bluetooth scanners work anywhere on this screen.
   const feedScanner = useMemo(() => createScannerBuffer(), []);
@@ -164,11 +206,13 @@ export default function PosPage({ user, onNavigate }) {
     event.preventDefault();
     const code = typed.trim();
     if (!code) return;
-    const exactMatch = data?.products.length === 1 ? data.products[0] : null;
+    // Only trust a single search result if it is for this exact text. A fast scanner presses Enter
+    // before the search catches up, and the list on screen may still be from an earlier search.
+    const exactMatch = search === code && data?.products.length === 1 ? data.products[0] : null;
     if (canScan && /^[0-9A-Za-z._/-]+$/.test(code) && !exactMatch) {
       await addByCode(code);
-    } else if (exactMatch) {
-      addProduct(exactMatch);
+    } else if (exactMatch && addProduct(exactMatch)) {
+      beep();
     }
     setTyped('');
     searchBox.current?.focus();
@@ -204,6 +248,7 @@ export default function PosPage({ user, onNavigate }) {
 
   function chooseCustomer(next, { isNew } = {}) {
     setCustomer(next);
+    setPointsInput('');
     setCouponCode('');
     if (isNew) {
       const welcome = options?.coupons.find((item) => item.firstPurchaseOnly);
@@ -214,6 +259,7 @@ export default function PosPage({ user, onNavigate }) {
   function clearBill() {
     cart.clear();
     setCashGiven('');
+    setPointsInput('');
     setReference('');
     setError('');
     pendingRequest.current = null;
@@ -236,11 +282,21 @@ export default function PosPage({ user, onNavigate }) {
       setError('The bill is empty. Add a product first.');
       return;
     }
-    if (isCash && (given === null || given < totals.total)) {
+    if (isCash && due > 0 && (given === null || given < due)) {
       setError(given === null ? 'Enter the cash received.' : 'Cash received is less than the total.');
       return;
     }
-    if (payment?.requiresReference && !reference.trim()) {
+    if (isCredit && due > 0) {
+      if (!customer) {
+        setError('Choose the customer to sell on credit.');
+        return;
+      }
+      if (due > customer.creditAvailable) {
+        setError(`${t('This goes over the customer credit limit. Available credit:')} ${money(customer.creditAvailable)}`);
+        return;
+      }
+    }
+    if (payment?.requiresReference && due > 0 && !reference.trim()) {
       setError('Enter the payment reference.');
       return;
     }
@@ -256,12 +312,20 @@ export default function PosPage({ user, onNavigate }) {
           customerId: customer?.id ?? null,
           couponCode: couponCode || null,
           expectedTotal: totals.total,
+          pointsToRedeem: redeem,
           payment: { method, amountTendered: isCash ? given : null, reference: reference.trim() }
         })
       });
+      const fromQuote = cart.quotation;
       setCompleted(sale);
       clearBill();
       reload();
+      if (fromQuote) {
+        // The sale is already saved, so a failed link is reported but doesn't undo the bill.
+        api(`/api/quotations/${fromQuote.id}/convert`, { method: 'POST', body: JSON.stringify({ saleId: sale.id }) })
+          .then(() => toast(`${fromQuote.quoteNo} ${t('converted to')} ${sale.billNo}`))
+          .catch((failure) => toast(`${fromQuote.quoteNo}: ${t(failure.message)}`));
+      }
     } catch (failure) {
       setError(failure.message);
       if (failure.status === 409) {
@@ -298,7 +362,7 @@ export default function PosPage({ user, onNavigate }) {
     }
   }
 
-  const change = isCash && given !== null ? given - totals.total : null;
+  const change = isCash && given !== null ? given - due : null;
 
   return (
     <>
@@ -309,10 +373,17 @@ export default function PosPage({ user, onNavigate }) {
         </div>
         <div className="toolbar head-actions">
           {canScan && <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowCamera(true)}>⌸ {t('Camera scan')}</button>}
+          {canScan && <label className="btn btn-outline btn-sm">🖼 {t('Scan from photo')}<input type="file" accept="image/*" hidden onChange={scanPhoto} /></label>}
           <span className="badge">{user.name}</span>
         </div>
       </div>
 
+      {cart.quotation && (
+        <div className="light-note pos-shift-note quote-note">
+          <span>📄 {t('Billing quotation')} <b>{cart.quotation.quoteNo}</b>. {t('It will be marked Converted when this sale is completed.')}</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => cart.setQuotation(null)}>{t('Unlink')}</button>
+        </div>
+      )}
       {noShift && <div className="light-note pos-shift-note">{t('No shift is open, so cash from these sales will not be counted in a drawer. Open one in Shifts & Cash.')}</div>}
       <div className="pos-layout">
         <div>
@@ -397,6 +468,19 @@ export default function PosPage({ user, onNavigate }) {
             {totals.discount > 0 && <div className="total-row disc"><span>{t(offer.label)}</span><b>− {money(totals.discount)}</b></div>}
             <div className="total-row"><span>{t('VAT')}</span><b>{money(totals.tax)}</b></div>
             <div className="total-row grand"><span>{t('Total to pay')}</span><span>{money(totals.total)}</span></div>
+            {canUsePoints && (
+              <div className="points-redeem">
+                <label htmlFor="pointsIn">⭐ {t('Use loyalty points')} <span className="muted small-note">({customer.loyaltyPoints} {t('available')} · {t('max')} {pointsCap === null ? '…' : maxPoints})</span></label>
+                <div className="points-redeem-row">
+                  <input id="pointsIn" type="number" min="0" step="1" max={maxPoints} inputMode="numeric" placeholder="0" value={pointsInput} onChange={(event) => setPointsInput(event.target.value)} />
+                  <button type="button" className="btn btn-outline btn-sm" disabled={!maxPoints} onClick={() => setPointsInput(String(maxPoints))}>{t('Use max')}</button>
+                </div>
+                {pointsCap !== null && maxPoints < customer.loyaltyPoints && <span className="muted small-note">{t('Points can only cover the profit on this bill, so it is never sold below cost.')}</span>}
+              </div>
+            )}
+            {redeem > 0 && <div className="total-row disc"><span>⭐ {t('Paid with points')} ({redeem})</span><b>− {money(redeem)}</b></div>}
+            {redeem > 0 && <div className="total-row grand"><span>{t('Balance to pay')}</span><span>{money(due)}</span></div>}
+            {customer && <div className="total-row points-row"><span>⭐ {t('Loyalty points to earn')}</span><b>+{pointsFor(customer, offer, due)}</b></div>}
           </div>
 
           <div className="pay-seg">
@@ -410,10 +494,15 @@ export default function PosPage({ user, onNavigate }) {
               <label className="cash-label" htmlFor="cashIn">{t('Cash received from customer (LKR)')}</label>
               <input id="cashIn" className="cash-input" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" value={cashGiven} onChange={(event) => setCashGiven(event.target.value)} />
               <div className="cash-row">
-                <button type="button" onClick={() => setCashGiven(totals.total.toFixed(2))}>{t('Exact')}</button>
-                {[500, 1000, 5000].map((note) => <button type="button" key={note} onClick={() => setCashGiven(String(roundUpTo(totals.total, note)))}>{note.toLocaleString('en-LK')}s</button>)}
+                <button type="button" onClick={() => setCashGiven(due.toFixed(2))}>{t('Exact')}</button>
+                {[500, 1000, 5000].map((note) => <button type="button" key={note} onClick={() => setCashGiven(String(roundUpTo(due, note)))}>{note.toLocaleString('en-LK')}s</button>)}
               </div>
             </>
+          )}
+          {isCredit && (
+            customer
+              ? <div className={`light-note credit-note ${due > customer.creditAvailable ? 'over' : ''}`}>📒 {t('Credit available')}: <b>{money(customer.creditAvailable)}</b> · {t('Owes')} {money(customer.creditBalance)} / {t('limit')} {money(customer.creditLimit)}</div>
+              : <div className="light-note credit-note over">{t('Choose the customer to sell on credit.')}</div>
           )}
           {payment?.requiresReference && (
             <label className="field pay-reference">{t('Reference')}
@@ -421,10 +510,10 @@ export default function PosPage({ user, onNavigate }) {
             </label>
           )}
 
-          {!lines.length || (isCash && change === null)
+          {!lines.length || (isCash && due > 0 && change === null)
             ? <div className="balance"><span>{t(lines.length ? 'Enter cash received' : 'Balance')}</span><b>{money(0)}</b></div>
             : !isCash
-              ? <div className="balance ok"><span>{t('Paid by')} {t(method)}</span><b>{money(totals.total)}</b></div>
+              ? <div className="balance ok"><span>{t(isCredit ? 'On credit' : 'Paid by')} {!isCredit && t(method)}</span><b>{money(due)}</b></div>
               : change >= 0
                 ? <div className="balance ok"><span>{t('Balance to give customer')}</span><b>{money(change)}</b></div>
                 : <div className="balance due"><span>{t('Amount still due')}</span><b>{money(-change)}</b></div>}
@@ -433,7 +522,7 @@ export default function PosPage({ user, onNavigate }) {
 
           <div className="cart-actions">
             <button type="button" className="btn btn-outline" disabled={busy} onClick={holdBill}>{t('Hold')}</button>
-            <button type="button" className="btn btn-primary wide" disabled={busy || !options} onClick={completeSale}>✓ {t('Complete sale')} · {money(totals.total)}</button>
+            <button type="button" className="btn btn-primary wide" disabled={busy || !options} onClick={completeSale}>✓ {t('Complete sale')} · {money(due)}</button>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { code128Modules, createDuplicateFilter, createScannerBuffer, ean13Modules, isValidEan13 } from './barcode.js';
+import { code128Modules, createDuplicateFilter, createScannerBuffer, ean13Modules, isValidEan13, printModuleMm } from './barcode.js';
 
 test('EAN-13 check digits are verified', () => {
   assert.equal(isValidEan13('4006381333931'), true);
@@ -60,4 +60,12 @@ test('a repeat within the window is ignored, later or different codes are not', 
   assert.equal(isNew('A'), true);
   time = 4000;
   assert.equal(isNew('A'), true);
+});
+
+test('printed bar units are whole dots on a 203 dpi printer when the barcode fits', () => {
+  const ean = 95 + 22;
+  assert.equal(printModuleMm(ean, 48), 0.375);
+  assert.equal(printModuleMm(ean, 36), 0.25);
+  // Too long for even 2 dots a unit: shrink to fit rather than overflow the label.
+  assert.equal(printModuleMm(400, 36), 36 / 400);
 });
