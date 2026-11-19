@@ -27,7 +27,8 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 | Area | Owner | Manager | Cashier | Inventory Staff |
 |---|---|---|---|---|
 | Dashboard | | Yes | | |
-| Daily and Monthly Transactions | View | View | | |
+| Daily Transactions | View | View | | |
+| Monthly Transactions | View | | | |
 | Sales and payment reports | View, print, export | Yes | | |
 | Inventory reports | View, print, export | Yes | | Yes |
 | POS, held orders, payments | | | Yes | |
@@ -44,9 +45,9 @@ Permissions are stored in the database and enforced by the API. Hiding a menu it
 | Stock adjustments | | Yes | | |
 | Purchases, receiving, suppliers | | Yes | | Yes |
 | Supplier payments | | Yes | | |
-| AI Invoice Scan | | Yes | | |
 | Import/Export, lists, settings | | Yes | | |
 | User management, audit log | | Yes | | |
+| Store logo | Change | | | |
 
 Cashiers read the selling catalogue through a separate response that leaves out cost prices.
 
@@ -87,11 +88,9 @@ Account rules:
 - Each receipt has a unique request ID and can't exceed the quantity still outstanding, so it can't add stock twice.
 - A supplier invoice number can only be used once per supplier.
 
-**AI invoice scan**
-- `Uploaded -> Processing -> Extracted or Failed -> Approved or Rejected`.
-- Approval creates a purchase, and stock then moves through normal receiving.
-- Lines below 80% confidence need a person to confirm them.
-- With no provider configured, the screen says so and offers manual entry. It never shows sample results.
+**AI invoice scan (removed)**
+- The screen, its API routes and the Anthropic reader were removed at the shop's request. Supplier invoices are entered by hand in Purchases.
+- Its tables and database functions (migration 0013) stay, because applied migrations are never edited and old purchase orders created from a scan still show an AI badge.
 
 **Identifiers**
 - Document numbers are sequential and gap-free, such as `RM-INV-000123`.
@@ -133,8 +132,7 @@ src/
   components/   shared modal, pager, status badge, toast, barcode image, printing
   features/     one folder per module: pos, products, inventory, purchases,
                 suppliers, customers, transactions, shifts, reports, barcode,
-                aiscan, dashboard, users, settings, data
-  scanner/      the AI scanner tab, which runs public/models/best.onnx
+                dashboard, users, settings, data
   i18n/         t() function using the prototype's English, Tamil and Sinhala text
   styles/       the prototype's CSS
 ```

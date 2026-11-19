@@ -78,8 +78,7 @@ function Tasks({ tasks, user, onNavigate }) {
     { icon: '⇩', count: tasks.toReceive, label: 'TO RECEIVE', screen: 'Purchases' },
     { icon: '⚖', count: tasks.pendingAdjustments, label: 'APPROVE', screen: 'Inventory' },
     { icon: '☑', count: tasks.openCounts, label: 'COUNTING', screen: 'Inventory' },
-    { icon: '✓', count: tasks.submittedCounts, label: 'SUBMITTED', screen: 'Inventory' },
-    { icon: '✦', count: 'AI', label: 'SCAN INVOICE', screen: 'AI Invoice Scan', quiet: true }
+    { icon: '✓', count: tasks.submittedCounts, label: 'SUBMITTED', screen: 'Inventory' }
   ].filter((item) => canOpen(user, item.screen));
 
   return (

@@ -4,13 +4,14 @@ import * as transactions from '../services/transactions.js';
 
 const READ_BILLS = requirePermission('bills.view', 'transactions.view');
 const FIGURES = requirePermission('transactions.view');
+const MONTHLY = requirePermission('transactions.monthly');
 const REFUND = requirePermission('refunds.process');
 const PRINT = requirePermission('bills.print');
 
 export function transactionRoutes(clients) {
   const router = Router();
   router.get('/daily', FIGURES, async (req, res) => res.json({ daily: await transactions.daily(clients, req.query) }));
-  router.get('/monthly', FIGURES, async (req, res) => res.json({ monthly: await transactions.monthly(clients, req.query) }));
+  router.get('/monthly', MONTHLY, async (req, res) => res.json({ monthly: await transactions.monthly(clients, req.query) }));
   router.get('/bills', READ_BILLS, async (req, res) => res.json(await transactions.listBills(clients, req.query)));
   router.get('/bills/:id', READ_BILLS, async (req, res) => res.json({ bill: await transactions.getBill(clients, req.params.id) }));
   router.post('/bills/:id/void', REFUND, async (req, res) => {

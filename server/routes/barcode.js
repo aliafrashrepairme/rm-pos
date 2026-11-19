@@ -7,6 +7,12 @@ export function barcodeRoutes(clients) {
   router.get('/lookup', requirePermission('barcode.scan'), async (req, res) => {
     res.json(await barcode.lookup(clients, req.user, req.query.code));
   });
+  router.get('/missing', requirePermission('barcode.labels'), async (req, res) => {
+    res.json({ count: await barcode.missingBarcodeCount(clients) });
+  });
+  router.post('/generate-missing', requirePermission('barcode.labels'), async (req, res) => {
+    res.json({ generated: await barcode.generateMissingBarcodes(clients, req.user) });
+  });
   router.post('/labels-printed', requirePermission('barcode.labels'), async (req, res) => {
     await barcode.recordLabelsPrinted(clients, req.user, req.body?.labels);
     res.status(204).end();

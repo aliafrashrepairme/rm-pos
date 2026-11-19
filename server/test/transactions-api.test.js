@@ -6,7 +6,7 @@ import { readConfig } from '../config.js';
 
 const config = readConfig({ SUPABASE_URL: 'http://x', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' });
 const PERMS = {
-  owner: ['transactions.view', 'reports.sales', 'reports.export'],
+  owner: ['transactions.view', 'transactions.monthly', 'reports.sales', 'reports.export'],
   manager: ['transactions.view', 'bills.view', 'refunds.process'],
   cashier: ['bills.view', 'bills.print', 'pos.sell'],
   stock: ['products.view']
@@ -86,10 +86,12 @@ test('each role reaches only what it should', async () => {
     const expect = async (user, path, status, init) => assert.equal((await as(user, path, init)).status, status, `${user} ${path}`);
     for (const path of ['/api/transactions/daily', '/api/transactions/monthly']) {
       await expect('owner', path, 200);
-      await expect('manager', path, 200);
       await expect('cashier', path, 403);
       await expect('stock', path, 403);
     }
+    // Managers keep the daily figures, but monthly figures are the Owner's alone.
+    await expect('manager', '/api/transactions/daily', 200);
+    await expect('manager', '/api/transactions/monthly', 403);
     for (const user of ['owner', 'manager', 'cashier']) await expect(user, '/api/transactions/bills', 200);
     await expect('stock', '/api/transactions/bills', 403);
     await expect('stock', `/api/transactions/bills/${BILL_ID}`, 403);

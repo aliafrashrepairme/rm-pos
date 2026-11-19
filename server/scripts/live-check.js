@@ -16,7 +16,7 @@ const ACCESS = [
   ['/api/dashboard', ['Manager']],
   ['/api/products', ['Manager', 'Inventory Staff']],
   ['/api/transactions/daily', ['Owner', 'Manager']],
-  ['/api/transactions/monthly', ['Owner', 'Manager']],
+  ['/api/transactions/monthly', ['Owner']],
   ['/api/transactions/bills', ['Owner', 'Manager', 'Cashier']],
   ['/api/suppliers', ['Manager', 'Inventory Staff']],
   ['/api/customers', ['Manager', 'Cashier']],
@@ -30,9 +30,6 @@ const ACCESS = [
   ['/api/audit/actions', ['Manager']],
   ['/api/data/export/valuation', ['Manager']],
   ['/api/data/import/products/template', ['Manager']],
-  ['/api/invoice-scans', ['Manager']],
-  ['/api/invoice-scans/status', ['Manager']],
-  ['/api/invoice-scans/options', ['Manager']],
   ['/api/purchases', ['Manager', 'Inventory Staff']],
   ['/api/purchases/summary', ['Manager', 'Inventory Staff']],
   ['/api/pos/catalog', ['Cashier']],
@@ -121,15 +118,7 @@ async function deactivateTestData() {
   await withRetry('deactivate test category', () => database.from('categories').update({ active: false }).eq('id', data.category_id));
 }
 
-let scanText = '';
-const extractor = {
-  provider: 'Live check stand-in',
-  extract: async () => ({
-    supplierName: 'Live check', invoiceNo: `LIVE-SCAN-${Date.now()}`, invoiceDate: '2026-01-15', subtotal: 200, tax: null, total: 200, confidence: 91,
-    lines: [{ description: scanText, qty: 2, unitCost: 100, lineTotal: 200, confidence: 91 }]
-  })
-};
-const server = createApp({ config, ...clients, extractor }).listen(0, '127.0.0.1');
+const server = createApp({ config, ...clients }).listen(0, '127.0.0.1');
 await new Promise((resolve) => server.once('listening', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -649,38 +638,6 @@ async function saleChecks(sessions) {
     assert.equal(typeof monthly.grossProfit, 'number');
     const today = new Date().toISOString().slice(0, 10);
     assert.equal((await request(`/api/transactions/bills?start=${today}&end=${today}`, { token })).status, 200);
-  });
-  await check('a scanned invoice becomes an order, and stock moves only when received', async () => {
-    const madeSupplier = await request('/api/suppliers', { token: manager, body: { name: `Live Scan Supplier ${Date.now()}` } });
-    const { supplier } = await madeSupplier.json();
-    scanText = (await database.from('products').select('sku').eq('id', product.id).single()).data.sku;
-    const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
-    const send = (body, type) => fetch(`${base}/api/invoice-scans?name=live-check.png`, { method: 'POST', headers: { 'Content-Type': type, Authorization: `Bearer ${manager}` }, body, signal: AbortSignal.timeout(20000) });
-    assert.equal((await send(Buffer.from('nope'), 'image/png')).status, 415);
-    const uploaded = await send(png, 'image/png');
-    assert.equal(uploaded.status, 201, await uploaded.clone().text());
-    const { scan } = await uploaded.json();
-    assert.equal(scan.status, 'Extracted');
-    assert.equal(scan.lines[0].productId, product.id, 'an exact SKU is matched');
-    const file = await fetch(`${base}/api/invoice-scans/${scan.id}/file`, { headers: { Authorization: `Bearer ${manager}` }, signal: AbortSignal.timeout(20000) });
-    assert.deepEqual(Buffer.from(await file.arrayBuffer()), png, 'the stored file comes back unchanged');
-    const url = `/api/invoice-scans/${scan.id}`;
-    const body = { supplierId: supplier.id, invoiceNo: scan.invoiceNo, invoiceDate: scan.invoiceDate, lines: scan.lines };
-    assert.equal((await request(`${url}/approve`, { token: manager, body: { ...body, supplierId: '' } })).status, 400);
-    const before = await stockNow();
-    const approved = await request(`${url}/approve`, { token: manager, body });
-    assert.equal(approved.status, 200, await approved.clone().text());
-    const { purchaseId } = await approved.json();
-    assert.equal(await stockNow(), before, 'approving must not change stock');
-    assert.equal((await request(`${url}/approve`, { token: manager, body })).status, 409);
-    const { purchase } = await (await request(`/api/purchases/${purchaseId}`, { token: manager })).json();
-    assert.equal(purchase.source, 'AI Scan');
-    assert.equal(purchase.status, 'Ordered');
-    const received = await request(`/api/purchases/${purchaseId}/receive`, { token: manager, body: { clientRequestId: randomUUID(), lines: [{ purchaseItemId: purchase.lines[0].id, qty: 2 }] } });
-    assert.equal(received.status, 201, await received.clone().text());
-    assert.equal(await stockNow(), before + 2);
-    await database.from('suppliers').update({ active: false }).eq('id', supplier.id);
-    await setStock(before);
   });
   await purchaseChecks(sessions, product.id, stockNow);
   await check('sales reach the dashboard and reports', async () => {

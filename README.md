@@ -11,8 +11,7 @@ To put it into real use in a shop, follow [docs/deployment.md](docs/deployment.m
 | Desktop app | Electron 45, with a React 19 interface built by Vite 8 |
 | API server | Node.js 22.13+ with Express 5 |
 | Database and sign-in | Supabase (Postgres, Auth, private Storage for product photos) |
-| Barcodes | ZXing reader, plus a trained YOLO11n barcode detector run with ONNX Runtime Web |
-| Optional | Anthropic API for reading supplier invoices (AI Invoice Scan) |
+| Barcodes | ZXing reader (camera, photo, USB scanner); store barcodes generated as EAN-13 starting 20 |
 | Tests | Node's built-in test runner; PGlite runs the SQL migrations in memory |
 
 ## How it fits together
@@ -53,14 +52,11 @@ rm-pos/
 │  │  ├─ transactions/       Bills register, daily and monthly transactions
 │  │  ├─ shifts/             Cash shifts and expenses
 │  │  ├─ reports/            Sales, payment and inventory reports
-│  │  ├─ barcode/            Barcode scanner and label printing
-│  │  ├─ aiscan/             AI invoice scan
+│  │  ├─ barcode/            Barcode scanner, barcode generation and label printing
 │  │  ├─ dashboard/, users/, settings/, data/ (import, export, audit log)
-│  ├─ scanner/               AI scanner tab: runs the trained barcode model (see below)
 │  ├─ i18n/                  English, Tamil and Sinhala text and the t() function
 │  ├─ styles/                The prototype's CSS and app styles
 │  └─ assets/                Logo
-├─ public/models/best.onnx   Trained YOLO11n barcode detector, shipped inside the app
 ├─ server/                   API server
 │  ├─ index.js, app.js       Start-up, and the Express app (built separately so tests can run it)
 │  ├─ config.js, db.js       Reads and checks the settings; creates the Supabase clients
@@ -78,7 +74,7 @@ rm-pos/
 └─ .env.example              Names of every setting, with no real values
 ```
 
-The trained model's code (`src/scanner/` and `public/models/best.onnx`) is kept as delivered. It runs only on the **AI scanner** tab; the other scan screens use ZXing alone. If the model file is missing, that tab falls back to ZXing.
+Barcodes: a scanned code that is already saved shows its product, and a product can never be saved with a barcode another product uses (the message names that product). Products saved without a barcode get one from **Barcode labels → Generate missing barcodes**; products that have a barcode keep it. Daily backups, restore and monitoring are described in [docs/recovery.md](docs/recovery.md).
 
 ## Getting started
 
@@ -108,7 +104,7 @@ Copy `.env.example` to `.env` and fill in:
 
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the publishable key) and `SUPABASE_SERVICE_ROLE_KEY` (the secret key), from the Supabase project's settings.
 - `VITE_API_URL`, the API address the app calls. Leave it as `http://localhost:4000` for development.
-- Optional: `ANTHROPIC_API_KEY` for AI Invoice Scan, `CORS_ORIGINS` and `TRUST_PROXY` for hosting.
+- Optional: `CORS_ORIGINS` and `TRUST_PROXY` for hosting.
 
 The server stops at start-up if a required setting is missing. Only `VITE_` settings reach the app's screens, so never give a secret a `VITE_` name.
 
@@ -153,7 +149,7 @@ The full checklist is in [docs/deployment.md](docs/deployment.md).
 
 ## API
 
-All routes are under `/api`. `GET /api/health` answers without signing in; everything else needs a signed-in token.
+All routes are under `/api`. `GET /api/health` and `GET /api/logo` answer without signing in; everything else needs a signed-in token.
 
 | Prefix | Module |
 |---|---|
@@ -161,15 +157,17 @@ All routes are under `/api`. `GET /api/health` answers without signing in; every
 | `/api/dashboard` | Dashboard figures |
 | `/api/products`, `/api/categories` | Products and categories |
 | `/api/inventory` | Stock, movements, adjustments, counts |
-| `/api/barcode` | Barcode lookup, count scanning, labels |
+| `/api/barcode` | Barcode lookup, count scanning, generating missing barcodes, labels |
 | `/api/pos` | Catalogue, sales, held orders, POS customers |
 | `/api/transactions` | Bills, refunds, voids, daily and monthly figures |
 | `/api/purchases`, `/api/suppliers`, `/api/customers` | Purchasing, suppliers, customers |
 | `/api/shifts` | Cash shifts and expenses |
 | `/api/reports` | Sales, payment and inventory reports |
 | `/api/users`, `/api/settings`, `/api/lists` | Staff, store settings, lists such as units and tax rates |
+| `/api/logo` | Store logo: anyone can read it, only the Owner changes it |
+| `/api/backups` | List, make and download daily backups (Manager) |
+| `/api/system/status` | Database health, backup age, uptime and errors (Manager) |
 | `/api/data`, `/api/audit` | Import, export, audit log |
-| `/api/invoice-scans` | AI invoice scan |
 
 Errors are always `{ "error": "message" }` with a matching status code. The request rules are in [docs/architecture.md](docs/architecture.md), and each module's routes are in `server/routes/`.
 

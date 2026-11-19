@@ -36,6 +36,7 @@ export default function CameraModal({ onCode, onClose }) {
         <div className="vf-frame" />
         <div className="vf-laser" />
       </div>
+      <p className="sub camera-hint">{t('Hold the barcode about 20 cm from the camera, straight and still, inside the box.')}</p>
       {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
       <div className="modal-actions-row">
         <button type="button" className="btn btn-primary" onClick={onClose}>{t('Close')}</button>

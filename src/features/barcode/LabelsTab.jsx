@@ -1,29 +1,10 @@
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { api } from '../../api.js';
-import { money } from '../../app/format.js';
 import { useDebounced, useListRequest } from '../../app/useListRequest.js';
-import BarcodeImage from '../../components/BarcodeImage.jsx';
 import Pager from '../../components/Pager.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
-
-const SIZES = [
-  { key: 'roll-50', label: '50×25 mm roll' },
-  { key: 'roll-38', label: '38×25 mm roll' },
-  { key: 'sheet', label: 'A4 sheet (3 across)' }
-];
-const MAX_COPIES = 50;
-
-function Label({ product, size }) {
-  return (
-    <div className={`bc-label ${size}`}>
-      <b className="pname">{product.name}</b>
-      <BarcodeImage code={product.barcode} height={44} />
-      <div className="lp">{money(product.sellingPrice)}</div>
-    </div>
-  );
-}
+import { LABEL_SIZES as SIZES, Label, MAX_COPIES, copiesOf, useLabelPrinter } from './labels.jsx';
 
 export default function LabelsTab() {
   const { t } = useI18n();
@@ -34,16 +15,35 @@ export default function LabelsTab() {
   const [selected, setSelected] = useState({});
   const [copies, setCopies] = useState(1);
   const [size, setSize] = useState(SIZES[0].key);
-  const [printing, setPrinting] = useState(false);
+  const printer = useLabelPrinter();
 
   useEffect(() => { setPage(1); }, [search]);
   const params = new URLSearchParams({ page: String(page), pageSize: '20' });
   if (search) params.set('q', search);
-  const { data, error } = useListRequest(`/api/products?${params}`);
+  const { data, error, reload } = useListRequest(`/api/products?${params}`);
+
+  // Products saved without a barcode can't be labelled until one is generated for them.
+  const [missing, setMissing] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const countMissing = () => api('/api/barcode/missing').then(({ count }) => setMissing(count)).catch(() => {});
+  useEffect(() => { countMissing(); }, []);
+
+  async function generateMissing() {
+    setGenerating(true);
+    try {
+      const { generated } = await api('/api/barcode/generate-missing', { method: 'POST' });
+      toast(t('Barcodes generated for {n} products.').replace('{n}', generated));
+      await countMissing();
+      reload();
+    } catch (failure) {
+      toast(t(failure.message));
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const chosen = Object.values(selected);
-  const copyCount = Math.min(Math.max(Math.trunc(Number(copies)) || 1, 1), MAX_COPIES);
-  const labels = chosen.flatMap((product) => Array.from({ length: copyCount }, (_, index) => ({ product, key: `${product.id}-${index}` })));
+  const labels = chosen.flatMap((product) => copiesOf(product, copies));
 
   function toggle(product) {
     setSelected((current) => {
@@ -54,32 +54,12 @@ export default function LabelsTab() {
     });
   }
 
-  useEffect(() => {
-    if (!printing) return undefined;
-    const finish = () => {
-      document.body.classList.remove('print-labels');
-      setPrinting(false);
-    };
-    document.body.classList.add('print-labels');
-    window.addEventListener('afterprint', finish);
-    window.print();
-    return () => {
-      window.removeEventListener('afterprint', finish);
-      document.body.classList.remove('print-labels');
-    };
-  }, [printing]);
-
   async function print() {
     if (!labels.length) {
       toast(t('Select at least one product.'));
       return;
     }
-    try {
-      await api('/api/barcode/labels-printed', { method: 'POST', body: JSON.stringify({ labels: labels.length }) });
-    } catch (failure) {
-      console.error('Could not record printed labels:', failure.message);
-    }
-    setPrinting(true);
+    printer.print(labels, size);
   }
 
   return (
@@ -106,12 +86,18 @@ export default function LabelsTab() {
           <input aria-label={t('Search by product name, SKU or barcode…')} placeholder={t('Search by product name, SKU or barcode…')} value={typed} onChange={(event) => setTyped(event.target.value)} />
         </div>
       </div>
+      {missing > 0 && (
+        <div className="light-note barcode-missing">
+          <span>{t('{n} products have no barcode yet. Products that already have one keep it.').replace('{n}', missing)}</span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={generating} onClick={generateMissing}>{generating ? t('Generating…') : t('Generate missing barcodes')}</button>
+        </div>
+      )}
       {error && <p className="form-error" role="alert">{t(error)}</p>}
       <div className="seg label-picker">
         {data?.products.length === 0 && <div className="empty">{t('No matching products.')}</div>}
         {data?.products.map((product) => (
           <button type="button" key={product.id} disabled={!product.barcode} className={selected[product.id] ? 'active' : ''} onClick={() => toggle(product)}>
-            {selected[product.id] ? '✓ ' : ''}{product.name}
+            {selected[product.id] ? '✓ ' : ''}{product.name}{!product.barcode && ` · ${t('no barcode')}`}
           </button>
         ))}
       </div>
@@ -120,12 +106,7 @@ export default function LabelsTab() {
       {labels.length === 0
         ? <div className="empty"><span>🏷</span>{t('Select at least one product.')}</div>
         : <div className={`label-grid ${size}`}>{labels.map(({ product, key }) => <Label key={key} product={product} size={size} />)}</div>}
-      {printing && createPortal(
-        <div id="printArea" className={`print-${size}`}>
-          <div className={`label-grid ${size}`}>{labels.map(({ product, key }) => <Label key={key} product={product} size={size} />)}</div>
-        </div>,
-        document.body
-      )}
+      {printer.sheet}
     </div>
   );
 }
