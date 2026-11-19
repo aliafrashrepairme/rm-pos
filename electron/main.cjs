@@ -146,14 +146,64 @@ handle('print:save-pdf', async (event, fileName, paperSize) => {
   return true;
 });
 
-// Opens the printer's own dialog. A person choosing Cancel isn't an error.
-handle('print:document', (event, paperSize) => new Promise((resolve) => {
+// Which printer each kind of print uses on this computer. Printers are attached to a computer, not the store,
+// so this lives in the app's own folder here rather than in the shared database.
+const PRINTER_ROLES = ['receipt', 'label', 'document'];
+const printerFile = () => path.join(app.getPath('userData'), 'printers.json');
+
+async function readPrinterSettings() {
+  try {
+    const saved = JSON.parse(await fs.readFile(printerFile(), 'utf8'));
+    return Object.fromEntries(PRINTER_ROLES.map((role) => [role, {
+      deviceName: typeof saved?.[role]?.deviceName === 'string' ? saved[role].deviceName : '',
+      silent: saved?.[role]?.silent === true
+    }]));
+  } catch {
+    return Object.fromEntries(PRINTER_ROLES.map((role) => [role, { deviceName: '', silent: false }]));
+  }
+}
+
+handle('printers:list', async (event) => (await event.sender.getPrintersAsync()).map((printer) => ({
+  name: printer.name,
+  displayName: printer.displayName || printer.name,
+  isDefault: Boolean(printer.isDefault)
+})));
+
+handle('printers:get', () => readPrinterSettings());
+
+handle('printers:save', async (event, settings) => {
+  const installed = new Set((await event.sender.getPrintersAsync()).map((printer) => printer.name));
+  const clean = Object.fromEntries(PRINTER_ROLES.map((role) => {
+    const deviceName = typeof settings?.[role]?.deviceName === 'string' ? settings[role].deviceName : '';
+    if (deviceName && !installed.has(deviceName)) throw new Error(`The printer "${deviceName}" is not installed on this computer.`);
+    return [role, { deviceName, silent: settings?.[role]?.silent === true }];
+  }));
+  await fs.mkdir(path.dirname(printerFile()), { recursive: true });
+  await fs.writeFile(printerFile(), JSON.stringify(clean, null, 2));
+  return clean;
+});
+
+handle('app:computer-name', () => require('node:os').hostname());
+
+// Prints on the printer chosen for this kind of print. "Silent" skips the dialog; otherwise the dialog
+// opens with that printer already picked. A person choosing Cancel isn't an error.
+handle('print:document', async (event, paperSize, role) => {
+  const settings = await readPrinterSettings();
+  const choice = settings[PRINTER_ROLES.includes(role) ? role : 'document'];
+  const installed = choice.deviceName ? (await event.sender.getPrintersAsync()).some((printer) => printer.name === choice.deviceName) : false;
   // Labels pass no size, so they follow the label printer's own paper.
   const pageSize = size(PRINT_SIZES, paperSize);
-  event.sender.print({ printBackground: true, ...(pageSize ? { pageSize } : {}) }, (success, reason) => {
-    resolve({ printed: success, cancelled: !success && /cancel/i.test(reason ?? ''), reason: success ? '' : reason });
+  return new Promise((resolve) => {
+    event.sender.print({
+      printBackground: true,
+      ...(pageSize ? { pageSize } : {}),
+      ...(installed ? { deviceName: choice.deviceName } : {}),
+      silent: choice.silent && installed
+    }, (success, reason) => {
+      resolve({ printed: success, cancelled: !success && /cancel/i.test(reason ?? ''), reason: success ? '' : reason, printerMissing: Boolean(choice.deviceName) && !installed });
+    });
   });
-}));
+});
 
 // A till with two copies open could confuse who is signed in where.
 if (!app.requestSingleInstanceLock()) {

@@ -32,6 +32,19 @@ function money(value, message) {
   return Math.round(amount * 100) / 100;
 }
 
+// Opening or closing a drawer needs the person's own password, so an unattended signed-in till can't be used.
+// A wrong password is a 400, not a 401, so the app doesn't treat it as an expired session and sign out.
+async function confirmPassword({ authClient, database }, user, password) {
+  if (typeof password !== 'string' || !password) throw new HttpError(400, 'Enter your password.');
+  const { data, error } = await authClient.auth.signInWithPassword({ email: user.email, password });
+  if (error || !data?.session) {
+    await writeAudit(database, { user, action: 'Shift password failed', entityType: 'user', entityId: user.id });
+    throw new HttpError(400, 'Your password is not correct.');
+  }
+  const { error: signOutError } = await database.auth.admin.signOut(data.session.access_token, 'local');
+  if (signOutError && signOutError.name !== 'AuthSessionMissingError') console.error('Could not end session:', signOutError);
+}
+
 // Cashiers reach only their own shifts. Asking for someone else's looks the same as asking for nothing.
 async function shiftFor({ database }, user, id) {
   if (!UUID.test(id)) throw new HttpError(404, 'Shift not found.');
@@ -52,13 +65,21 @@ export async function listShifts({ database }, user, query) {
 }
 
 export async function options({ database }, user) {
-  const [counters, current, open] = await Promise.all([
+  const [counters, current, open, busy, last] = await Promise.all([
     database.from('counters').select('id, name').eq('active', true).order('name'),
     database.from('shifts').select('id, shift_no').eq('cashier_id', user.id).eq('status', 'Open').maybeSingle(),
-    seesAll(user) ? database.from('shifts').select('id, shift_no').eq('status', 'Open').order('shift_no') : Promise.resolve({ data: [], error: null })
+    seesAll(user) ? database.from('shifts').select('id, shift_no').eq('status', 'Open').order('shift_no') : Promise.resolve({ data: [], error: null }),
+    database.from('shifts').select('counter_id').eq('status', 'Open'),
+    database.from('shifts').select('counter_id').eq('cashier_id', user.id).order('opened_at', { ascending: false }).limit(1)
   ]);
+  // Each cashier starts on the counter they used last; failing that, the first one nobody is using.
+  const inUse = new Set(unwrap(busy).map((row) => row.counter_id));
+  const list = unwrap(counters).map((counter) => ({ ...counter, inUse: inUse.has(counter.id) }));
+  const lastId = unwrap(last)[0]?.counter_id;
+  const preferred = list.find((counter) => counter.id === lastId && !counter.inUse) ?? list.find((counter) => !counter.inUse) ?? list[0];
   return {
-    counters: unwrap(counters),
+    counters: list,
+    defaultCounterId: preferred?.id ?? null,
     current: unwrap(current),
     openShifts: unwrap(open),
     categories: CATEGORIES,
@@ -81,9 +102,11 @@ export async function getShift(clients, user, id) {
   };
 }
 
-export async function openShift({ database }, user, body) {
+export async function openShift(clients, user, body) {
+  const { database } = clients;
   if (typeof body?.counterId !== 'string' || !UUID.test(body.counterId)) throw new HttpError(400, 'Choose a counter.');
   const opening = money(body?.openingCash, 'Enter the opening cash.');
+  await confirmPassword(clients, user, body?.password);
   const id = unwrap(await database.rpc('open_shift', { p_counter: body.counterId, p_opening: opening, p_user: user.id }));
   await writeAudit(database, { user, action: 'Shift opened', description: `Opening cash ${opening.toFixed(2)}`, entityType: 'shift', entityId: id });
   return { id };
@@ -92,6 +115,7 @@ export async function openShift({ database }, user, body) {
 export async function closeShift(clients, user, id, body) {
   await shiftFor(clients, user, id);
   const counted = money(body?.countedCash, 'Enter the cash counted.');
+  await confirmPassword(clients, user, body?.password);
   const result = unwrap(await clients.database.rpc('close_shift', { p_shift: id, p_counted: counted, p_user: user.id }));
   await writeAudit(clients.database, { user, action: 'Shift closed', description: `${result.shiftNo} · expected ${Number(result.expected).toFixed(2)} · counted ${counted.toFixed(2)} · variance ${Number(result.variance).toFixed(2)}`, entityType: 'shift', entityId: id });
   return result;

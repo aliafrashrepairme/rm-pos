@@ -35,6 +35,11 @@ test('a brand-new database is set up by one file and holds no sample records', a
   assert.deepEqual(await holders('transactions.monthly'), ['Owner']);
   assert.deepEqual(await holders('ai_scan.use'), []);
 
+  // Stock counts and adjustments belong to Managers and Inventory Staff; only Managers approve counts.
+  assert.deepEqual(await holders('counts.manage'), ['Inventory Staff', 'Manager']);
+  assert.deepEqual(await holders('adjustments.manage'), ['Inventory Staff', 'Manager']);
+  assert.deepEqual(await holders('counts.approve'), ['Manager']);
+
   // Only the Owner changes the logo, and a new store starts with the built-in one.
   assert.deepEqual(await holders('settings.logo'), ['Owner']);
   const { rows: [logo] } = await db.query('select logo_path from public.store_settings');

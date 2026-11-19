@@ -24,7 +24,11 @@ const APPLIED_BY_HAND = {
   '0014_import_lists.sql': "to_regprocedure('public.audit_actions()') is not null",
   '0015_shifts.sql': "to_regprocedure('public.shift_figures(uuid)') is not null",
   '0016_store_settings_merge.sql': "to_regprocedure('public.save_store_settings(jsonb, jsonb, uuid)') is not null",
-  '0017_clear_sample_store_details.sql': "not exists (select 1 from public.store_settings where phone = '021 222 3344')"
+  '0017_clear_sample_store_details.sql': "not exists (select 1 from public.store_settings where phone = '021 222 3344')",
+  '0022_quotations.sql': "to_regprocedure('public.save_quotation(jsonb, uuid)') is not null",
+  '0023_credit.sql': "to_regprocedure('public.record_credit_payment(jsonb, uuid)') is not null",
+  '0024_inventory_staff_adjustments.sql': "exists (select 1 from public.role_permissions where role_code = 'Inventory Staff' and permission_code = 'adjustments.manage')",
+  '0025_owner_counters_printers.sql': "to_regprocedure('public.save_counter(uuid, text, boolean)') is not null"
 };
 
 const folder = new URL('../supabase/migrations/', import.meta.url);

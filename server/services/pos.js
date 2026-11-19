@@ -1,4 +1,4 @@
-import { selectAll } from '../db.js';
+import { hasCreditSchema, selectAll } from '../db.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
 import { createCustomer as saveCustomer } from './customers.js';
@@ -11,9 +11,12 @@ function cleanSearch(value) {
 }
 
 export async function options({ database }) {
+  const credit = await hasCreditSchema(database);
+  let methodQuery = database.from('payment_methods').select('code, is_cash, requires_reference').eq('active', true);
+  if (credit) methodQuery = methodQuery.eq('selectable', true);
   const [categories, methods, coupons, units] = await Promise.all([
     database.from('categories').select('id, name').eq('active', true).order('name'),
-    database.from('payment_methods').select('code, is_cash, requires_reference').eq('active', true).order('sort_order'),
+    methodQuery.order('sort_order'),
     database.from('coupons').select('code, rate, first_purchase_only, description').eq('active', true),
     database.from('units').select('code, allow_decimal_qty')
   ]);
@@ -73,15 +76,19 @@ function asCustomer(row) {
     name: row.name,
     phone: row.phone,
     loyaltyPoints: row.loyalty_points,
-    purchaseCount: row.purchase_count
+    purchaseCount: row.purchase_count,
+    creditLimit: Number(row.credit_limit ?? 0),
+    creditBalance: Number(row.credit_balance ?? 0),
+    creditAvailable: Math.max(Number(row.credit_limit ?? 0) - Number(row.credit_balance ?? 0), 0)
   };
 }
 
-const CUSTOMER_COLUMNS = 'id, code, name, phone, loyalty_points, purchase_count';
+const BASE_CUSTOMER_COLUMNS = 'id, code, name, phone, loyalty_points, purchase_count';
+const customerColumns = async (database) => (await hasCreditSchema(database) ? `${BASE_CUSTOMER_COLUMNS}, credit_limit, credit_balance` : BASE_CUSTOMER_COLUMNS);
 
 export async function searchCustomers({ database }, query) {
   const search = cleanSearch(query.q);
-  let request = database.from('customers').select(CUSTOMER_COLUMNS).eq('active', true);
+  let request = database.from('customers').select(await customerColumns(database)).eq('active', true);
   if (search) request = request.or(`name.ilike."*${search}*",phone.ilike."*${search}*",code.ilike."*${search}*"`);
   return unwrap(await request.order('name').limit(20)).map(asCustomer);
 }
@@ -106,7 +113,8 @@ async function saleDetail({ database }, id) {
     .select('*, sale_items(line_no, name, sku, qty, unit_price, discount_amount, tax_amount, line_total), payments(method_code, amount, amount_tendered, change_given, reference)')
     .eq('id', id)
     .single());
-  const payment = row.payments?.[0];
+  // Points are their own payment line; the other one is how the rest was paid.
+  const payment = row.payments?.find((item) => item.method_code !== 'Loyalty points');
   return {
     id: row.id,
     billNo: row.bill_no,
@@ -119,6 +127,7 @@ async function saleDetail({ database }, id) {
     tax: Number(row.tax_total),
     total: Number(row.grand_total),
     pointsEarned: row.points_earned,
+    pointsRedeemed: row.points_redeemed ?? 0,
     payment: payment ? {
       method: payment.method_code,
       amount: Number(payment.amount),
@@ -140,6 +149,8 @@ export async function createSale(clients, user, body) {
   if (typeof body?.clientRequestId !== 'string' || !UUID.test(body.clientRequestId)) throw new HttpError(400, 'A request ID is required.');
   const total = Number(body?.expectedTotal);
   if (!Number.isFinite(total) || total < 0) throw new HttpError(400, 'The bill total is missing.');
+  const points = body?.pointsToRedeem === undefined || body.pointsToRedeem === null || body.pointsToRedeem === '' ? 0 : Number(body.pointsToRedeem);
+  if (!Number.isInteger(points) || points < 0 || points > 100000000) throw new HttpError(400, 'Enter a valid number of points.');
   const tendered = body?.payment?.amountTendered;
   if (tendered !== undefined && tendered !== null && !Number.isFinite(Number(tendered))) throw new HttpError(400, 'Enter a valid amount received.');
   const result = unwrap(await clients.database.rpc('create_sale', {
@@ -149,6 +160,7 @@ export async function createSale(clients, user, body) {
       customerId: body.customerId || null,
       couponCode: body.couponCode || null,
       expectedTotal: total,
+      pointsToRedeem: points,
       payment: {
         method: body?.payment?.method,
         amountTendered: tendered === undefined || tendered === null || tendered === '' ? null : Number(tendered),
@@ -159,7 +171,7 @@ export async function createSale(clients, user, body) {
   }));
   const sale = await saleDetail(clients, result.id);
   if (!result.replayed) {
-    await writeAudit(clients.database, { user, action: 'Sale completed', description: `${result.billNo} · ${sale.total.toFixed(2)}`, entityType: 'sale', entityId: result.id });
+    await writeAudit(clients.database, { user, action: 'Sale completed', description: `${result.billNo} · ${sale.total.toFixed(2)}${sale.pointsRedeemed ? ` · ${sale.pointsRedeemed} points used` : ''}${sale.payment?.method === 'Credit' ? ' · on credit' : ''}`, entityType: 'sale', entityId: result.id });
   }
   return { sale, replayed: result.replayed };
 }
@@ -209,7 +221,7 @@ async function closeHeld({ database }, id, status) {
 export async function resumeHeld(clients, user, id) {
   const row = await closeHeld(clients, id, 'Resumed');
   const customer = row.customer_id
-    ? unwrap(await clients.database.from('customers').select(CUSTOMER_COLUMNS).eq('id', row.customer_id).maybeSingle())
+    ? unwrap(await clients.database.from('customers').select(await customerColumns(clients.database)).eq('id', row.customer_id).maybeSingle())
     : null;
   await writeAudit(clients.database, { user, action: 'Held order resumed', description: row.hold_no, entityType: 'held_order', entityId: id });
   return {
@@ -223,4 +235,12 @@ export async function resumeHeld(clients, user, id) {
 export async function cancelHeld(clients, user, id) {
   const row = await closeHeld(clients, id, 'Cancelled');
   await writeAudit(clients.database, { user, action: 'Held order cancelled', description: row.hold_no, entityType: 'held_order', entityId: id });
+}
+
+// The most points this cart can take, before the customer's own balance. The sale checks it again.
+export async function pointsCap({ database }, body) {
+  const items = itemsFrom(body);
+  const rate = Number(body?.discountRate ?? 0);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) throw new HttpError(400, 'Invalid discount.');
+  return { cap: unwrap(await database.rpc('points_cap', { p_items: items, p_rate: rate })) };
 }

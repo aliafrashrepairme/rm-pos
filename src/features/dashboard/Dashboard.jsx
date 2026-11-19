@@ -76,9 +76,9 @@ function Tasks({ tasks, user, onNavigate }) {
   const { t } = useI18n();
   const items = [
     { icon: '⇩', count: tasks.toReceive, label: 'TO RECEIVE', screen: 'Purchases' },
-    { icon: '⚖', count: tasks.pendingAdjustments, label: 'APPROVE', screen: 'Inventory' },
-    { icon: '☑', count: tasks.openCounts, label: 'COUNTING', screen: 'Inventory' },
-    { icon: '✓', count: tasks.submittedCounts, label: 'SUBMITTED', screen: 'Inventory' }
+    { icon: '⚖', count: tasks.pendingAdjustments, label: 'APPROVE', screen: 'Stock Adjustments' },
+    { icon: '☑', count: tasks.openCounts, label: 'COUNTING', screen: 'Stock Counts' },
+    { icon: '✓', count: tasks.submittedCounts, label: 'SUBMITTED', screen: 'Stock Counts' }
   ].filter((item) => canOpen(user, item.screen));
 
   return (

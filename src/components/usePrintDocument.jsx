@@ -33,8 +33,11 @@ export function usePrintDocument() {
         .catch(() => toast(t('The PDF could not be saved.')))
         .finally(finish);
     } else if (job.kind !== 'pdf' && window.rmpos?.print) {
-      window.rmpos.print(job.size)
-        .then(({ printed, cancelled }) => {
+      // Receipts go to the receipt printer chosen in Printers; A4 and A5 documents to the document printer.
+      const role = job.printer ?? (String(job.size).startsWith('receipt') ? 'receipt' : 'document');
+      window.rmpos.print(job.size, role)
+        .then(({ printed, cancelled, printerMissing }) => {
+          if (printerMissing) toast(t('The printer chosen in Printers is not connected, so Windows chose one instead.'));
           if (printed) job.onDone?.(job.kind);
           else if (!cancelled) toast(t('It could not be printed. Check the printer and try again.'));
         })
