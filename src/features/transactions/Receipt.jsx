@@ -54,7 +54,7 @@ export default function Receipt({ bill }) {
       {bill.voidReason && <div className="c"><b>VOID:</b> {bill.voidReason}</div>}
       <hr />
       {options.footer ? <div className="c">{options.footer}</div> : <div className="c">Thank you for shopping with us!<br /><span className="muted">Goods once sold can be exchanged within 7 days with this bill.</span></div>}
-      <div className="receipt-code"><BarcodeImage code={bill.billNo} height={40} /></div>
+      <div className="receipt-code"><BarcodeImage code={bill.billNo} printWidthMm={60} /></div>
     </div>
   );
 }

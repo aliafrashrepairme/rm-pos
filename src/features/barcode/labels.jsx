@@ -6,11 +6,11 @@ import BarcodeImage from '../../components/BarcodeImage.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 
 // Label sizes the shop's printers take. `page` sets the printed page to exactly one label,
-// so a label printer neither shrinks the label nor leaves a margin.
+// so a label printer neither shrinks the label nor leaves a margin. `barcodeMm` is the width a barcode may use.
 export const LABEL_SIZES = [
-  { key: 'roll-50', label: '50×25 mm roll', page: '50mm 25mm' },
-  { key: 'roll-38', label: '38×25 mm roll', page: '38mm 25mm' },
-  { key: 'sheet', label: 'A4 sheet (3 across)', page: 'A4' }
+  { key: 'roll-50', label: '50×25 mm roll', page: '50mm 25mm', barcodeMm: 48 },
+  { key: 'roll-38', label: '38×25 mm roll', page: '38mm 25mm', barcodeMm: 36 },
+  { key: 'sheet', label: 'A4 sheet (3 across)', page: 'A4', barcodeMm: 60 }
 ];
 export const MAX_COPIES = 50;
 
@@ -18,10 +18,11 @@ export const MAX_COPIES = 50;
 export function Label({ product, size }) {
   const { t } = useI18n();
   const unit = product.unitCode || product.unit;
+  const { barcodeMm } = LABEL_SIZES.find((option) => option.key === size) ?? LABEL_SIZES[0];
   return (
     <div className={`bc-label ${size}`}>
       <b className="pname">{product.name}</b>
-      <BarcodeImage code={product.barcode} height={44} />
+      <BarcodeImage code={product.barcode} printWidthMm={barcodeMm} />
       <div className="lp">{money(product.sellingPrice ?? product.price)}{unit ? <span className="lu"> / {t(unit)}</span> : null}</div>
       {size !== 'roll-38' && product.sku && <div className="lsku">{product.sku}</div>}
     </div>

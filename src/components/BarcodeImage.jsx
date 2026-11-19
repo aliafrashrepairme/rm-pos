@@ -1,26 +1,57 @@
-import { code128Modules, ean13Modules, isValidEan13 } from '../app/barcode.js';
+import { code128Modules, ean13Modules, isValidEan13, printModuleMm } from '../app/barcode.js';
 
-const QUIET = 10;
-const MODULE_WIDTH = 2;
+// White space each side, in bar units: EAN-13 needs 11 on the left and Code 128 needs 10.
+const QUIET = 11;
+const SCREEN_MODULE = 2;
+// Thermal printers make each bar slightly wider than drawn, so printed bars are drawn this much thinner.
+const BAR_SHRINK_MM = 0.04;
+const PRINT_BARS_MM = 9;
+const PRINT_DIGITS_MM = 2.6;
 
-// Draws bars at whole-number widths, because rounded widths are what printers and scanners read reliably.
-export default function BarcodeImage({ code, height = 60 }) {
-  const isEan = isValidEan13(code);
-  const bits = isEan ? ean13Modules(code) : code128Modules(code);
-  const width = (bits.length + QUIET * 2) * MODULE_WIDTH;
-  const textHeight = 16;
+function barRects(bits, x0, unit, height, shrink) {
   const bars = [];
   for (let index = 0; index < bits.length; index += 1) {
     if (bits[index] !== '1') continue;
     let run = 1;
     while (bits[index + run] === '1') run += 1;
-    bars.push(<rect key={index} x={(QUIET + index) * MODULE_WIDTH} y="0" width={run * MODULE_WIDTH} height={height} />);
+    bars.push(<rect key={index} x={(x0 + index) * unit + shrink / 2} y="0" width={run * unit - shrink} height={height} />);
     index += run - 1;
   }
+  return bars;
+}
+
+// On screen the barcode scales to fit. With `printWidthMm` it is drawn at an exact size in mm, so a
+// label or receipt printer reproduces every bar faithfully (see printModuleMm).
+export default function BarcodeImage({ code, height = 60, printWidthMm }) {
+  const bits = isValidEan13(code) ? ean13Modules(code) : code128Modules(code);
+  const modules = bits.length + QUIET * 2;
+
+  if (printWidthMm) {
+    const moduleMm = printModuleMm(modules, printWidthMm);
+    const bars = PRINT_BARS_MM / moduleMm;
+    const digits = PRINT_DIGITS_MM / moduleMm;
+    return (
+      <svg
+        className="barcode-image barcode-print"
+        viewBox={`0 0 ${modules} ${bars + digits}`}
+        style={{ width: `${modules * moduleMm}mm`, height: `${PRINT_BARS_MM + PRINT_DIGITS_MM}mm` }}
+        shapeRendering="crispEdges"
+        role="img"
+        aria-label={`Barcode ${code}`}
+      >
+        <rect width={modules} height={bars + digits} fill="#fff" />
+        <g fill="#000">{barRects(bits, QUIET, 1, bars, Math.min(BAR_SHRINK_MM / moduleMm, 0.3))}</g>
+        <text x={modules / 2} y={bars + digits * 0.85} textAnchor="middle" fontFamily="monospace" fontSize={digits * 0.95} fill="#000">{code}</text>
+      </svg>
+    );
+  }
+
+  const width = modules * SCREEN_MODULE;
+  const textHeight = 16;
   return (
     <svg className="barcode-image" viewBox={`0 0 ${width} ${height + textHeight}`} role="img" aria-label={`Barcode ${code}`}>
       <rect width={width} height={height + textHeight} fill="#fff" />
-      <g fill="#111">{bars}</g>
+      <g fill="#111">{barRects(bits, QUIET, SCREEN_MODULE, height, 0)}</g>
       <text x={width / 2} y={height + 13} textAnchor="middle" fontFamily="monospace" fontSize="13" fill="#111">{code}</text>
     </svg>
   );

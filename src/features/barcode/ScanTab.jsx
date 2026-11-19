@@ -219,6 +219,7 @@ export default function ScanTab({ user }) {
           <div className="vf-frame" />
           {cameraOn && <div className="vf-laser" />}
         </div>
+        {cameraOn && <p className="sub camera-hint">{t('Hold the barcode about 20 cm from the camera, straight and still, inside the box.')}</p>}
         <div className="scan-actions">
           <button type="button" className="btn btn-primary" disabled={cameraBusy} onClick={toggleCamera}>{cameraOn ? `■ ${t('Stop camera')}` : `● ${t('Start camera')}`}</button>
           <label className="btn btn-outline">🖼 {t('Scan from photo')}<input type="file" accept="image/*" hidden onChange={scanFromPhoto} /></label>
