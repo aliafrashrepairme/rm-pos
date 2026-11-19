@@ -79,7 +79,7 @@ Try these on the shop's real equipment:
 - Open and close a shift, make a sale, refund it and count the cash.
 - Sign in with each role.
 
-Keep the shop PCs on mains power with a steady connection. The app needs the internet: an offline sale keeps its cart and only completes once the connection returns.
+Keep the shop PCs on mains power with a steady connection. The app needs the internet and does not queue sales offline. If the connection drops during checkout, the bill stays on screen; after service returns, retry the sale. A request ID makes that retry safe if the server saved the sale but its reply was lost.
 
 ## Updating later
 
