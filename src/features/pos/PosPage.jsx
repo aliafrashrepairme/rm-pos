@@ -268,7 +268,8 @@ export default function PosPage({ user, onNavigate }) {
     setCustomer(next);
     setPointsInput('');
     setCouponCode('');
-    if (isNew) {
+    // Any first-time buyer gets the first-purchase coupon, whether they were added here or on Customers.
+    if (isNew || next?.purchaseCount === 0) {
       const welcome = options?.coupons.find((item) => item.firstPurchaseOnly);
       if (welcome) setCouponCode(welcome.code);
     }
