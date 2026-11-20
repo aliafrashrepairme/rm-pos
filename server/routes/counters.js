@@ -10,6 +10,7 @@ export function counterRoutes(clients) {
   router.get('/', COUNTERS, async (req, res) => res.json({ counters: await counters.listCounters(clients) }));
   router.post('/', COUNTERS, async (req, res) => res.status(201).json({ counters: await counters.createCounter(clients, req.user, req.body) }));
   router.patch('/:id', COUNTERS, async (req, res) => res.json({ counters: await counters.updateCounter(clients, req.user, req.params.id, req.body) }));
+  router.put('/:id/pin', COUNTERS, async (req, res) => res.json({ counters: await counters.setCounterPin(clients, req.user, req.params.id, req.body) }));
   return router;
 }
 

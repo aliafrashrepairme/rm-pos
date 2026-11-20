@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { createApp } from '../app.js';
 import { readConfig } from '../config.js';
+import { hashPin } from '../services/pins.js';
 
 const config = readConfig({ SUPABASE_URL: 'http://x', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' });
 const PERMS = { manager: ['shifts.manage'], cashier: ['shifts.own'], other: ['shifts.own'], owner: ['reports.sales'], stock: ['products.view'] };
@@ -48,7 +49,8 @@ function fakeDatabase(options = {}) {
             if (!call.single && call.filters.some(([column]) => column === 'cashier_id')) return resolve({ data: options.last ? [{ counter_id: options.last }] : [], error: null });
             return resolve({ data: call.single ? OPEN_ROW : [OPEN_ROW], count: 1, error: null });
           }
-          if (table === 'counters') return resolve({ data: [{ id: COUNTER, name: 'Counter 01' }, { id: COUNTER2, name: 'Counter 02' }], error: null });
+          if (table === 'counters' && call.single) return resolve({ data: { id: COUNTER, name: 'Counter 01', pin_hash: options.pinHash ?? null }, error: null });
+          if (table === 'counters') return resolve({ data: [{ id: COUNTER, name: 'Counter 01', pin_hash: options.pinHash ?? null }, { id: COUNTER2, name: 'Counter 02' }], error: null });
           resolve({ data: [], count: 0, error: null });
         }
       };
@@ -179,5 +181,28 @@ test('each cashier gets their last counter by default, or the first free one', a
   });
   await withApi({}, async (as) => {
     assert.equal((await (await as('cashier', '/api/shifts/options')).json()).defaultCounterId, COUNTER);
+  });
+});
+
+test('a counter with a PIN opens and closes with that PIN, not the password', async () => {
+  const pinHash = await hashPin('4821');
+  await withApi({ pinHash, ownShift: null }, async (as, database) => {
+    const options = await (await as('cashier', '/api/shifts/options')).json();
+    assert.equal(options.counters.find((counter) => counter.id === COUNTER).hasPin, true);
+    assert.ok(!JSON.stringify(options).includes('scrypt'));
+    assert.equal((await as('cashier', '/api/shifts', post({ counterId: COUNTER, openingCash: 1000, password: PASSWORD }))).status, 400);
+    assert.equal((await as('cashier', '/api/shifts', post({ counterId: COUNTER, openingCash: 1000, pin: '0000' }))).status, 400);
+    assert.ok(database.audits.some((row) => row.action === 'Counter PIN failed'));
+    assert.equal((await as('cashier', '/api/shifts', post({ counterId: COUNTER, openingCash: 1000, pin: '4821' }))).status, 201);
+    assert.equal((await as('cashier', `/api/shifts/${ID}/close`, post({ countedCash: 1100, pin: '4821' }))).status, 200);
+  });
+});
+
+test('five wrong counter PINs lock that counter', async () => {
+  const pinHash = await hashPin('9999');
+  await withApi({ pinHash }, async (as) => {
+    const statuses = [];
+    for (let i = 0; i < 6; i += 1) statuses.push((await as('other', '/api/shifts', post({ counterId: COUNTER, openingCash: 1, pin: '1111' }))).status);
+    assert.deepEqual(statuses, [400, 400, 400, 400, 400, 429]);
   });
 });
