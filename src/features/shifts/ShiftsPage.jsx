@@ -57,7 +57,7 @@ function OpenShift({ options, onClose, onDone }) {
         </div>
         <label className="field">{t('Opening cash (LKR)')}<input name="openingCash" type="number" min="0" step="0.01" value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} required autoFocus /></label>
         {usesPin
-          ? <label className="field">🔒 {t('Counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
+          ? <label className="field">🔒 {t('Enter the counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
           : <label className="field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>}
         {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
         <div className="modal-actions-row">
@@ -163,7 +163,7 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
             <form onSubmit={close}>
               <label className="field settings-field">{t('Cash counted (LKR)')}<input name="countedCash" type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} required /></label>
               {shift.counterHasPin
-                ? <label className="field settings-field">🔒 {t('Counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
+                ? <label className="field settings-field">🔒 {t('Enter the counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
                 : <label className="field settings-field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>}
               {liveVariance !== null && <div className={`total-row ${liveVariance !== 0 ? 'qty-down' : ''}`}><span>{t('Variance')}</span><b>{money(liveVariance)}</b></div>}
               <div className="modal-actions-row">
