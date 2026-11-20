@@ -73,6 +73,7 @@ export default function PosPage({ user, onNavigate }) {
   const [couponInput, setCouponInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [customerTyped, setCustomerTyped] = useState('');
   // A payment problem (such as the credit limit) belongs to the method it was found with.
   useEffect(() => { setError(''); }, [method]);
   const [completed, setCompleted] = useState(null);
@@ -299,6 +300,10 @@ export default function PosPage({ user, onNavigate }) {
       setError('The bill is empty. Add a product first.');
       return;
     }
+    if (!customer && customerTyped.trim()) {
+      setError(`"${customerTyped.trim()}" ${t('is typed but not chosen. Click the customer in the list, or clear the box to sell to a walk-in customer.')}`);
+      return;
+    }
     if (isCash && due > 0 && (given === null || given < due)) {
       setError(given === null ? 'Enter the cash received.' : 'Cash received is less than the total.');
       return;
@@ -441,7 +446,7 @@ export default function PosPage({ user, onNavigate }) {
             <button type="button" className="btn btn-outline btn-sm" onClick={clearBill}>{t('Clear')}</button>
           </div>
 
-          <CustomerPicker customer={customer} canCreate={can(user, 'customers.manage')} onChoose={chooseCustomer} />
+          <CustomerPicker customer={customer} canCreate={can(user, 'customers.manage')} onChoose={chooseCustomer} onTyped={setCustomerTyped} />
 
           {offer.regular && (
             <div className="offer loyal">

@@ -41,9 +41,15 @@ function NewCustomerModal({ onClose, onCreated }) {
   );
 }
 
-export default function CustomerPicker({ customer, canCreate, onChoose }) {
+// `onTyped` hears the search text, so the till can stop a sale when a name is typed but never chosen:
+// typed text alone is only a search, and the bill would otherwise go to Walk-in with no points.
+export default function CustomerPicker({ customer, canCreate, onChoose, onTyped = () => {} }) {
   const { t } = useI18n();
-  const [typed, setTyped] = useState('');
+  const [typed, setTypedText] = useState('');
+  const setTyped = (value) => {
+    setTypedText(value);
+    onTyped(value);
+  };
   const search = useDebounced(typed);
   const [matches, setMatches] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -82,6 +88,13 @@ export default function CustomerPicker({ customer, canCreate, onChoose }) {
             placeholder={t('Walk-in Customer')}
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter picks the customer when the search found exactly one.
+              if (event.key === 'Enter' && matches.length === 1) {
+                event.preventDefault();
+                choose(matches[0]);
+              }
+            }}
             autoComplete="off"
           />
           {canCreate && <button type="button" className="btn btn-outline btn-sm" onClick={() => setCreating(true)}>＋ {t('New')}</button>}
