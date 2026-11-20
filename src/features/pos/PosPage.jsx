@@ -73,6 +73,8 @@ export default function PosPage({ user, onNavigate }) {
   const [couponInput, setCouponInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // A payment problem (such as the credit limit) belongs to the method it was found with.
+  useEffect(() => { setError(''); }, [method]);
   const [completed, setCompleted] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const pendingRequest = useRef(null);
