@@ -90,8 +90,23 @@ export default function PosPage({ user, onNavigate }) {
   if (categoryId) params.set('categoryId', categoryId);
   const { data, error: listError, reload } = useListRequest(`/api/pos/catalog?${params}`);
 
+  // Regular-customer discount: the server says whether this customer has enough recent purchases.
+  // Until it answers (undefined), the sale waits, so the till never shows a different total from the bill.
+  const [regular, setRegular] = useState(null);
+  useEffect(() => {
+    if (!customer?.id) {
+      setRegular(null);
+      return undefined;
+    }
+    let current = true;
+    setRegular(undefined);
+    api(`/api/pos/customers/${customer.id}/regular`)
+      .then((answer) => { if (current) setRegular(answer.qualifies ? { rate: answer.rate } : null); })
+      .catch(() => { if (current) setRegular(null); });
+    return () => { current = false; };
+  }, [customer?.id]);
   const coupon = options?.coupons.find((item) => item.code === couponCode);
-  const offer = bestOffer(customer, coupon);
+  const offer = bestOffer(customer, coupon, regular);
   const totals = useMemo(() => cartTotals(lines, offer.rate), [lines, offer.rate]);
   const payment = options?.paymentMethods.find((item) => item.code === method);
   const isCash = payment?.isCash ?? method === 'Cash';
@@ -426,18 +441,23 @@ export default function PosPage({ user, onNavigate }) {
 
           <CustomerPicker customer={customer} canCreate={can(user, 'customers.manage')} onChoose={chooseCustomer} />
 
-          {coupon && (
+          {offer.regular && (
+            <div className="offer loyal">
+              <div><b>🔁 {t(offer.label)}</b><br /><span>{Math.round(offer.rate * 100)}% {t('off')}</span></div>
+            </div>
+          )}
+          {coupon && !offer.regular && (
             <div className="offer first">
               <div><b>🎁 {coupon.code}</b><br /><span>{Math.round(coupon.rate * 100)}% {t('off')}</span></div>
               <button type="button" className="btn btn-outline btn-sm" onClick={() => setCouponCode('')}>{t('Remove')}</button>
             </div>
           )}
-          {!coupon && offer.tier && (
+          {!coupon && offer.tier && !offer.regular && (
             <div className="offer loyal">
               <div><b>⭐ {t(offer.label)} · {customer.loyaltyPoints} {t('points')}</b><br /><span>{Math.round(offer.rate * 100)}% {t('off')}</span></div>
             </div>
           )}
-          {!coupon && !offer.tier && (
+          {!coupon && !offer.tier && !offer.regular && (
             <form className="coupon-row" onSubmit={(event) => { event.preventDefault(); applyCoupon(couponInput); }}>
               <input name="coupon" className="inp" placeholder={t('Coupon code')} aria-label={t('Coupon code')} value={couponInput} onChange={(event) => setCouponInput(event.target.value)} autoComplete="off" />
               <button type="submit" className="btn btn-outline btn-sm">{t('Apply')}</button>
@@ -522,7 +542,7 @@ export default function PosPage({ user, onNavigate }) {
 
           <div className="cart-actions">
             <button type="button" className="btn btn-outline" disabled={busy} onClick={holdBill}>{t('Hold')}</button>
-            <button type="button" className="btn btn-primary wide" disabled={busy || !options} onClick={completeSale}>✓ {t('Complete sale')} · {money(due)}</button>
+            <button type="button" className="btn btn-primary wide" disabled={busy || !options || regular === undefined} onClick={completeSale}>✓ {t('Complete sale')} · {money(due)}</button>
           </div>
         </div>
       </div>

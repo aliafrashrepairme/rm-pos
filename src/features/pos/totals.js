@@ -4,12 +4,22 @@ function divideRounded(value, divisor) {
   return Math.round(value / divisor);
 }
 
-export function bestOffer(customer, coupon) {
-  if (coupon) return { rate: coupon.rate, label: `Coupon ${coupon.code}` };
+function memberOffer(customer) {
   if (!customer || customer.purchaseCount === 0) return { rate: 0, label: '' };
   if (customer.loyaltyPoints >= 1000) return { rate: 0.07, label: 'Gold member offer', tier: 'Gold' };
   if (customer.loyaltyPoints >= 400) return { rate: 0.05, label: 'Silver member offer', tier: 'Silver' };
   return { rate: 0.03, label: 'Bronze member offer', tier: 'Bronze' };
+}
+
+// Same rule as create_sale: a coupon replaces the member offer, then the regular-customer rate
+// (`regular`, when this customer qualifies) applies only if it is bigger. Only one offer ever applies.
+// A Gold member keeps double points under the regular rate; a coupon earns single points.
+export function bestOffer(customer, coupon, regular = null) {
+  const first = coupon ? { rate: coupon.rate, label: `Coupon ${coupon.code}` } : memberOffer(customer);
+  if (customer && regular?.rate > first.rate) {
+    return { rate: regular.rate, label: 'Regular customer offer', tier: memberOffer(customer).tier, regular: true };
+  }
+  return first;
 }
 
 // Same rule as create_sale: 1 point per LKR 100 paid, doubled for Gold members. Walk-in bills earn nothing.

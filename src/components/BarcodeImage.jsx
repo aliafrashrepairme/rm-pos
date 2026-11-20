@@ -22,19 +22,19 @@ function barRects(bits, x0, unit, height, shrink) {
 
 // On screen the barcode scales to fit. With `printWidthMm` it is drawn at an exact size in mm, so a
 // label or receipt printer reproduces every bar faithfully (see printModuleMm).
-export default function BarcodeImage({ code, height = 60, printWidthMm }) {
+export default function BarcodeImage({ code, height = 60, printWidthMm, printBarsMm = PRINT_BARS_MM }) {
   const bits = isValidEan13(code) ? ean13Modules(code) : code128Modules(code);
   const modules = bits.length + QUIET * 2;
 
   if (printWidthMm) {
     const moduleMm = printModuleMm(modules, printWidthMm);
-    const bars = PRINT_BARS_MM / moduleMm;
+    const bars = printBarsMm / moduleMm;
     const digits = PRINT_DIGITS_MM / moduleMm;
     return (
       <svg
         className="barcode-image barcode-print"
         viewBox={`0 0 ${modules} ${bars + digits}`}
-        style={{ width: `${modules * moduleMm}mm`, height: `${PRINT_BARS_MM + PRINT_DIGITS_MM}mm` }}
+        style={{ width: `${modules * moduleMm}mm`, height: `${printBarsMm + PRINT_DIGITS_MM}mm` }}
         shapeRendering="crispEdges"
         role="img"
         aria-label={`Barcode ${code}`}

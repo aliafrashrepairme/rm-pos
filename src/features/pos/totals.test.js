@@ -42,3 +42,26 @@ test('quick cash rounds up to the note', () => {
   assert.equal(roundUpTo(3500, 500), 3500);
   assert.equal(roundUpTo(3422.5, 1000), 4000);
 });
+
+test('a regular customer gets the regular rate only when it beats the coupon or member offer', () => {
+  const silver = { loyaltyPoints: 500, purchaseCount: 8 };
+  const gold = { loyaltyPoints: 1200, purchaseCount: 20 };
+  const regular = { rate: 0.06 };
+  // 6% beats Silver's 5%.
+  assert.deepEqual(bestOffer(silver, null, regular), { rate: 0.06, label: 'Regular customer offer', tier: 'Silver', regular: true });
+  // Gold's 7% beats 6%, so Gold stays.
+  assert.equal(bestOffer(gold, null, regular).label, 'Gold member offer');
+  // A bigger coupon wins; a smaller one loses to the regular rate.
+  assert.equal(bestOffer(silver, { code: 'BIG', rate: 0.1 }, regular).label, 'Coupon BIG');
+  assert.equal(bestOffer(silver, { code: 'SMALL', rate: 0.02 }, regular).label, 'Regular customer offer');
+  // Not a regular (null), or no customer: unchanged.
+  assert.equal(bestOffer(silver, null, null).label, 'Silver member offer');
+  assert.equal(bestOffer(null, null, regular).rate, 0);
+});
+
+test('a Gold member keeps double points under the regular rate', () => {
+  const gold = { loyaltyPoints: 1200, purchaseCount: 20 };
+  const offer = bestOffer(gold, null, { rate: 0.1 });
+  assert.equal(offer.label, 'Regular customer offer');
+  assert.equal(pointsFor(gold, offer, 1000), 20);
+});
