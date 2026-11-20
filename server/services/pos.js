@@ -1,5 +1,6 @@
 import { hasCreditSchema, selectAll } from '../db.js';
 import { regularDiscountSettings } from './settings.js';
+import { shopToday } from './coupons.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
 import { createCustomer as saveCustomer } from './customers.js';
@@ -32,13 +33,17 @@ export async function options({ database }) {
   const [categories, methods, coupons, units] = await Promise.all([
     database.from('categories').select('id, name').eq('active', true).order('name'),
     methodQuery.order('sort_order'),
-    database.from('coupons').select('code, rate, first_purchase_only, description').eq('active', true),
+    // '*' so this works before and after migration 0028 adds coupon dates.
+    database.from('coupons').select('*').eq('active', true),
     database.from('units').select('code, allow_decimal_qty')
   ]);
+  // Only coupons usable today (in the shop's time zone), so the till and create_sale agree.
+  const today = await shopToday({ database });
+  const usable = unwrap(coupons).filter((row) => (!row.valid_from || row.valid_from <= today) && (!row.valid_until || row.valid_until >= today));
   return {
     categories: unwrap(categories),
     paymentMethods: unwrap(methods).map((row) => ({ code: row.code, isCash: row.is_cash, requiresReference: row.requires_reference })),
-    coupons: unwrap(coupons).map((row) => ({ code: row.code, rate: Number(row.rate), firstPurchaseOnly: row.first_purchase_only, description: row.description })),
+    coupons: usable.map((row) => ({ code: row.code, rate: Number(row.rate), firstPurchaseOnly: row.first_purchase_only, description: row.description })),
     decimalUnits: unwrap(units).filter((row) => row.allow_decimal_qty).map((row) => row.code)
   };
 }

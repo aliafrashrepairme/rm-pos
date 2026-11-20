@@ -19,6 +19,7 @@ import PurchasesPage from './features/purchases/PurchasesPage.jsx';
 import QuotationsPage from './features/quotations/QuotationsPage.jsx';
 import CreditPage from './features/credit/CreditPage.jsx';
 import CountersPage from './features/setup/CountersPage.jsx';
+import CouponsPage from './features/coupons/CouponsPage.jsx';
 import PrintersPage from './features/setup/PrintersPage.jsx';
 import CustomersPage from './features/customers/CustomersPage.jsx';
 import SettingsPage from './features/settings/SettingsPage.jsx';
@@ -55,6 +56,7 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   if (page === 'Settings') return <SettingsPage theme={theme} onTheme={onTheme} onLanguage={onLanguage} />;
   if (page === 'Store Logo') return <StoreLogoPage />;
   if (page === 'Counters') return <CountersPage />;
+  if (page === 'Coupons') return <CouponsPage />;
   if (page === 'Printers') return <PrintersPage />;
   if (page === 'Backups & Status') return <BackupsPage />;
   if (page === 'Shifts & Cash') return <ShiftsPage user={user} />;
