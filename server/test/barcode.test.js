@@ -20,14 +20,36 @@ test('codes are validated before any lookup', () => {
 
 const config = readConfig({ SUPABASE_URL: 'http://x', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' });
 const PERMS = {
-  manager: ['barcode.scan', 'barcode.labels', 'products.view', 'counts.manage'],
+  manager: ['barcode.scan', 'barcode.labels', 'products.view', 'counts.manage', 'bills.view'],
   stock: ['barcode.scan', 'products.view', 'counts.manage'],
-  cashier: ['barcode.scan', 'pos.sell'],
+  cashier: ['barcode.scan', 'pos.sell', 'bills.view'],
   owner: ['reports.sales']
 };
 const ROW = { id: 'p1', sku: 'RM-1', barcode: '4006381333931', name: 'Hammer', cost_price: '980.00', selling_price: '1450.00', stock_qty: '4.000', min_stock: '1.000', active: true, categories: { name: 'Tools' }, tax_rates: { name: 'VAT', rate: '18' }, suppliers: null, image_path: null };
+const BILL_ID = '123e4567-e89b-42d3-a456-426614174000';
+const BILL = {
+  id: BILL_ID,
+  bill_no: 'RM-INV-000123',
+  status: 'Paid',
+  customer_name: 'Test customer',
+  customer_id: null,
+  cashier: { full_name: 'Test cashier' },
+  created_at: '2026-11-21T05:00:00Z',
+  subtotal: '1000',
+  discount_total: '0',
+  discount_label: '',
+  tax_total: '180',
+  grand_total: '1180',
+  points_earned: 11,
+  points_redeemed: 0,
+  void_reason: null,
+  payments: [{ method_code: 'Cash', amount: '1180', amount_tendered: '1200', change_given: '20', reference: null }],
+  sale_items: [{ id: 'line-1', line_no: 1, name: 'Hammer', sku: 'RM-1', qty: '1', refunded_qty: '0', unit_price: '1000', tax_rate: '18', discount_amount: '0', tax_amount: '180', line_total: '1180' }],
+  refunds: [],
+  store_name: null
+};
 
-function fakeDatabase({ rows = [ROW] } = {}) {
+function fakeDatabase({ rows = [ROW], bill = null } = {}) {
   const database = {
     orFilters: [],
     rpcCalls: [],
@@ -43,11 +65,18 @@ function fakeDatabase({ rows = [ROW] } = {}) {
         or: (text) => { database.orFilters.push(text); return chain; },
         eq: (column, value) => { call.filters.push([column, value]); return chain; },
         maybeSingle: () => { call.single = true; return chain; },
+        single: () => { call.single = true; return chain; },
         then(resolve) {
           if (table === 'profiles') {
             const id = call.filters[0][1];
             return resolve({ data: { id, username: id, full_name: id, role_code: id, email: 'x', active: true, must_change_password: false, roles: { role_permissions: (PERMS[id] || []).map((permission_code) => ({ permission_code })) } }, error: null });
           }
+          if (table === 'sales') {
+            const [column, value] = call.filters[0] || [];
+            if (column === 'bill_no') return resolve({ data: bill?.bill_no === value ? { id: bill.id } : null, error: null });
+            return resolve({ data: bill?.id === value ? bill : null, error: null });
+          }
+          if (table === 'store_settings') return resolve({ data: { store_name: 'Test Store', address: 'Test Road', phone: '0770000000', vat_registration: '', time_zone: 'Asia/Colombo', receipt: {} }, error: null });
           if (table === 'products') return resolve({ data: call.single ? rows[0] ?? null : rows, error: null });
           resolve({ data: null, error: null });
         }
@@ -88,6 +117,23 @@ test('scanning follows the role, and cashiers never receive cost prices', async 
     assert.equal(product.costPrice, undefined);
     assert.ok(!text.includes('980'));
     assert.equal((await (await as('stock', lookup)).json()).product.costPrice, 980);
+  });
+});
+
+test('scanning a distribution bill barcode shows its bill details to bill viewers', async () => {
+  await withApi({ rows: [], bill: BILL }, async (as) => {
+    const response = await as('cashier', `/api/barcode/lookup?code=${encodeURIComponent(BILL.bill_no)}`);
+    assert.equal(response.status, 200);
+    const { bill } = await response.json();
+    assert.equal(bill.billNo, BILL.bill_no);
+    assert.equal(bill.customer, 'Test customer');
+    assert.equal(bill.lines[0].name, 'Hammer');
+    assert.equal(bill.total, 1180);
+    assert.equal(bill.payment.method, 'Cash');
+  });
+  await withApi({ rows: [], bill: BILL }, async (as) => {
+    const response = await as('stock', `/api/barcode/lookup?code=${encodeURIComponent(BILL.bill_no)}`);
+    assert.equal(response.status, 404, 'product/barcode users without bill access do not receive bill details');
   });
 });
 

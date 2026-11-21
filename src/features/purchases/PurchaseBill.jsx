@@ -9,7 +9,10 @@ export default function PurchaseBill({ purchase }) {
   return (
     <div className="pbill">
       <div className="pb-band">
-        <div>{logo && <img className="pb-logo" src={logo} alt="" />}<b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
+        <div className="pb-brand">
+          {logo && <img className="pb-logo" src={logo} alt="" />}
+          <div className="pb-brand-details"><b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
+        </div>
         <div className="pb-title"><b>PURCHASE BILL</b><br /><span>{purchase.poNo}</span></div>
       </div>
       <div className="pb-meta">
@@ -37,7 +40,7 @@ export default function PurchaseBill({ purchase }) {
         <div><span>Paid</span><b>{money(purchase.paid)}</b></div>
         <div className="big"><span>Balance due</span><b>{money(purchase.balance)}</b></div>
       </div>
-      <div className="pb-foot">Prepared by {purchase.createdBy} · {purchase.source === 'AI Scan' ? 'Captured by AI invoice scan' : `${purchase.source} purchase order`}</div>
+      <div className="pb-foot">Prepared by {purchase.createdBy} · {purchase.source === 'AI Scan' ? 'Captured by AI invoice scan' : `${purchase.source} purchase order`}<div className="prepared-by">Prepared by repairme.lk</div></div>
     </div>
   );
 }

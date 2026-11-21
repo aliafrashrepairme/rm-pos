@@ -1,6 +1,7 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
 import { codeEquivalents, getProduct } from './products.js';
+import { getBill } from './transactions.js';
 
 const CODE_FORMAT = /^[0-9A-Za-z._/-]{1,40}$/;
 
@@ -22,8 +23,12 @@ export async function findProductIdByCode({ database }, code) {
   return rows[0].id;
 }
 
-export async function lookup(clients, user, rawCode) {
+export async function lookup(clients, user, rawCode, { productOnly = false } = {}) {
   const code = cleanCode(rawCode);
+  if (!productOnly && user.permissions.includes('bills.view')) {
+    const sale = unwrap(await clients.database.from('sales').select('id').eq('bill_no', code).maybeSingle());
+    if (sale) return { code, bill: await getBill(clients, sale.id) };
+  }
   const product = await getProduct(clients, await findProductIdByCode(clients, code));
   if (!user.permissions.includes('products.view')) delete product.costPrice;
   return { code, product };

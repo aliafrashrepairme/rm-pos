@@ -33,6 +33,7 @@ test('a brand-new database is set up by one file and holds no sample records', a
   )).rows.map((row) => row.role_code);
   assert.deepEqual(await holders('transactions.view'), ['Manager', 'Owner']);
   assert.deepEqual(await holders('transactions.monthly'), ['Owner']);
+  assert.deepEqual(await holders('users.manage'), ['Manager', 'Owner']);
   assert.deepEqual(await holders('ai_scan.use'), []);
 
   // Stock counts and adjustments belong to Managers and Inventory Staff; only Managers approve counts.

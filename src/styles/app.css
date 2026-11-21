@@ -205,7 +205,12 @@ html[lang='ta'] .nav button .label { font-size: 12px; }
 /* The Owner's logo, kept inside the same space as the built-in mark. */
 .brand-logo { width: 42px; height: 42px; border-radius: 13px; object-fit: contain; background: #fff; flex-shrink: 0; }
 .receipt-logo { display: block; max-width: 60%; max-height: 70px; margin: 0 auto 6px; object-fit: contain; }
-.pb-logo { display: block; max-height: 48px; max-width: 160px; margin-bottom: 6px; object-fit: contain; }
+.pb-brand { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; }
+.pb-brand-details { min-width: 0; overflow-wrap: anywhere; }
+.pb-logo { display: block; flex: 0 0 auto; max-height: 48px; max-width: 96px; object-fit: contain; }
+.prepared-by { margin-top: 6px; font-size: 10px; }
+.pb-code { display: flex; justify-content: center; padding: 8px 18px 14px; }
+.scan-bill-receipt { max-height: 60vh; overflow: auto; }
 .logo-preview { width: 160px; height: 160px; border: 1px solid var(--line); border-radius: 14px; background: #fff; display: grid; place-items: center; overflow: hidden; }
 .logo-preview img { max-width: 90%; max-height: 90%; object-fit: contain; }
 .logo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
