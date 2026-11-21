@@ -136,7 +136,7 @@ export default function ProductForm({ product, options, barcode, onClose, onSave
             {product
               ? <label className="field">{t('SKU')}<input {...field('sku')} required maxLength={40} /></label>
               : <label className="field">{t('SKU')}<input name="sku" value="" placeholder={t('Auto-generated on save (RM-000123)')} readOnly disabled /></label>}
-            <label className="field">{t('Barcode')}<input {...field('barcode')} required={Boolean(product)} maxLength={32} /></label>
+            <label className="field">{t('Barcode')}<input {...field('barcode')} placeholder={product ? '' : t('Leave blank to generate automatically')} required={Boolean(product)} maxLength={32} /></label>
             <label className="field full">{t('Description')}<textarea {...field('description')} rows="2" maxLength={2000} /></label>
             <div className="field full">
               {t('Product photo (optional)')}

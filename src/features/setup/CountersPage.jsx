@@ -44,6 +44,17 @@ export default function CountersPage() {
     if (await send(`/api/counters/${editing.id}`, 'PATCH', { name: editing.name }, 'Counter renamed.')) setEditing(null);
   }
 
+  // The counter's own PIN: cashiers enter it to open or close a shift there.
+  const [pinFor, setPinFor] = useState(null);
+  async function savePin(event) {
+    event.preventDefault();
+    if (await send(`/api/counters/${pinFor.id}/pin`, 'PUT', { pin: pinFor.pin }, 'Counter PIN saved.')) setPinFor(null);
+  }
+  async function removePin(counter) {
+    if (!window.confirm(t('Remove the PIN? Cashiers will confirm shifts on this counter with their own password.'))) return;
+    await send(`/api/counters/${counter.id}/pin`, 'PUT', { pin: '' }, 'Counter PIN removed.');
+  }
+
   return (
     <>
       <div className="page-head">
@@ -64,10 +75,10 @@ export default function CountersPage() {
 
       <div className="table-wrap">
         <table>
-          <thead><tr>{['Counter', 'Status', 'In use now', 'Last used', 'Actions'].map((heading) => <th key={heading}>{t(heading)}</th>)}</tr></thead>
+          <thead><tr>{['Counter', 'Status', 'PIN', 'In use now', 'Last used', 'Actions'].map((heading) => <th key={heading}>{t(heading)}</th>)}</tr></thead>
           <tbody>
-            {!list && !error && <tr><td colSpan="5"><div className="empty">{t('Loading…')}</div></td></tr>}
-            {list?.length === 0 && <tr><td colSpan="5"><div className="empty">{t('No counters yet. Add the first one above.')}</div></td></tr>}
+            {!list && !error && <tr><td colSpan="6"><div className="empty">{t('Loading…')}</div></td></tr>}
+            {list?.length === 0 && <tr><td colSpan="6"><div className="empty">{t('No counters yet. Add the first one above.')}</div></td></tr>}
             {list?.map((counter) => (
               <tr key={counter.id}>
                 <td>
@@ -80,10 +91,21 @@ export default function CountersPage() {
                   ) : <b>{counter.name}</b>}
                 </td>
                 <td><Status value={counter.active ? 'Active' : 'Inactive'} label={t(counter.active ? 'Active' : 'Inactive')} /></td>
+                <td>
+                  {pinFor?.id === counter.id ? (
+                    <form className="inline-edit" onSubmit={savePin}>
+                      <input aria-label={t('New PIN')} type="password" inputMode="numeric" autoComplete="new-password" pattern="\d{4,6}" title={t('4 to 6 digits')} placeholder={t('4–6 digits')} value={pinFor.pin} onChange={(event) => setPinFor({ ...pinFor, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required autoFocus />
+                      <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{t('Save')}</button>
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => setPinFor(null)}>{t('Cancel')}</button>
+                    </form>
+                  ) : counter.hasPin ? <span className="chip green">🔒 {t('PIN set')}</span> : <span className="muted">{t('No PIN (uses cashier password)')}</span>}
+                </td>
                 <td>{counter.openShift ? `${counter.openShift.cashier} · ${counter.openShift.shiftNo}` : '—'}</td>
                 <td>{counter.lastUsed ? dateTime(counter.lastUsed) : t('Never')}</td>
                 <td className="row-actions">
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing({ id: counter.id, name: counter.name })}>{t('Rename')}</button>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => setPinFor({ id: counter.id, pin: '' })}>{t(counter.hasPin ? 'Change PIN' : 'Set PIN')}</button>
+                  {counter.hasPin && <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => removePin(counter)}>{t('Remove PIN')}</button>}
                   {counter.active
                     ? <button type="button" className="btn btn-outline btn-sm" disabled={busy || Boolean(counter.openShift)} title={counter.openShift ? t('Close the open shift first.') : ''} onClick={() => send(`/api/counters/${counter.id}`, 'PATCH', { active: false }, 'Counter switched off.')}>{t('Switch off')}</button>
                     : <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => send(`/api/counters/${counter.id}`, 'PATCH', { active: true }, 'Counter switched on.')}>{t('Switch on')}</button>}

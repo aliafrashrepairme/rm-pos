@@ -1,9 +1,12 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { createPinGuard, pinMatches } from './pins.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CATEGORIES = ['Transport', 'Utilities', 'Supplies', 'Maintenance', 'Other'];
-const COLUMNS = 'id, shift_no, status, opening_cash, expected_cash, counted_cash, opened_at, closed_at, cashier_id, counters(name), cashier:profiles!shifts_cashier_id_fkey(full_name)';
+// counters(*) rather than counters(name) so it works before and after migration 0027 (pin_hash).
+const COLUMNS = 'id, shift_no, status, opening_cash, expected_cash, counted_cash, opened_at, closed_at, cashier_id, counter_id, counters(*), cashier:profiles!shifts_cashier_id_fkey(full_name)';
+const pinGuard = createPinGuard();
 
 const seesAll = (user) => user.permissions.includes('shifts.manage');
 
@@ -15,6 +18,7 @@ function asShift(row, figures) {
     shiftNo: row.shift_no,
     status: row.status,
     counter: row.counters?.name ?? '',
+    counterHasPin: Boolean(row.counters?.pin_hash),
     cashier: row.cashier?.full_name ?? '',
     cashierId: row.cashier_id,
     openedAt: row.opened_at,
@@ -45,6 +49,23 @@ async function confirmPassword({ authClient, database }, user, password) {
   if (signOutError && signOutError.name !== 'AuthSessionMissingError') console.error('Could not end session:', signOutError);
 }
 
+// A counter with a PIN is unlocked with that PIN; one without still asks for the cashier's own password.
+async function confirmCounter(clients, user, counterId, body) {
+  const counter = unwrap(await clients.database.from('counters').select('*').eq('id', counterId).maybeSingle());
+  if (!counter?.pin_hash) {
+    await confirmPassword(clients, user, body?.password);
+    return;
+  }
+  pinGuard.assertOpen(counterId);
+  if (typeof body?.pin !== 'string' || !body.pin.trim()) throw new HttpError(400, 'Enter the counter PIN.');
+  if (!(await pinMatches(body.pin.trim(), counter.pin_hash))) {
+    pinGuard.failed(counterId);
+    await writeAudit(clients.database, { user, action: 'Counter PIN failed', description: counter.name, entityType: 'counter', entityId: counterId });
+    throw new HttpError(400, 'The counter PIN is not correct.');
+  }
+  pinGuard.succeeded(counterId);
+}
+
 // Cashiers reach only their own shifts. Asking for someone else's looks the same as asking for nothing.
 async function shiftFor({ database }, user, id) {
   if (!UUID.test(id)) throw new HttpError(404, 'Shift not found.');
@@ -66,7 +87,7 @@ export async function listShifts({ database }, user, query) {
 
 export async function options({ database }, user) {
   const [counters, current, open, busy, last] = await Promise.all([
-    database.from('counters').select('id, name').eq('active', true).order('name'),
+    database.from('counters').select('*').eq('active', true).order('name'),
     database.from('shifts').select('id, shift_no').eq('cashier_id', user.id).eq('status', 'Open').maybeSingle(),
     seesAll(user) ? database.from('shifts').select('id, shift_no').eq('status', 'Open').order('shift_no') : Promise.resolve({ data: [], error: null }),
     database.from('shifts').select('counter_id').eq('status', 'Open'),
@@ -74,7 +95,8 @@ export async function options({ database }, user) {
   ]);
   // Each cashier starts on the counter they used last; failing that, the first one nobody is using.
   const inUse = new Set(unwrap(busy).map((row) => row.counter_id));
-  const list = unwrap(counters).map((counter) => ({ ...counter, inUse: inUse.has(counter.id) }));
+  // Only what the screen needs: never the PIN hash.
+  const list = unwrap(counters).map((counter) => ({ id: counter.id, name: counter.name, hasPin: Boolean(counter.pin_hash), inUse: inUse.has(counter.id) }));
   const lastId = unwrap(last)[0]?.counter_id;
   const preferred = list.find((counter) => counter.id === lastId && !counter.inUse) ?? list.find((counter) => !counter.inUse) ?? list[0];
   return {
@@ -106,16 +128,16 @@ export async function openShift(clients, user, body) {
   const { database } = clients;
   if (typeof body?.counterId !== 'string' || !UUID.test(body.counterId)) throw new HttpError(400, 'Choose a counter.');
   const opening = money(body?.openingCash, 'Enter the opening cash.');
-  await confirmPassword(clients, user, body?.password);
+  await confirmCounter(clients, user, body.counterId, body);
   const id = unwrap(await database.rpc('open_shift', { p_counter: body.counterId, p_opening: opening, p_user: user.id }));
   await writeAudit(database, { user, action: 'Shift opened', description: `Opening cash ${opening.toFixed(2)}`, entityType: 'shift', entityId: id });
   return { id };
 }
 
 export async function closeShift(clients, user, id, body) {
-  await shiftFor(clients, user, id);
+  const shift = await shiftFor(clients, user, id);
   const counted = money(body?.countedCash, 'Enter the cash counted.');
-  await confirmPassword(clients, user, body?.password);
+  await confirmCounter(clients, user, shift.counter_id, body);
   const result = unwrap(await clients.database.rpc('close_shift', { p_shift: id, p_counted: counted, p_user: user.id }));
   await writeAudit(clients.database, { user, action: 'Shift closed', description: `${result.shiftNo} · expected ${Number(result.expected).toFixed(2)} · counted ${counted.toFixed(2)} · variance ${Number(result.variance).toFixed(2)}`, entityType: 'shift', entityId: id });
   return result;

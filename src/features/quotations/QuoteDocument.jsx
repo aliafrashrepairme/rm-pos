@@ -1,5 +1,6 @@
 import { dateTime, money, quantity } from '../../app/format.js';
 import { useStoreLogo } from '../../app/storeLogo.js';
+import BarcodeImage from '../../components/BarcodeImage.jsx';
 
 const number = (value) => money(value).replace('LKR ', '');
 
@@ -10,7 +11,10 @@ export default function QuoteDocument({ quote }) {
   return (
     <div className="pbill">
       <div className="pb-band">
-        <div>{logo && <img className="pb-logo" src={logo} alt="" />}<b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
+        <div className="pb-brand">
+          {logo && <img className="pb-logo" src={logo} alt="" />}
+          <div className="pb-brand-details"><b>{store.name}</b><br /><span>{[store.address, store.phone].filter(Boolean).join(' · ')}</span></div>
+        </div>
         <div className="pb-title"><b>QUOTATION</b><br /><span>{quote.quoteNo}</span></div>
       </div>
       <div className="pb-meta">
@@ -38,7 +42,8 @@ export default function QuoteDocument({ quote }) {
         <div className="big"><span>Total</span><b>{money(quote.total)}</b></div>
       </div>
       {quote.note && <div className="pb-invoice">{quote.note}</div>}
-      <div className="pb-foot">Prepared by {quote.createdBy} · Prices are valid until {quote.validUntil} and subject to stock availability.</div>
+      <div className="pb-foot">Prepared by {quote.createdBy} · Prices are valid until {quote.validUntil} and subject to stock availability.<div className="prepared-by">Prepared by repairme.lk</div></div>
+      <div className="pb-code"><BarcodeImage code={quote.quoteNo} printWidthMm={60} /></div>
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { cleanPin, hashPin } from './pins.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Every counter, with whoever is working on it right now and when it was last used.
 export async function listCounters({ database }) {
   const [counters, open, recent] = await Promise.all([
-    database.from('counters').select('id, name, active').order('name'),
+    // '*' so this works before and after migration 0027 adds pin_hash; the hash itself is never sent.
+    database.from('counters').select('*').order('name'),
     database.from('shifts').select('counter_id, shift_no, opened_at, cashier:profiles!shifts_cashier_id_fkey(full_name)').eq('status', 'Open'),
     database.from('shifts').select('counter_id, opened_at').order('opened_at', { ascending: false }).limit(500)
   ]);
@@ -19,6 +21,7 @@ export async function listCounters({ database }) {
       id: row.id,
       name: row.name,
       active: row.active,
+      hasPin: Boolean(row.pin_hash),
       openShift: shift ? { shiftNo: shift.shift_no, cashier: shift.cashier?.full_name ?? '', openedAt: shift.opened_at } : null,
       lastUsed: lastUsed.get(row.id) ?? null
     };
@@ -50,6 +53,19 @@ export async function updateCounter(clients, user, id, body) {
   if (changes.length) {
     await writeAudit(clients.database, { user, action: 'Counter changed', description: `${result.name} · ${changes.join(' · ')}`, entityType: 'counter', entityId: id });
   }
+  return listCounters(clients);
+}
+
+// Sets the counter's PIN, or removes it when `pin` is empty (shifts there then ask for the cashier's password).
+export async function setCounterPin(clients, user, id, body) {
+  if (!UUID.test(id)) throw new HttpError(404, 'Counter not found.');
+  const current = unwrap(await clients.database.from('counters').select('*').eq('id', id).maybeSingle());
+  if (!current) throw new HttpError(404, 'Counter not found.');
+  if (current.pin_hash === undefined) throw new HttpError(409, 'Counter PINs need the latest database update (0027).');
+  const removing = body?.pin === '' || body?.pin === null;
+  const pinHash = removing ? null : await hashPin(cleanPin(body?.pin));
+  unwrap(await clients.database.from('counters').update({ pin_hash: pinHash }).eq('id', id));
+  await writeAudit(clients.database, { user, action: removing ? 'Counter PIN removed' : 'Counter PIN set', description: current.name, entityType: 'counter', entityId: id });
   return listCounters(clients);
 }
 

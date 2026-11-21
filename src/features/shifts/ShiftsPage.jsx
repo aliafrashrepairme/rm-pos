@@ -17,13 +17,15 @@ function OpenShift({ options, onClose, onDone }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // A counter with its own PIN is unlocked with the PIN; otherwise the cashier confirms with their password.
+  const usesPin = Boolean(options.counters.find((counter) => counter.id === counterId)?.hasPin);
 
   async function submit(event) {
     event.preventDefault();
     setError('');
     setBusy(true);
     try {
-      await api('/api/shifts', { method: 'POST', body: JSON.stringify({ counterId, openingCash, password }) });
+      await api('/api/shifts', { method: 'POST', body: JSON.stringify(usesPin ? { counterId, openingCash, pin: password } : { counterId, openingCash, password }) });
       onDone();
     } catch (failure) {
       setError(failure.message);
@@ -33,7 +35,7 @@ function OpenShift({ options, onClose, onDone }) {
   }
 
   return (
-    <Modal className="shift-modal" title={t('Open cash shift')} description={t('Choose your counter, enter the opening float and confirm with your password.')} onClose={onClose}>
+    <Modal className="shift-modal" title={t('Open cash shift')} description={t(usesPin ? 'Choose your counter, enter the opening float and the counter PIN.' : 'Choose your counter, enter the opening float and confirm with your password.')} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="field">{t('Counter')}
           <div className="counter-choices" role="radiogroup" aria-label={t('Counter')}>
@@ -45,7 +47,7 @@ function OpenShift({ options, onClose, onDone }) {
                 aria-checked={counterId === counter.id}
                 className={`counter-choice ${counterId === counter.id ? 'active' : ''}`}
                 disabled={counter.inUse}
-                onClick={() => setCounterId(counter.id)}
+                onClick={() => { setCounterId(counter.id); setPassword(''); }}
               >
                 <b>{counter.name}</b>
                 <small>{counter.inUse ? t('In use') : counter.id === options.defaultCounterId ? t('Your counter') : t('Available')}</small>
@@ -54,7 +56,9 @@ function OpenShift({ options, onClose, onDone }) {
           </div>
         </div>
         <label className="field">{t('Opening cash (LKR)')}<input name="openingCash" type="number" min="0" step="0.01" value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} required autoFocus /></label>
-        <label className="field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+        {usesPin
+          ? <label className="field">🔒 {t('Enter the counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
+          : <label className="field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>}
         {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}
         <div className="modal-actions-row">
           <button type="button" className="btn btn-outline btn-lg" onClick={onClose}>{t('Cancel')}</button>
@@ -122,7 +126,8 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
     setError('');
     setBusy(true);
     try {
-      const { variance } = await api(`/api/shifts/${shiftId}/close`, { method: 'POST', body: JSON.stringify({ countedCash: counted, password }) });
+      const proof = shift?.counterHasPin ? { pin: password } : { password };
+      const { variance } = await api(`/api/shifts/${shiftId}/close`, { method: 'POST', body: JSON.stringify({ countedCash: counted, ...proof }) });
       toast(`${t('Shift closed. Cash variance:')} ${money(variance)}`);
       onChanged();
       await load();
@@ -157,7 +162,9 @@ function ShiftModal({ shiftId, onClose, onChanged }) {
           {shift.status === 'Open' ? (
             <form onSubmit={close}>
               <label className="field settings-field">{t('Cash counted (LKR)')}<input name="countedCash" type="number" min="0" step="0.01" value={counted} onChange={(event) => setCounted(event.target.value)} required /></label>
-              <label className="field settings-field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+              {shift.counterHasPin
+                ? <label className="field settings-field">🔒 {t('Enter the counter PIN')}<input name="pin" type="password" inputMode="numeric" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label>
+                : <label className="field settings-field">{t('Your password')}<input name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>}
               {liveVariance !== null && <div className={`total-row ${liveVariance !== 0 ? 'qty-down' : ''}`}><span>{t('Variance')}</span><b>{money(liveVariance)}</b></div>}
               <div className="modal-actions-row">
                 <button type="button" className="btn btn-outline" onClick={onClose}>{t('Cancel')}</button>

@@ -20,6 +20,7 @@ import { purchaseRoutes } from './routes/purchases.js';
 import { quotationRoutes } from './routes/quotations.js';
 import { creditRoutes } from './routes/credit.js';
 import { counterRoutes, printerRoutes } from './routes/counters.js';
+import { couponRoutes } from './routes/coupons.js';
 import { settingsRoutes } from './routes/settings.js';
 import { shiftRoutes } from './routes/shifts.js';
 import { supplierRoutes } from './routes/suppliers.js';
@@ -58,6 +59,7 @@ export function createApp({ config, authClient, database, limiter = createLoginL
   app.use('/api/quotations', quotationRoutes(clients));
   app.use('/api/credit', creditRoutes(clients));
   app.use('/api/counters', counterRoutes(clients));
+  app.use('/api/coupons', couponRoutes(clients));
   app.use('/api/printers', printerRoutes(clients));
   app.use('/api/suppliers', supplierRoutes(clients));
   app.use('/api/customers', customerRoutes(clients));

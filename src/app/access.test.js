@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { hasTranslation } from '../i18n/translate.js';
 import { canOpen, menuFor, screenFromSlug, SCREENS, screensFor, slugFor } from './access.js';
 
-const owner = { permissions: ['transactions.view', 'transactions.monthly', 'reports.sales', 'reports.inventory', 'reports.export'] };
+const owner = { permissions: ['transactions.view', 'transactions.monthly', 'reports.sales', 'reports.inventory', 'reports.export', 'users.manage'] };
 const cashier = { permissions: ['pos.sell', 'held.manage', 'bills.view', 'bills.print', 'shifts.own', 'customers.view', 'customers.manage', 'barcode.scan'] };
 const stock = { permissions: ['reports.inventory', 'barcode.scan', 'products.view', 'products.manage', 'inventory.view', 'counts.manage', 'purchases.view', 'purchases.manage', 'suppliers.view', 'suppliers.manage'] };
 
@@ -39,8 +39,8 @@ test('every label on the built screens exists in Tamil and Sinhala', () => {
   assert.deepEqual(missing, []);
 });
 
-test('the Owner sees only transactions and reports', () => {
-  assert.deepEqual(screensFor(owner), ['Daily Transactions', 'Monthly Transactions', 'Reports']);
+test('the Owner sees transactions, reports and User Management', () => {
+  assert.deepEqual(screensFor(owner), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'User Management']);
 });
 
 test('a Manager gets daily but not monthly transactions', () => {
@@ -62,7 +62,7 @@ test('only the Owner opens Counters and Printers', () => {
 
 test('only the Owner opens Store Logo', () => {
   const ownerWithLogo = { permissions: [...owner.permissions, 'settings.logo'] };
-  assert.deepEqual(screensFor(ownerWithLogo), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'Store Logo']);
+  assert.deepEqual(screensFor(ownerWithLogo), ['Daily Transactions', 'Monthly Transactions', 'Reports', 'Store Logo', 'User Management']);
   assert.equal(canOpen({ permissions: ['settings.manage', 'users.manage'] }, 'Store Logo'), false);
 });
 

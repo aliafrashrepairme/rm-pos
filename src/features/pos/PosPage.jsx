@@ -73,6 +73,9 @@ export default function PosPage({ user, onNavigate }) {
   const [couponInput, setCouponInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [customerTyped, setCustomerTyped] = useState('');
+  // A payment problem (such as the credit limit) belongs to the method it was found with.
+  useEffect(() => { setError(''); }, [method]);
   const [completed, setCompleted] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const pendingRequest = useRef(null);
@@ -265,7 +268,8 @@ export default function PosPage({ user, onNavigate }) {
     setCustomer(next);
     setPointsInput('');
     setCouponCode('');
-    if (isNew) {
+    // Any first-time buyer gets the first-purchase coupon, whether they were added here or on Customers.
+    if (isNew || next?.purchaseCount === 0) {
       const welcome = options?.coupons.find((item) => item.firstPurchaseOnly);
       if (welcome) setCouponCode(welcome.code);
     }
@@ -295,6 +299,10 @@ export default function PosPage({ user, onNavigate }) {
     setError('');
     if (!lines.length) {
       setError('The bill is empty. Add a product first.');
+      return;
+    }
+    if (!customer && customerTyped.trim()) {
+      setError(`"${customerTyped.trim()}" ${t('is typed but not chosen. Click the customer in the list, or clear the box to sell to a walk-in customer.')}`);
       return;
     }
     if (isCash && due > 0 && (given === null || given < due)) {
@@ -439,7 +447,7 @@ export default function PosPage({ user, onNavigate }) {
             <button type="button" className="btn btn-outline btn-sm" onClick={clearBill}>{t('Clear')}</button>
           </div>
 
-          <CustomerPicker customer={customer} canCreate={can(user, 'customers.manage')} onChoose={chooseCustomer} />
+          <CustomerPicker customer={customer} canCreate={can(user, 'customers.manage')} onChoose={chooseCustomer} onTyped={setCustomerTyped} />
 
           {offer.regular && (
             <div className="offer loyal">

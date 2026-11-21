@@ -8,6 +8,7 @@ import BarcodeImage from '../../components/BarcodeImage.jsx';
 import Status from '../../components/Status.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
+import Receipt from '../transactions/Receipt.jsx';
 import { decodePhoto, startCamera } from './cameraScan.js';
 import PrintLabelModal from './PrintLabelModal.jsx';
 import { useAddScannedProduct } from './useAddScannedProduct.jsx';
@@ -32,6 +33,14 @@ function ScanResult({ result, onAdd, onPrint }) {
           ? <button type="button" className="btn btn-primary" onClick={() => onAdd(result.code)}>＋ {t('Add this product')}</button>
           : <p>{t('This product is not in the product list. Ask a manager to add it.')}</p>)}
       </div>
+    );
+  }
+  if (result.bill) {
+    return (
+      <>
+        <div className="section-row"><h3>{t('Distribution bill found')}</h3><Status value={result.bill.status} label={t(result.bill.status)} /></div>
+        <div className="receipt-stage scan-bill-receipt"><Receipt bill={result.bill} /></div>
+      </>
     );
   }
   const { product } = result;
@@ -103,7 +112,14 @@ export default function ScanTab({ user }) {
       ...current
     ].slice(0, HISTORY_LENGTH));
     try {
-      const { product } = await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`);
+      const productOnly = modeRef.current === 'count';
+      const { product, bill } = await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}${productOnly ? '&type=product' : ''}`);
+      if (bill) {
+        setResult({ bill });
+        addHistory(`${bill.billNo} · ${bill.customer}`, t('Bill found'), true);
+        beep();
+        return;
+      }
       if (modeRef.current === 'count') {
         if (!countRef.current) throw Object.assign(new Error('Start a stock count first.'), {});
         const scan = await api(`/api/inventory/counts/${countRef.current}/scan`, { method: 'POST', body: JSON.stringify({ code }) });

@@ -5,7 +5,7 @@ import * as barcode from '../services/barcode.js';
 export function barcodeRoutes(clients) {
   const router = Router();
   router.get('/lookup', requirePermission('barcode.scan'), async (req, res) => {
-    res.json(await barcode.lookup(clients, req.user, req.query.code));
+    res.json(await barcode.lookup(clients, req.user, req.query.code, { productOnly: req.query.type === 'product' }));
   });
   // Store name and phone printed on labels. Anyone who can print a label can read them.
   router.get('/label-store', requirePermission('barcode.scan', 'barcode.labels'), async (req, res) => {

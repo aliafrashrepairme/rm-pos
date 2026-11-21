@@ -23,6 +23,7 @@ export const SCREENS = [
   { name: 'List Management', group: 'ADMINISTRATION', icon: '≣', anyOf: ['lists.manage'] },
   { name: 'Settings', group: 'ADMINISTRATION', icon: '⚙', anyOf: ['settings.manage'] },
   { name: 'Store Logo', group: 'ADMINISTRATION', icon: '◈', anyOf: ['settings.logo'] },
+  { name: 'Coupons', group: 'ADMINISTRATION', icon: '✂', anyOf: ['coupons.manage'] },
   { name: 'Counters', group: 'ADMINISTRATION', icon: '▤', anyOf: ['counters.manage'] },
   { name: 'Printers', group: 'ADMINISTRATION', icon: '⎙', anyOf: ['printers.manage'] },
   { name: 'Backups & Status', group: 'ADMINISTRATION', icon: '⟲', anyOf: ['backups.manage'] },

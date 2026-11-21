@@ -22,6 +22,7 @@ const ACCESS = [
   ['/api/customers', ['Manager', 'Cashier']],
   ['/api/users', ['Manager']],
   ['/api/settings', ['Manager']],
+  ['/api/coupons', ['Manager']],
   ['/api/lists', ['Manager']],
   ['/api/shifts', ['Manager', 'Cashier']],
   ['/api/shifts/options', ['Manager', 'Cashier']],
