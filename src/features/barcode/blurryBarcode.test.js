@@ -42,6 +42,14 @@ test('reads a blurred EAN-13 product barcode, and one held upside down', () => {
   assert.equal(readBlurredStrip(cameraStrip(bits, { moduleWidth: 4, blur: 0.9, reverse: true })), '2000000079202');
 });
 
+test('reads an EAN-13 held close to the camera, where its wide spaces once split it in two', () => {
+  // A Sri Lankan product barcode filling much of the frame: 6 to 12 pixels a bar unit.
+  const bits = ean13Modules('4796009888843');
+  for (const moduleWidth of [6, 8, 10, 12]) {
+    assert.equal(readBlurredStrip(cameraStrip(bits, { moduleWidth, blur: 0.7 })), '4796009888843', `${moduleWidth} px a bar`);
+  }
+});
+
 test('reads a blurred EAN-8 from a small product', () => {
   // EAN-8 96385074: start guard, four L digits, centre guard, four R digits, end guard.
   const { L, R } = EAN_PATTERNS;

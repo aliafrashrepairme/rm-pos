@@ -3,7 +3,7 @@ import { api } from '../../api.js';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
 import { beep } from '../../app/beep.js';
-import { decodePhoto } from '../barcode/cameraScan.js';
+import { decodePhoto, prepareScanner } from '../barcode/cameraScan.js';
 import { money, quantity } from '../../app/format.js';
 import { useDebounced, useListRequest } from '../../app/useListRequest.js';
 import Pager from '../../components/Pager.jsx';
@@ -76,6 +76,8 @@ export default function PosPage({ user, onNavigate }) {
   const [customerTyped, setCustomerTyped] = useState('');
   // A payment problem (such as the credit limit) belongs to the method it was found with.
   useEffect(() => { setError(''); }, [method]);
+  // Loads the camera decoder in the background, so Camera scan reads from its first frame.
+  useEffect(() => { prepareScanner(); }, []);
   const [completed, setCompleted] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
   const pendingRequest = useRef(null);

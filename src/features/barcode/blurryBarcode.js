@@ -183,7 +183,7 @@ function barRegions(profile) {
   }
   const sorted = Float32Array.from(contrast).sort();
   const threshold = Math.max(15, sorted[Math.floor(n * 0.95)] * 0.4);
-  const regions = [];
+  const pieces = [];
   let from = -1;
   let quiet = 0;
   for (let x = 0; x <= n; x += 1) {
@@ -193,12 +193,33 @@ function barRegions(profile) {
       quiet = 0;
     } else if (from >= 0 && (quiet += 1) > reach * 2) {
       const to = x - quiet;
-      const trimmed = trimQuietZones(profile, from + reach, to - reach);
-      if (trimmed[1] - trimmed[0] > 80) regions.push(trimmed);
+      if (to - reach > from + reach) pieces.push([from + reach, to - reach]);
       from = -1;
     }
   }
-  return regions;
+  // Pieces are joined before trimming: a wide space inside a large barcode looks like a quiet zone next
+  // to half a barcode, but not next to the whole of it. Small pieces can be the end of such a barcode.
+  return [...pieces, ...joinedRegions(pieces)]
+    .map(([left, right]) => trimQuietZones(profile, left, right))
+    .filter(([left, right]) => right - left > 80);
+}
+
+// A barcode that fills much of the picture has white spaces wider than the fixed gap above, so it is found
+// as two or more pieces. Pieces separated by a gap that is small next to their combined width are also
+// tried as one barcode. A real quiet zone is at least 7 bar units on each side, so two separate barcodes
+// sit much further apart than this.
+const MAX_JOIN_GAP = 0.12;
+function joinedRegions(regions) {
+  const joined = [];
+  for (let first = 0; first < regions.length; first += 1) {
+    for (let last = first + 1; last < regions.length; last += 1) {
+      const gap = regions[last][0] - regions[last - 1][1];
+      const span = regions[last][1] - regions[first][0];
+      if (gap > span * MAX_JOIN_GAP) break;
+      joined.push([regions[first][0], regions[last][1]]);
+    }
+  }
+  return joined;
 }
 
 const toBits = (pattern) => [...pattern].map(Number);
@@ -473,6 +494,32 @@ function readCode128(profile, region) {
 // Reads one brightness strip (light = high) running across a barcode.
 // Returns { code, score } (score: 0–1, how closely the blurred bars match), or null.
 export function readBlurredStripDetail(profile) {
+  // The reader is tuned for about 2.5–6 pixels a bar unit. A barcode held close, or a sharper camera,
+  // gives more, so an unreadable strip is also tried shrunk to a half and a third of its width.
+  // The widest bar region suggests the bar size, so the likeliest scale is tried first.
+  const widest = barRegions(Float32Array.from(profile)).reduce((most, [left, right]) => Math.max(most, right - left), 0);
+  const likely = Math.min(3, Math.max(1, Math.round(widest / EAN_13_MODULES / 4)));
+  for (const factor of [likely, 1, 2, 3].filter((value, index, all) => all.indexOf(value) === index)) {
+    if (profile.length / factor < 200) continue;
+    const found = readAtScale(factor === 1 ? profile : shrink(profile, factor));
+    if (found) return found;
+  }
+  return null;
+}
+const EAN_13_MODULES = 95;
+
+// Averages each run of `factor` pixels into one.
+function shrink(profile, factor) {
+  const out = new Float32Array(Math.floor(profile.length / factor));
+  for (let i = 0; i < out.length; i += 1) {
+    let sum = 0;
+    for (let k = 0; k < factor; k += 1) sum += profile[i * factor + k];
+    out[i] = sum / factor;
+  }
+  return out;
+}
+
+function readAtScale(profile) {
   const forward = Float32Array.from(profile);
   let best = null;
   for (const strip of [forward, Float32Array.from(forward).reverse()]) {

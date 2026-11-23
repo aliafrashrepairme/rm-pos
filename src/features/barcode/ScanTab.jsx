@@ -9,7 +9,7 @@ import Status from '../../components/Status.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { useI18n } from '../../i18n/I18nProvider.jsx';
 import Receipt from '../transactions/Receipt.jsx';
-import { decodePhoto, startCamera } from './cameraScan.js';
+import { decodePhoto, prepareScanner, startCamera } from './cameraScan.js';
 import PrintLabelModal from './PrintLabelModal.jsx';
 import { useAddScannedProduct } from './useAddScannedProduct.jsx';
 
@@ -147,6 +147,9 @@ export default function ScanTab({ user }) {
       setResult({ error: failure.message, unknown: failure.code === 'UNKNOWN_BARCODE', code });
     }
   });
+
+  // Loads the camera decoder in the background now, so the camera starts reading straight away.
+  useEffect(() => { prepareScanner(); }, []);
 
   // USB and Bluetooth scanners type very quickly and press Enter, anywhere on the page.
   useEffect(() => {
