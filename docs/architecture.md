@@ -18,7 +18,8 @@ Invoice extraction provider    <- called only by the API
 
 - **The secret key stays on the server.** The Supabase service-role key can do anything in the database, so it is never placed in the desktop app. The app only knows the API's address.
 - **The browser never talks to the database.** Every table has row level security on and no access for public roles.
-- **Version 1 needs internet.** If the API can't be reached, POS shows a clear message and blocks sales. It does not queue them.
+- **Cloud mode needs internet.** The hosted API is unavailable when the internet is down, and cloud mode blocks sales while disconnected.
+- **Offline mode runs the API and a PGlite database inside the desktop app.** It needs no internet or Supabase. Data is stored in `%APPDATA%\RM POS\database` on that PC; each installed PC has its own database. `server/local-db.js` answers the same query calls the services make to Supabase, so the services do not change between modes.
 
 ## Roles
 
@@ -104,7 +105,9 @@ server/
   index.js            starts the server
   app.js              builds the Express app, so tests can run it
   config.js           reads and checks environment settings
-  db.js               creates the Supabase clients
+  db.js               cloud mode: creates the Supabase clients
+  local-db.js         offline mode: PGlite database, first-start setup, Supabase-style query adapter
+  data/               development-only offline database (ignored by git)
   middleware/         auth, requirePermission, login limit, security headers and request limit, errors
   routes/             one file per module: thin, HTTP only
   services/           business logic and database calls, including the invoice extractor

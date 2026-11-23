@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('rmpos', {
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getApiAddress: () => ipcRenderer.sendSync('app:api-address:get'),
   savePdf: (fileName, size) => ipcRenderer.invoke('print:save-pdf', fileName, size),
   print: (size, role) => ipcRenderer.invoke('print:document', size, role),
   listPrinters: () => ipcRenderer.invoke('printers:list'),

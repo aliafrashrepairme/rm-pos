@@ -15,6 +15,16 @@ export function loadEnvFile() {
 }
 
 export function readConfig(env = process.env) {
+  if (env.RM_POS_LOCAL_MODE === '1') {
+    return {
+      port: env.PORT || 4000,
+      localMode: true,
+      localDbPath: env.RM_POS_DB_PATH || undefined,
+      corsOrigins: ['app://rmpos', ...(env.CORS_ORIGINS
+        ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+        : ['http://localhost:5173', 'http://127.0.0.1:5173'])]
+    };
+  }
   const missing = REQUIRED.filter((name) => !env[name]);
   if (missing.length) throw new Error(`Missing Supabase configuration: ${missing.join(', ')}`);
   return {

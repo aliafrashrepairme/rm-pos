@@ -1,5 +1,44 @@
 # Going live
 
+## Offline LAN installation
+
+The offline installer (`npm run dist:offline`) carries its own API server and PGlite database. No Docker, Supabase project or internet connection is needed.
+
+1. Build the installer with `npm run dist:offline`. It is saved as `release\RM POS Setup <version>.exe`.
+2. Close any running RM POS, then run the installer on the shop PC.
+3. Open RM POS. On the first start it creates the database in `%APPDATA%\RM POS\database` and four accounts: `owner`, `manager`, `inventory` and `cashier`. The starting passwords are in `server/local-db.js`.
+4. Sign in as each account and change its password straight away.
+5. Sign in as `manager` (or `inventory`) to add categories and products. Sell as `cashier` after opening a shift.
+6. Back up by closing RM POS and copying the whole `%APPDATA%\RM POS\database` folder to a USB drive or cloud drive. Do it daily. The in-app backup screen does not work in offline mode yet.
+
+### Installing on another PC
+
+The installer holds everything RM POS needs: the app, its own copy of Node.js, the API server, the PGlite database engine and all table definitions. The other PC does not need Node.js, Git, PostgreSQL, Docker or this project folder.
+
+| | |
+|---|---|
+| Operating system | Windows 10 or 11, 64-bit (x64). Windows on ARM, macOS and Linux installers are not built |
+| Memory | 4 GB RAM minimum, 8 GB recommended |
+| Disk | About 400 MB for the app, plus room for the shop's data (it starts at about 30 MB) |
+| Screen | 1280 × 720 or larger |
+| Camera (optional) | Any webcam, for camera scanning. A USB barcode scanner works without setup and is faster |
+| Printer (optional) | Any Windows printer driver; receipt printers are chosen in Settings |
+| Internet | Not needed |
+
+First run on a new PC:
+
+1. Copy `RM POS Setup <version>.exe` to the PC (USB drive or download) and run it. It installs for the current Windows user only, so it does not need administrator rights.
+2. The installer is not code-signed, so Windows SmartScreen says "Windows protected your PC". Click **More info**, then **Run anyway**.
+3. On first opening, Windows Firewall may ask whether RM POS can use networks. Click **Cancel** (or allow only Private networks): a single PC does not need network access, and blocking it keeps other devices from reaching the sign-in page.
+4. RM POS creates an empty database with the four starting accounts. Each PC has its own data; nothing is copied from the PC the installer was built on.
+5. Change all four passwords before real use.
+
+To move a shop's data to a new PC, close RM POS on both PCs and copy the whole `%APPDATA%\RM POS\database` folder across.
+
+To set a forgotten password, close RM POS and run `npm --prefix server run local:password-reset -- USERNAME NEWPASSWORD` from the project folder.
+
+**One PC only.** Every PC with the offline build starts its own server and keeps its own separate database. Installing it on two counters gives two shops' worth of data that never meet. A shared second counter needs a build that points at the first PC's address, which this installer does not do.
+
 This puts RM POS into real use with a new, empty database. The app has three parts:
 
 - **Database (Supabase):** holds all the shop's records.

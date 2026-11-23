@@ -1,6 +1,9 @@
 # RM POS
 
-Point-of-sale and stock system for RM Hardware Store: billing, cash shifts, products, stock, purchasing, suppliers, customers, reports and staff, in English, Tamil and Sinhala. It runs as a Windows desktop app that talks to its own API server, which keeps the data in Supabase.
+Point-of-sale and stock system for RM Hardware Store: billing, cash shifts, products, stock, purchasing, suppliers, customers, reports and staff, in English, Tamil and Sinhala. It runs as a Windows desktop app that talks to its own API server. The server keeps the data in one of two places:
+
+- **Offline mode** (the shop's current installer, `npm run dist:offline`): a PostgreSQL database inside the app, saved on the shop PC. No internet needed.
+- **Cloud mode** (`npm run dist`): a hosted Supabase project, reached over the internet.
 
 To put it into real use in a shop, follow [docs/deployment.md](docs/deployment.md).
 
@@ -10,7 +13,8 @@ To put it into real use in a shop, follow [docs/deployment.md](docs/deployment.m
 |---|---|
 | Desktop app | Electron 45, with a React 19 interface built by Vite 8 |
 | API server | Node.js 22.13+ with Express 5 |
-| Database and sign-in | Supabase (Postgres, Auth, private Storage for product photos) |
+| Database (offline mode) | PGlite: PostgreSQL 17 compiled into the API server, stored in a folder on the PC |
+| Database (cloud mode) | Supabase (Postgres, Auth, private Storage for product photos) |
 | Barcodes | ZXing reader (camera, photo, USB scanner); store barcodes generated as EAN-13 starting 20 |
 | Tests | Node's built-in test runner; PGlite runs the SQL migrations in memory |
 
@@ -31,6 +35,35 @@ Supabase (Postgres functions for anything touching money or stock)
 - Sales, refunds, stock changes, deliveries and shift closing run as single Postgres functions, so two tills can't oversell or double-post.
 
 The design and business rules are in [docs/architecture.md](docs/architecture.md). The original screen design is [docs/prototype.html](docs/prototype.html).
+
+## Where the data is stored
+
+### Offline mode
+
+When RM POS opens, the desktop app starts the API server inside itself on port 4000. It does not run as a separate program and stops when the app closes. The server keeps every record in one folder:
+
+```text
+%APPDATA%\RM POS\database        e.g. C:\Users\<Windows user>\AppData\Roaming\RM POS\database
+```
+
+| Inside the folder | Holds |
+|---|---|
+| `base\` | The tables and their rows: products, stock, sales, payments, customers, suppliers, purchases, shifts, coupons, staff accounts, settings, audit log |
+| `pg_wal\` | Recent changes, written first so a power cut doesn't lose a sale |
+| everything else | PostgreSQL's own bookkeeping and settings |
+
+- The files are PostgreSQL's binary format. Read and change data through the app, never by editing these files.
+- Reinstalling or uninstalling RM POS leaves this folder alone. Deleting it deletes all shop data.
+- On first start the server creates the tables from `server/supabase/migrations/` and four accounts: `owner`, `manager`, `inventory` and `cashier`. Their starting passwords are in `server/local-db.js`, so change them on day one.
+- Staff passwords are stored as salted scrypt hashes.
+- **Backup:** close RM POS completely, then copy the whole `database` folder somewhere safe. A copy taken while the app is open may not restore. The in-app backup screen needs cloud storage and does not work in offline mode yet.
+- The server listens on the network as well as on this PC, so another PC on the same LAN can reach it at `http://<this PC's IP>:4000` while the app is open.
+
+During development, `npm run dev:offline` uses `server/data/rm-pos-pglite` instead, which git ignores.
+
+### Cloud mode
+
+Everything is in the Supabase project named in `.env` / `.env.live`: tables in its Postgres database, staff sign-ins in Supabase Auth, product photos, the logo and daily backups in Supabase Storage.
 
 ## Folder structure
 
@@ -59,13 +92,18 @@ rm-pos/
 │  └─ assets/                Logo
 ├─ server/                   API server
 │  ├─ index.js, app.js       Start-up, and the Express app (built separately so tests can run it)
-│  ├─ config.js, db.js       Reads and checks the settings; creates the Supabase clients
+│  ├─ config.js              Reads and checks the settings, and picks offline or cloud mode
+│  ├─ db.js                  Cloud mode: creates the Supabase clients
+│  ├─ local-db.js            Offline mode: opens the PGlite database, creates tables and first accounts,
+│  │                         and answers the same queries the services send to Supabase
 │  ├─ middleware/            Sign-in, permissions, security headers, rate limits, errors
 │  ├─ routes/                One file per module, HTTP only
 │  ├─ services/              Business logic and database calls
 │  ├─ validation/            Input checks shared by routes
 │  ├─ supabase/migrations/   Numbered SQL files; never edit one that has been applied
-│  ├─ scripts/               Database check, migrations, create staff, end-to-end live check
+│  ├─ scripts/               Database check, migrations, create staff, end-to-end live check,
+│  │                         and offline-mode account creation and password reset
+│  ├─ data/                  Development-only offline database (git ignores it)
 │  └─ test/                  API, permission and database tests
 ├─ scripts/                  Build checks (the installer refuses a local or non-HTTPS API address)
 ├─ build/                    Installer icon
@@ -134,6 +172,10 @@ For an existing project, run only the new files in `server/supabase/migrations/`
 | `npm --prefix server run user:create` | Create a staff account on the `.env` project (`live:user-create` for `.env.live`) |
 | `npm run build` | Build the interface into `dist/` |
 | `npm run dist` | Build the Windows installer into `release/`, connected to the hosted API |
+| `npm run dev:offline` | Run the app in offline mode on the development database `server/data/rm-pos-pglite` |
+| `npm run dist:offline` | Build the offline Windows installer into `release/`. It carries its own server and database |
+| `npm --prefix server run local:password-reset -- USERNAME PASSWORD` | Offline mode: set a staff password. Close RM POS first |
+| `npm --prefix server run local:user:create -- USERNAME PASSWORD "Full Name" ROLE` | Offline mode: add a staff account, including an Owner. Close RM POS first |
 
 Only one copy of the app can run at a time. Close one before starting the other.
 
@@ -173,7 +215,7 @@ Errors are always `{ "error": "message" }` with a matching status code. The requ
 
 ## Security notes
 
-- Passwords are stored by Supabase Auth (bcrypt). The app never sees or stores them.
+- Cloud mode: passwords are stored by Supabase Auth (bcrypt). Offline mode: the local server stores salted scrypt hashes. Neither keeps a readable password.
 - The database's secret key stays on the API server. The installer contains no keys.
 - Every table has row-level security with no policies, so the public key can't read or change anything.
 - The API sends security headers, limits each address to 600 requests a minute, and locks an account from an address for 15 minutes after 5 wrong passwords.

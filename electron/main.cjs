@@ -1,6 +1,7 @@
 // Electron main process (Node.js side)
 const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, session, shell } = require('electron');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -67,6 +68,57 @@ function lockWindow(win) {
 }
 
 let mainWindow = null;
+let localServer = null;
+
+async function startLocalServer() {
+  if (devUrl) {
+    const check = require('node:net').connect({ host: '127.0.0.1', port: 4000 });
+    check.on('connect', () => { check.destroy(); });
+    check.on('error', () => {});
+    return;
+  }
+
+  try {
+    const existing = await net.fetch('http://127.0.0.1:4000/api/health/ready');
+    if (existing.ok) return;
+  } catch {}
+
+  const serverDir = path.join(process.resourcesPath, 'server');
+  process.env.RM_POS_LOCAL_MODE = '1';
+  process.env.PORT = '4000';
+  const roamingAppData = process.env.APPDATA || app.getPath('appData');
+  process.env.RM_POS_DB_PATH = path.join(roamingAppData, 'RM POS', 'database');
+
+  try {
+    const [{ readConfig }, { createLocalClients }, { createApp }] = await Promise.all([
+      import(pathToFileURL(path.join(serverDir, 'config.js')).href),
+      import(pathToFileURL(path.join(serverDir, 'local-db.js')).href),
+      import(pathToFileURL(path.join(serverDir, 'app.js')).href)
+    ]);
+    const config = readConfig(process.env);
+    config.corsOrigins = ['app://rmpos', 'http://localhost:4000', 'http://127.0.0.1:4000'];
+    const clients = await createLocalClients(config);
+    const serverApp = createApp({ config, ...clients });
+    await new Promise((resolve, reject) => {
+      localServer = serverApp.listen(4000, '0.0.0.0', resolve);
+      localServer.on('error', reject);
+    });
+  } catch (error) {
+    dialog.showErrorBox('RM POS could not start', `The local database server could not start: ${error.message}`);
+    throw error;
+  }
+}
+
+async function waitForLocalServer() {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const result = await net.fetch('http://127.0.0.1:4000/api/health/ready');
+      if (result.ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  dialog.showErrorBox('RM POS could not start', 'The local RM POS server did not start. Reinstall RM POS or contact your administrator.');
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -185,6 +237,21 @@ handle('printers:save', async (event, settings) => {
 
 handle('app:computer-name', () => require('node:os').hostname());
 
+const apiAddressFile = () => path.join(app.getPath('userData'), 'api-address.txt');
+
+ipcMain.on('app:api-address:get', (event) => {
+  if (!fromApp(event.senderFrame?.url ?? '')) {
+    event.returnValue = 'http://localhost:4000';
+    return;
+  }
+  try {
+    const value = fsSync.readFileSync(apiAddressFile(), 'utf8');
+    event.returnValue = /^https?:\/\/[^/]+$/i.test(value.trim()) ? value.trim() : 'http://localhost:4000';
+  } catch {
+    event.returnValue = 'http://localhost:4000';
+  }
+});
+
 // Prints on the printer chosen for this kind of print. "Silent" skips the dialog; otherwise the dialog
 // opens with that printer already picked. A person choosing Cancel isn't an error.
 handle('print:document', async (event, paperSize, role) => {
@@ -215,10 +282,12 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    startLocalServer();
     protocol.handle('app', serveApp);
     limitPermissions();
     if (!devUrl) Menu.setApplicationMenu(null);
+    await waitForLocalServer();
     createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -226,6 +295,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.on('window-all-closed', () => {
+    localServer?.close();
     if (process.platform !== 'darwin') app.quit();
   });
 }

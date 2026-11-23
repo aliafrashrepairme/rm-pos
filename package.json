@@ -8,11 +8,13 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "concurrently -k -n web,app,api -c yellow,cyan,green \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\" \"npm --prefix server run dev\"",
+    "dev:offline": "concurrently -k -n web,app,api -c yellow,cyan,green \"cross-env VITE_API_URL=http://localhost:4000 vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 RM_POS_LOCAL_MODE=1 electron .\" \"cross-env RM_POS_LOCAL_MODE=1 PORT=4000 npm --prefix server run dev\"",
     "dev:web": "vite",
     "live": "concurrently -k -n web,app,api -c yellow,cyan,green \"cross-env VITE_API_URL=http://localhost:4100 vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\" \"cross-env PORT=4100 npm --prefix server run live:start\"",
     "build": "vite build",
     "start": "electron .",
     "dist": "node scripts/check-release-address.js && vite build && electron-builder",
+    "dist:offline": "cross-env RM_POS_BUILD_MODE=offline VITE_API_URL=http://localhost:4000 node scripts/check-release-address.js && cross-env VITE_API_URL=http://localhost:4000 vite build && electron-builder",
     "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
@@ -42,6 +44,25 @@
       "dist/**",
       "electron/**",
       "!node_modules/**"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!test/**",
+          "!data/**",
+          "!**/*.log",
+          "!**/.env*",
+          "!supabase/*.crt",
+          "!supabase/fresh-project.sql"
+        ]
+      },
+      {
+        "from": "server/node_modules",
+        "to": "server/node_modules"
+      }
     ],
     "win": {
       "target": "nsis",

@@ -16,18 +16,20 @@
     "db:restore": "node scripts/restore-backup.js",
     "live:start": "node --env-file=../.env.live index.js",
     "live:db-check": "node --env-file=../.env.live scripts/check-database.js",
-    "live:user-create": "node --env-file=../.env.live scripts/create-user.js"
+    "live:user-create": "node --env-file=../.env.live scripts/create-user.js",
+    "local:user:create": "node scripts/create-local-user.js",
+    "local:password-reset": "node scripts/reset-local-password.js"
   },
   "engines": {
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@supabase/supabase-js": "^2.118.0",
     "cors": "^2.8.6",
     "express": "^5.3.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.13",
     "pg": "^8.23.1"
   }
 }

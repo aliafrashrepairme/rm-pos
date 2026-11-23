@@ -1,5 +1,12 @@
 // All calls to the Node API go through here.
-const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:4000';
+const configuredApiAddress = import.meta.env?.VITE_API_URL || 'http://localhost:4000';
+const isOfflineBuild = /^http:\/\/(localhost|127\.0\.0\.1):4000\/?$/.test(configuredApiAddress);
+const savedApiAddress = typeof localStorage === 'undefined' ? '' : localStorage.getItem('rm-pos-api-url') || '';
+const desktopApiAddress = typeof window !== 'undefined' ? window.rmpos?.getApiAddress?.() : '';
+const API_URL = (isOfflineBuild
+  ? 'http://127.0.0.1:4000'
+  : (savedApiAddress || desktopApiAddress || configuredApiAddress)
+).replace(/\/$/, '');
 const TOKEN_KEY = 'rm-pos-token';
 const REFRESH_TOKEN_KEY = 'rm-pos-refresh-token';
 export const SESSION_EXPIRED_EVENT = 'rm-pos:session-expired';

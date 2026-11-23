@@ -2,7 +2,8 @@ import { Router } from 'express';
 
 export function healthRoutes({ database }) {
   const router = Router();
-  router.get('/health', (req, res) => res.json({ ok: true, service: 'rm-pos-server', storage: 'supabase' }));
+  const storage = database._pglite ? 'local' : 'supabase';
+  router.get('/health', (req, res) => res.json({ ok: true, service: 'rm-pos-server', storage }));
   router.get('/health/ready', async (req, res) => {
     const { error } = await database.from('store_settings').select('id').limit(1);
     if (error) {
