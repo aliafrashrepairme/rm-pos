@@ -74,7 +74,8 @@ export default function ProductForm({ product, options, barcode, onClose, onSave
     try {
       const { product: saved } = await api(product ? `/api/products/${product.id}` : '/api/products', {
         method: product ? 'PATCH' : 'POST',
-        body: JSON.stringify(values)
+        // When editing, the server refuses the save if someone else changed this product meanwhile.
+        body: JSON.stringify(product ? { ...values, expectedUpdatedAt: product.updatedAt } : values)
       });
       if (photo) {
         try {

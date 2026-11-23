@@ -1,8 +1,9 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { assertUnchanged } from './editConflict.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COLUMNS = 'id, code, name, phone, email, address, loyalty_points, purchase_count, active';
+const COLUMNS = 'id, code, name, phone, email, address, loyalty_points, purchase_count, active, updated_at';
 const HISTORY_LIMIT = 50;
 
 function requireId(id) {
@@ -52,7 +53,8 @@ function asCustomer(row) {
     address: row.address,
     loyaltyPoints: row.loyalty_points,
     purchaseCount: row.purchase_count,
-    active: row.active
+    active: row.active,
+    updatedAt: row.updated_at
   };
 }
 
@@ -133,6 +135,7 @@ export async function updateCustomer({ database }, user, id, body) {
     changes.active = body.active;
   }
   if (!Object.keys(changes).length) throw new HttpError(400, 'Nothing to change.');
+  await assertUnchanged(database, 'customers', id, body?.expectedUpdatedAt, 'Customer not found.');
 
   if (changes.active === false) {
     const { count, error } = await database.from('held_orders').select('id', { count: 'exact', head: true }).eq('customer_id', id).eq('status', 'Held');

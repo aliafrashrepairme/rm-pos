@@ -102,6 +102,8 @@ export default function QuoteForm({ quote, user, onClose, onSaved, onSavedOfflin
     // A new quotation carries a request ID, so sending it again (after a lost reply, or from the
     // offline drafts) never makes a second copy.
     if (!quote) body.clientRequestId = requestId;
+    // When editing, the server refuses the save if someone else changed this quotation meanwhile.
+    else body.expectedUpdatedAt = quote.updatedAt;
     if (workOffline) {
       await saveOffline(body);
       return;

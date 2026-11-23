@@ -738,7 +738,9 @@ export default {
     'Editing a quotation needs a connection. Your changes are still on screen; save them when the connection returns.': 'விலைக்குறிப்பைத் திருத்த இணைப்பு தேவை. உங்கள் மாற்றங்கள் திரையில் உள்ளன; இணைப்பு திரும்பியதும் சேமிக்கவும்.',
     'Sign in to send the bills and quotations saved on this device.': 'இந்தச் சாதனத்தில் சேமிக்கப்பட்ட பில்களையும் விலைக்குறிப்புகளையும் அனுப்ப உள்நுழையவும்.',
     'Cannot reach the RM POS server. Offline sign-in works only for staff who signed in on this device in the last 14 days, with the same password.': 'RM POS சேவையகத்தை அணுக முடியவில்லை. கடந்த 14 நாட்களில் இந்தச் சாதனத்தில் அதே கடவுச்சொல்லுடன் உள்நுழைந்த ஊழியர்கள் மட்டுமே இணைப்பின்றி உள்நுழைய முடியும்.',
-    'The server refused this draft.': 'சேவையகம் இந்த வரைவை ஏற்கவில்லை.'
+    'The server refused this draft.': 'சேவையகம் இந்த வரைவை ஏற்கவில்லை.',
+    'Someone else changed this while you were editing. Close it and open it again to see their changes.': 'நீங்கள் திருத்திக்கொண்டிருந்தபோது வேறொருவர் இதை மாற்றியுள்ளார். அவர்களின் மாற்றங்களைப் பார்க்க இதை மூடி மீண்டும் திறக்கவும்.',
+    'The edit time is not valid.': 'திருத்திய நேரம் சரியானதல்ல.'
   },
   si: {
     "Today's sales": 'අද විකුණුම්',
@@ -1478,6 +1480,8 @@ export default {
     'Editing a quotation needs a connection. Your changes are still on screen; save them when the connection returns.': 'මිල ගණන් පත්‍රයක් සංස්කරණය කිරීමට සම්බන්ධතාවයක් අවශ්‍යයි. ඔබේ වෙනස්කම් තවමත් තිරයේ ඇත; සම්බන්ධතාවය නැවත ලැබුණු විට ඒවා සුරකින්න.',
     'Sign in to send the bills and quotations saved on this device.': 'මෙම උපාංගයේ සුරැකි බිල්පත් සහ මිල ගණන් පත්‍ර යැවීමට පිවිසෙන්න.',
     'Cannot reach the RM POS server. Offline sign-in works only for staff who signed in on this device in the last 14 days, with the same password.': 'RM POS සේවාදායකයට සම්බන්ධ විය නොහැක. සම්බන්ධතාවයකින් තොරව පිවිසිය හැක්කේ පසුගිය දින 14 තුළ එම මුරපදයම භාවිතයෙන් මෙම උපාංගයට පිවිසි කාර්ය මණ්ඩලයට පමණි.',
-    'The server refused this draft.': 'සේවාදායකය මෙම කෙටුම්පත ප්‍රතික්ෂේප කළා.'
+    'The server refused this draft.': 'සේවාදායකය මෙම කෙටුම්පත ප්‍රතික්ෂේප කළා.',
+    'Someone else changed this while you were editing. Close it and open it again to see their changes.': 'ඔබ සංස්කරණය කරමින් සිටියදී වෙනත් අයෙක් මෙය වෙනස් කළා. ඔවුන්ගේ වෙනස්කම් බැලීමට මෙය වසා නැවත විවෘත කරන්න.',
+    'The edit time is not valid.': 'සංස්කරණ වේලාව වලංගු නැත.'
   }
 };

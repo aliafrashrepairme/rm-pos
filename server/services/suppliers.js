@@ -1,6 +1,7 @@
 import { selectAll } from '../db.js';
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { assertUnchanged } from './editConflict.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TEXT_FIELDS = {
@@ -61,7 +62,8 @@ function asSupplier(row) {
     leadTimeDays: row.lead_time_days,
     rating: row.rating === null ? null : Number(row.rating),
     active: row.active,
-    stats: row.stats
+    stats: row.stats,
+    updatedAt: row.updated_at
   };
 }
 
@@ -142,6 +144,7 @@ export async function updateSupplier({ database }, user, id, body) {
     changes.active = body.active;
   }
   if (!Object.keys(changes).length) throw new HttpError(400, 'Nothing to change.');
+  await assertUnchanged(database, 'suppliers', id, body?.expectedUpdatedAt, 'Supplier not found.');
 
   if (changes.active === false) {
     const { count, error } = await database.from('purchases').select('id', { count: 'exact', head: true }).eq('supplier_id', id).in('status', ['Draft', 'Ordered', 'Partially Received']);

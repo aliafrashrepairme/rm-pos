@@ -1,5 +1,6 @@
 import { HttpError, unwrap } from '../errors.js';
 import { writeAudit } from './audit.js';
+import { assertUnchanged } from './editConflict.js';
 
 export const STATUSES = ['Draft', 'Sent', 'Accepted', 'Rejected', 'Converted', 'Expired', 'Cancelled'];
 const MOVES = { send: 'Sent', accept: 'Accepted', reject: 'Rejected', cancel: 'Cancelled' };
@@ -66,6 +67,7 @@ export async function getQuotation({ database }, id) {
     decidedAt: row.decided_at,
     createdBy: row.creator?.full_name ?? '',
     billNo: row.sales?.bill_no ?? null,
+    updatedAt: row.updated_at,
     lines: [...row.quotation_items].sort((a, b) => a.line_no - b.line_no).map((item) => ({
       productId: item.product_id,
       name: item.products?.name ?? '',
@@ -133,7 +135,9 @@ export async function createQuotation(clients, user, body) {
 
 export async function updateQuotation(clients, user, id, body) {
   requireId(id);
-  unwrap(await clients.database.rpc('save_quotation', { p_quote: { ...quoteBody(body), id }, p_user: user.id }));
+  const details = quoteBody(body);
+  await assertUnchanged(clients.database, 'quotations', id, body?.expectedUpdatedAt, 'Quotation not found.');
+  unwrap(await clients.database.rpc('save_quotation', { p_quote: { ...details, id }, p_user: user.id }));
   const quote = await getQuotation(clients, id);
   await writeAudit(clients.database, { user, action: 'Quotation updated', description: `${quote.quoteNo} · ${quote.total.toFixed(2)}`, entityType: 'quotation', entityId: id });
   return quote;

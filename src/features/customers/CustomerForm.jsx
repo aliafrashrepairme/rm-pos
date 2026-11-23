@@ -25,7 +25,8 @@ export default function CustomerForm({ customer, user, onClose, onSaved }) {
     try {
       const { customer: saved } = await api(customer ? `/api/customers/${customer.id}` : '/api/customers', {
         method: customer ? 'PATCH' : 'POST',
-        body: JSON.stringify(customer ? details : { ...details, loyaltyPoints })
+        // When editing, the server refuses the save if someone else changed this customer meanwhile.
+        body: JSON.stringify(customer ? { ...details, expectedUpdatedAt: customer.updatedAt } : { ...details, loyaltyPoints })
       });
       onSaved(saved);
     } catch (failure) {

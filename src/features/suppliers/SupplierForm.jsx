@@ -31,7 +31,8 @@ export default function SupplierForm({ supplier, onClose, onSaved }) {
     try {
       const { supplier: saved } = await api(supplier ? `/api/suppliers/${supplier.id}` : '/api/suppliers', {
         method: supplier ? 'PATCH' : 'POST',
-        body: JSON.stringify(values)
+        // When editing, the server refuses the save if someone else changed this supplier meanwhile.
+        body: JSON.stringify(supplier ? { ...values, expectedUpdatedAt: supplier.updatedAt } : values)
       });
       onSaved(saved);
     } catch (failure) {

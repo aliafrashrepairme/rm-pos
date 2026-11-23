@@ -23,7 +23,7 @@ export function productRoutes(clients) {
     res.status(201).json({ product: await products.createProduct(clients, req.user, newProduct(req.body)) });
   });
   router.patch('/:id', MANAGE, async (req, res) => {
-    res.json({ product: await products.updateProduct(clients, req.user, req.params.id, productChanges(req.body)) });
+    res.json({ product: await products.updateProduct(clients, req.user, req.params.id, productChanges(req.body), req.body?.expectedUpdatedAt) });
   });
   router.put('/:id/image', MANAGE, imageBody, async (req, res) => {
     res.json({ product: await products.setProductImage(clients, req.user, req.params.id, req.get('content-type'), req.body) });

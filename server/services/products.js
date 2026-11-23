@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, unwrap } from '../errors.js';
 import { categoryName } from '../validation/products.js';
 import { writeAudit } from './audit.js';
+import { assertUnchanged } from './editConflict.js';
 
 const BUCKET = 'product-images';
 const IMAGE_LINK_SECONDS = 3600;
@@ -105,9 +106,10 @@ export async function createProduct(clients, user, product) {
   return created;
 }
 
-export async function updateProduct(clients, user, id, changes) {
+export async function updateProduct(clients, user, id, changes, expectedUpdatedAt) {
   const before = unwrap(await clients.database.from('products').select('id').eq('id', id).maybeSingle());
   if (!before) throw new HttpError(404, 'Product not found.');
+  await assertUnchanged(clients.database, 'products', id, expectedUpdatedAt, 'Product not found.');
   if ('barcode' in changes) await assertBarcodeFree(clients.database, changes.barcode, id);
   unwrap(await clients.database.from('products').update(changes).eq('id', id));
   const updated = await getProduct(clients, id);
