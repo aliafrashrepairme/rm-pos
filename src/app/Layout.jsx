@@ -1,6 +1,9 @@
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { LANGUAGES } from '../i18n/translate.js';
-import { menuFor } from './access.js';
+import { useCart } from '../features/pos/CartContext.jsx';
+import { removeDraft } from '../offline/outbox.js';
+import SyncStatus from '../offline/SyncStatus.jsx';
+import { can, menuFor } from './access.js';
 import { useStoreLogo } from './storeLogo.js';
 
 export function ThemeButton({ theme, onChange }) {
@@ -23,9 +26,21 @@ export function LanguageSelect({ onChange }) {
   );
 }
 
-export default function Layout({ user, page, version, theme, onNavigate, onTheme, onLanguage, onChangePassword, onLogout, children }) {
+export default function Layout({ user, serverSession = true, onSignInAgain, page, version, theme, onNavigate, onTheme, onLanguage, onChangePassword, onLogout, children }) {
   const { t } = useI18n();
   const logo = useStoreLogo();
+  const cart = useCart();
+
+  // A bill the server refused (for example, a price changed) goes back onto the till to be rung up again.
+  // The refused draft is removed first, so the same bill can never be sent twice.
+  async function openInPos(entry) {
+    if (!cart || !entry.summary?.lines) return;
+    if (!(await removeDraft(entry.id))) return;
+    cart.setLines(entry.summary.lines);
+    cart.setCustomer(entry.summary.customerRecord ?? null);
+    cart.setCouponCode(entry.body.couponCode || '');
+    onNavigate('POS Billing');
+  }
   return (
     <div className="app">
       <aside className="sidebar">
@@ -58,10 +73,11 @@ export default function Layout({ user, page, version, theme, onNavigate, onTheme
         <header className="topbar">
           <div className="crumb">RM POS <span className="crumb-sep">/</span><b>{page ? t(page) : ''}</b></div>
           <div className="top-actions">
+            <SyncStatus user={user} serverSession={serverSession} onSignInAgain={onSignInAgain} onOpenInPos={can(user, 'pos.sell') ? openInPos : null} />
             <ThemeButton theme={theme} onChange={onTheme} />
             <LanguageSelect onChange={onLanguage} />
             <span className="user-pill">{user.name} · {t(user.role)}</span>
-            <button type="button" className="btn btn-outline btn-sm" onClick={onChangePassword}>{t('Change password')}</button>
+            {serverSession && <button type="button" className="btn btn-outline btn-sm" onClick={onChangePassword}>{t('Change password')}</button>}
             <button type="button" className="btn btn-outline btn-sm" onClick={onLogout}>{t('Log out')}</button>
           </div>
         </header>

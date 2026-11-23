@@ -14,7 +14,7 @@
     "build": "vite build",
     "start": "electron .",
     "dist": "node scripts/check-release-address.js && vite build && electron-builder",
-    "dist:offline": "cross-env RM_POS_BUILD_MODE=offline VITE_API_URL=http://localhost:4000 node scripts/check-release-address.js && cross-env VITE_API_URL=http://localhost:4000 vite build && electron-builder",
+    "dist:offline": "cross-env RM_POS_BUILD_MODE=offline VITE_API_URL=http://localhost:4000 node scripts/check-release-address.js && cross-env VITE_API_URL=http://localhost:4000 vite build && electron-builder -c.extraMetadata.rmPosMode=offline",
     "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {

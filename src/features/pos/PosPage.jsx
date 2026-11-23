@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../../api.js';
+import { api, hasServerSession, isNetworkError } from '../../api.js';
+import { cachedCatalog, cachedPosOptions, findByCode, reduceCachedStock, searchProducts } from '../../offline/catalog.js';
+import { addDraft } from '../../offline/outbox.js';
+import { useConnection } from '../../offline/SyncStatus.jsx';
 import { can } from '../../app/access.js';
 import { createDuplicateFilter, createScannerBuffer } from '../../app/barcode.js';
 import { beep } from '../../app/beep.js';
@@ -85,15 +88,41 @@ export default function PosPage({ user, onNavigate }) {
   const linesRef = useRef(lines);
   linesRef.current = lines;
 
+  // Without a connection (or after an offline sign-in) the till works from the copy saved on this device.
+  const online = useConnection();
+  const workOffline = !online || !hasServerSession();
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const [cacheSavedAt, setCacheSavedAt] = useState(null);
+
   useEffect(() => {
-    api('/api/pos/options').then(setOptions).catch((failure) => setError(failure.message));
+    api('/api/pos/options').then(setOptions).catch(async (failure) => {
+      const saved = isNetworkError(failure) || !hasServerSession() ? await cachedPosOptions().catch(() => null) : null;
+      if (saved) setOptions(saved);
+      else setError(failure.message);
+    });
   }, []);
   useEffect(() => { setPage(1); }, [search, categoryId]);
 
   const params = new URLSearchParams({ page: String(page) });
   if (search) params.set('q', search);
   if (categoryId) params.set('categoryId', categoryId);
-  const { data, error: listError, reload } = useListRequest(`/api/pos/catalog?${params}`);
+  const { data: liveData, error: liveError, reload } = useListRequest(`/api/pos/catalog?${params}`);
+  const [offlineData, setOfflineData] = useState(null);
+  useEffect(() => {
+    if (!workOffline) {
+      setOfflineData(null);
+      return undefined;
+    }
+    let current = true;
+    cachedCatalog().then((catalog) => {
+      if (!current) return;
+      setCacheSavedAt(catalog.savedAt);
+      setOfflineData(searchProducts(catalog.products, { q: search, categoryId, page }));
+    });
+    return () => { current = false; };
+  }, [workOffline, search, categoryId, page, cacheVersion]);
+  const data = workOffline ? offlineData : liveData;
+  const listError = workOffline ? '' : liveError;
 
   // Regular-customer discount: the server says whether this customer has enough recent purchases.
   // Until it answers (undefined), the sale waits, so the till never shows a different total from the bill.
@@ -167,7 +196,24 @@ export default function PosPage({ user, onNavigate }) {
     return true;
   }, [setLines, t, toast]);
 
+  // A scan without a connection is looked up in the product list saved on this device.
+  const addByCodeOffline = useCallback(async (code) => {
+    const saved = findByCode((await cachedCatalog()).products, code);
+    if (!saved) {
+      toast(`${code}: ${t('This product is not in the product list saved on this device.')}`);
+      return;
+    }
+    if (addProduct(saved)) {
+      beep();
+      toast(`✓ ${saved.name} · ${money(saved.price)}`);
+    }
+  }, [addProduct, t, toast]);
+
   const addByCode = useCallback(async (code) => {
+    if (workOffline) {
+      await addByCodeOffline(code);
+      return;
+    }
     try {
       const { product } = await api(`/api/barcode/lookup?code=${encodeURIComponent(code)}`);
       if (!product.active) {
@@ -190,11 +236,15 @@ export default function PosPage({ user, onNavigate }) {
         toast(`✓ ${product.name} · ${money(product.sellingPrice)}`);
       }
     } catch (failure) {
+      if (isNetworkError(failure)) {
+        await addByCodeOffline(code);
+        return;
+      }
       toast(failure.code === 'UNKNOWN_BARCODE'
         ? `${code}: ${t('This product is not in the product list. Ask a manager to add it.')}`
         : t(failure.message));
     }
-  }, [addProduct, t, toast]);
+  }, [addProduct, addByCodeOffline, workOffline, t, toast]);
 
   async function scanPhoto(event) {
     const file = event.target.files?.[0];
@@ -327,24 +377,30 @@ export default function PosPage({ user, onNavigate }) {
     }
     // The same ID on a retry means a lost reply can't charge the customer twice.
     pendingRequest.current ||= crypto.randomUUID();
+    const saleBody = {
+      clientRequestId: pendingRequest.current,
+      items: lines.map((line) => ({ productId: line.id, qty: line.qty })),
+      customerId: customer?.id ?? null,
+      couponCode: couponCode || null,
+      expectedTotal: totals.total,
+      pointsToRedeem: redeem,
+      payment: { method, amountTendered: isCash ? given : null, reference: reference.trim() }
+    };
+    if (workOffline) {
+      await saveOffline(saleBody);
+      return;
+    }
     setBusy(true);
     try {
       const { sale } = await api('/api/pos/sales', {
         method: 'POST',
-        body: JSON.stringify({
-          clientRequestId: pendingRequest.current,
-          items: lines.map((line) => ({ productId: line.id, qty: line.qty })),
-          customerId: customer?.id ?? null,
-          couponCode: couponCode || null,
-          expectedTotal: totals.total,
-          pointsToRedeem: redeem,
-          payment: { method, amountTendered: isCash ? given : null, reference: reference.trim() }
-        })
+        body: JSON.stringify(saleBody)
       });
       const fromQuote = cart.quotation;
       setCompleted(sale);
       clearBill();
       reload();
+      reduceCachedStock(saleBody.items).catch(() => {});
       if (fromQuote) {
         // The sale is already saved, so a failed link is reported but doesn't undo the bill.
         api(`/api/quotations/${fromQuote.id}/convert`, { method: 'POST', body: JSON.stringify({ saleId: sale.id }) })
@@ -352,6 +408,13 @@ export default function PosPage({ user, onNavigate }) {
           .catch((failure) => toast(`${fromQuote.quoteNo}: ${t(failure.message)}`));
       }
     } catch (failure) {
+      // The connection dropped: keep the bill as a draft with the same request ID. If the server did
+      // record it, sending the draft later gets that same bill back instead of a second one.
+      if (isNetworkError(failure)) {
+        setBusy(false);
+        await saveOffline(saleBody);
+        return;
+      }
       setError(failure.message);
       if (failure.status === 409) {
         await refreshPrices().catch(() => {});
@@ -362,9 +425,55 @@ export default function PosPage({ user, onNavigate }) {
     }
   }
 
+  // Saves the bill on this device to be sent when the connection returns. Credit and loyalty points depend
+  // on balances only the server knows, so those bills need a connection.
+  async function saveOffline(saleBody) {
+    if (isCredit) {
+      setError('Credit sales need a connection to check the customer\'s credit limit. Choose another payment method or wait for the connection.');
+      return;
+    }
+    if (redeem > 0) {
+      setError('Loyalty points can only be used with a connection. Clear the points or wait for the connection.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const fromQuote = cart.quotation;
+      await addDraft({
+        kind: 'sale',
+        body: saleBody,
+        userId: user.id,
+        userName: user.name,
+        summary: {
+          total: due,
+          items: lines.reduce((sum, line) => sum + line.qty, 0),
+          customer: customer?.name ?? '',
+          customerRecord: customer ?? null,
+          method,
+          lines
+        },
+        after: fromQuote ? { convertQuotationId: fromQuote.id, quoteNo: fromQuote.quoteNo } : null
+      });
+      await reduceCachedStock(saleBody.items).catch(() => {});
+      setCacheVersion((version) => version + 1);
+      clearBill();
+      beep();
+      toast(`💾 ${t('Bill saved on this device')} · ${money(due)}. ${t('It will be sent and numbered when the connection returns.')}`);
+      searchBox.current?.focus();
+    } catch (failure) {
+      setError(`${t('The bill could not be saved on this device:')} ${failure.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function holdBill() {
     if (!lines.length) {
       toast(t('Add at least one product before holding.'));
+      return;
+    }
+    if (workOffline) {
+      setError('Holding a bill needs a connection. The bill stays on the till, saved on this device, until you complete or clear it.');
       return;
     }
     setBusy(true);
@@ -409,7 +518,13 @@ export default function PosPage({ user, onNavigate }) {
           <button type="button" className="btn btn-outline btn-sm" onClick={() => cart.setQuotation(null)}>{t('Unlink')}</button>
         </div>
       )}
-      {noShift && <div className="light-note pos-shift-note">{t('No shift is open, so cash from these sales will not be counted in a drawer. Open one in Shifts & Cash.')}</div>}
+      {workOffline && (
+        <div className="light-note pos-shift-note offline-note">
+          📴 {t('Working offline.')} {t('Products are from the copy saved on this device')}{cacheSavedAt ? ` (${new Date(cacheSavedAt).toLocaleString('en-LK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })})` : ''}. {t('Completed bills are saved here and sent, with their bill numbers, when the connection returns.')}
+          {cacheSavedAt === null && offlineData && <> <b>{t('No product list is saved on this device yet. Connect once to download it.')}</b></>}
+        </div>
+      )}
+      {!workOffline && noShift && <div className="light-note pos-shift-note">{t('No shift is open, so cash from these sales will not be counted in a drawer. Open one in Shifts & Cash.')}</div>}
       <div className="pos-layout">
         <div>
           <div className="toolbar">

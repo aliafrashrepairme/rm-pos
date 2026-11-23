@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../api.js';
+import { api, hasServerSession, isNetworkError } from '../../api.js';
+import { cachedCatalog, searchProducts } from '../../offline/catalog.js';
+import { addDraft } from '../../offline/outbox.js';
+import { useConnection } from '../../offline/SyncStatus.jsx';
 import { money, quantity } from '../../app/format.js';
 import { useDebounced } from '../../app/useListRequest.js';
 import Modal from '../../components/Modal.jsx';
@@ -14,9 +17,22 @@ function localDatePlus(days) {
 const lineTotal = (line) => Math.round(Number(line.qty || 0) * line.price * 100) / 100;
 const lineTax = (line) => Math.round(lineTotal(line) * line.taxRate) / 100;
 
+// Products matching a search, from the copy saved on this device, in the shape /api/quotations/products gives.
+async function savedProductMatches(search) {
+  const { products } = searchProducts((await cachedCatalog()).products, { q: search, pageSize: 10 });
+  return products.map((product) => ({
+    productId: product.id, name: product.name, sku: product.sku, unit: product.unit,
+    stock: product.stock, price: product.price, taxRate: product.taxRate
+  }));
+}
+
 // Creates a quotation, or edits a draft when `quote` is given.
-export default function QuoteForm({ quote, onClose, onSaved }) {
+// Without a connection, a new quotation is saved on this device and sent when the connection returns.
+export default function QuoteForm({ quote, user, onClose, onSaved, onSavedOffline }) {
   const { t } = useI18n();
+  const online = useConnection();
+  const workOffline = !online || !hasServerSession();
+  const [requestId] = useState(() => crypto.randomUUID());
   const [customer, setCustomer] = useState(quote?.customerId ? { id: quote.customerId, name: quote.customerName, phone: quote.customerPhone } : null);
   const [customerName, setCustomerName] = useState(quote?.customerId ? '' : quote?.customerName ?? '');
   const [customerPhone, setCustomerPhone] = useState(quote?.customerId ? '' : quote?.customerPhone ?? '');
@@ -38,11 +54,19 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
   useEffect(() => {
     if (!search.trim()) { setMatches([]); return undefined; }
     let current = true;
-    api(`/api/quotations/products?q=${encodeURIComponent(search)}`)
-      .then(({ products }) => { if (current) setMatches(products); })
-      .catch((failure) => { if (current) setError(failure.message); });
+    const fromDevice = () => savedProductMatches(search).then((products) => { if (current) setMatches(products); });
+    if (workOffline) {
+      fromDevice();
+    } else {
+      api(`/api/quotations/products?q=${encodeURIComponent(search)}`)
+        .then(({ products }) => { if (current) setMatches(products); })
+        .catch((failure) => {
+          if (isNetworkError(failure)) fromDevice();
+          else if (current) setError(failure.message);
+        });
+    }
     return () => { current = false; };
-  }, [search]);
+  }, [search, workOffline]);
 
   useEffect(() => {
     if (!customerSearch.trim()) { setCustomerMatches([]); return undefined; }
@@ -67,19 +91,56 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
     event.preventDefault();
     setError('');
     setBusy(true);
+    const body = {
+      customerId: customer?.id ?? null,
+      customerName: customer ? customer.name : customerName,
+      customerPhone: customer ? customer.phone : customerPhone,
+      validUntil,
+      note,
+      items: lines.map((line) => ({ productId: line.productId, qty: line.qty }))
+    };
+    // A new quotation carries a request ID, so sending it again (after a lost reply, or from the
+    // offline drafts) never makes a second copy.
+    if (!quote) body.clientRequestId = requestId;
+    if (workOffline) {
+      await saveOffline(body);
+      return;
+    }
     try {
-      const body = {
-        customerId: customer?.id ?? null,
-        customerName: customer ? customer.name : customerName,
-        customerPhone: customer ? customer.phone : customerPhone,
-        validUntil,
-        note,
-        items: lines.map((line) => ({ productId: line.productId, qty: line.qty }))
-      };
       const { quotation } = await api(quote ? `/api/quotations/${quote.id}` : '/api/quotations', { method: quote ? 'PUT' : 'POST', body: JSON.stringify(body) });
       onSaved(quotation);
     } catch (failure) {
+      if (isNetworkError(failure)) {
+        await saveOffline(body);
+        return;
+      }
       setError(failure.message);
+      setBusy(false);
+    }
+  }
+
+  async function saveOffline(body) {
+    if (quote) {
+      setError('Editing a quotation needs a connection. Your changes are still on screen; save them when the connection returns.');
+      setBusy(false);
+      return;
+    }
+    if (!user || !onSavedOffline) {
+      setError('Cannot reach the RM POS server. Check the internet connection and try again.');
+      setBusy(false);
+      return;
+    }
+    try {
+      await addDraft({
+        kind: 'quotation',
+        body,
+        userId: user.id,
+        userName: user.name,
+        summary: { total: Math.round((subtotal + tax) * 100) / 100, items: lines.length, customer: body.customerName }
+      });
+      onSavedOffline();
+    } catch (failure) {
+      setError(`${t('The quotation could not be saved on this device:')} ${failure.message}`);
       setBusy(false);
     }
   }

@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
@@ -108,6 +110,77 @@ export function parseOrFilter(expression) {
     }
     return { column, operator: OR_OPERATORS[op], value };
   });
+}
+
+// Two programs writing one database folder at once corrupt it, so the folder is claimed with a lock file
+// holding the process ID. A lock left by a process that has gone (a crash or power cut) is taken over.
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+// When this PC last started, to the minute. Process IDs are reused after a restart, so a lock from an
+// earlier start is always stale, whichever program now has that ID.
+const bootMinute = () => Math.round((Date.now() - os.uptime() * 1000) / 60000);
+
+async function lockDatabase(dbPath) {
+  const lockPath = `${dbPath}.lock`;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await fs.writeFile(lockPath, JSON.stringify({ pid: process.pid, boot: bootMinute() }), { flag: 'wx' });
+      const release = () => { try { fsSync.rmSync(lockPath, { force: true }); } catch { /* already gone */ } };
+      process.once('exit', release);
+      return;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      let lock = {};
+      try { lock = JSON.parse(await fs.readFile(lockPath, 'utf8')); } catch { /* unreadable: stale */ }
+      const owner = Number(lock.pid);
+      const sameBoot = Math.abs(Number(lock.boot) - bootMinute()) <= 2;
+      if (owner && owner !== process.pid && sameBoot && processAlive(owner)) {
+        throw new Error(`The RM POS database is already open in another program (process ${owner}). Close it and try again.`);
+      }
+      await fs.rm(lockPath, { force: true });
+    }
+  }
+  throw new Error('The RM POS database lock could not be taken.');
+}
+
+// Databases made before migrations were tracked here were built from every file up to this one.
+const UNTRACKED_BASELINE = '0029_owner_user_management.sql';
+
+// Brings the database up to date with server/supabase/migrations: a new database gets every file, and an
+// existing one gets only the files added since. Each file runs once, in number order, in its own transaction.
+export async function applyMigrations(db) {
+  const { files } = await bundleMigrations();
+  const tables = await db.query("select count(*)::int as count from pg_tables where schemaname = 'public'");
+  const fresh = tables.rows[0].count === 0;
+  await db.exec(`
+    create schema if not exists local_meta;
+    create table if not exists local_meta.migrations (name text primary key, applied_at timestamptz not null default now());
+  `);
+  const applied = new Set((await db.query('select name from local_meta.migrations')).rows.map((row) => row.name));
+  if (!fresh && applied.size === 0) {
+    for (const file of files.filter((item) => item.name <= UNTRACKED_BASELINE)) {
+      await db.query('insert into local_meta.migrations (name) values ($1)', [file.name]);
+      applied.add(file.name);
+    }
+  }
+  for (const file of files) {
+    if (applied.has(file.name)) continue;
+    // PGlite has no pg_trgm extension; its fuzzy search falls back to the similarity() above.
+    const sql = file.sql
+      .replace(/create extension if not exists pg_trgm[^;]*;/gi, '')
+      .replace(/create index[^\n]*gin[^\n]*;/gi, '');
+    await db.transaction(async (tx) => {
+      await tx.exec(sql);
+      await tx.query('insert into local_meta.migrations (name) values ($1)', [file.name]);
+    });
+  }
 }
 
 // With a hint, follow the link with that constraint name or local column; otherwise the first link.
@@ -464,6 +537,7 @@ class LocalQuery {
 export async function createLocalClients(config) {
   const dbPath = config.localDbPath || path.join(here, 'data', 'rm-pos-pglite');
   await fs.mkdir(path.dirname(dbPath), { recursive: true });
+  await lockDatabase(dbPath);
   const db = new PGlite(dbPath);
   await db.exec(`
     create schema if not exists auth;
@@ -489,14 +563,7 @@ export async function createLocalClients(config) {
     $function$;
   `);
 
-  // Built from the committed migration files, so a fresh checkout needs no generated SQL file.
-  const { sql: migration } = await bundleMigrations();
-  const localMigration = migration
-    .replace(/create extension if not exists pg_trgm[^;]*;/gi, '')
-    .replace(/create index[^\n]*gin[^\n]*;/gi, '');
-
-  const tables = await db.query("select count(*)::int as count from pg_tables where schemaname='public'");
-  if (tables.rows[0].count === 0) await db.exec(localMigration);
+  await applyMigrations(db);
 
   const auth = new LocalAuth(db);
 

@@ -122,7 +122,7 @@ Keep the shop PCs on mains power with a steady connection. The app needs the int
 
 ## Updating later
 
-1. **Database changes:** run only the new migration files on the live project's SQL Editor, in number order. Never run `fresh-project.sql` again.
+1. **Database changes:** run only the new migration files on the live project's SQL Editor, in number order. Never run `fresh-project.sql` again. (The offline installer applies new migration files to its own database by itself, the next time RM POS opens.)
 2. **Server changes:** in Render, choose **Manual Deploy** on the service. Automatic deploys are off, so a push can't change the live shop by accident.
 3. **Desktop changes:** raise the version in `package.json`, run `npm run dist` and install it on each PC.
 

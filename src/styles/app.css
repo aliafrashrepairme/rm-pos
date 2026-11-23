@@ -323,3 +323,13 @@ body:not(.dark) .login-logo { box-shadow: 0 14px 34px rgba(25, 30, 40, .16), 0 0
 .printer-card .btn { justify-self: start; }
 .printer-test { display: grid; gap: 2mm; padding: 4mm; text-align: center; font-family: Arial, sans-serif; color: #000; }
 .bc-label .lregular { font-size: 10px; color: #111; }
+
+/* Offline drafts and sync status */
+.sync-status { cursor: pointer; border: 0; font: inherit; font-size: 12px; white-space: nowrap; }
+.sync-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 12px; }
+.sync-table { max-height: 50vh; }
+.sync-table td { vertical-align: top; white-space: normal; }
+.sync-error { margin: 6px 0 0; font-size: 12px; max-width: 320px; }
+.sync-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.offline-note { border-color: var(--red); }
+@media (max-width: 1000px) { .sync-status { max-width: 150px; overflow: hidden; text-overflow: ellipsis; } }

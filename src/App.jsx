@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, getAuthToken, setAuthToken, SESSION_EXPIRED_EVENT } from './api.js';
-import { canOpen, screensFor } from './app/access.js';
+import { api, getAuthToken, isNetworkError, setAuthToken, SESSION_EXPIRED_EVENT } from './api.js';
+import { can, canOpen, screensFor } from './app/access.js';
+import { syncCatalog } from './offline/catalog.js';
+import { subscribeConnection } from './offline/connection.js';
+import { forgetSignIn } from './offline/offlineAuth.js';
+import { startAutoSync } from './offline/outbox.js';
+import { clearSavedCart } from './features/pos/CartContext.jsx';
 import ChangePassword from './app/ChangePassword.jsx';
 import Layout from './app/Layout.jsx';
 import Login from './app/Login.jsx';
@@ -77,6 +82,47 @@ function Screen({ user, page, onHome, onNavigate, theme, onTheme, onLanguage }) 
   return <ReportsModule user={user} />;
 }
 
+// The signed-in account, kept for this window only (like the sign-in token), so a refresh while the
+// connection is down reopens the same session instead of a "server unavailable" screen.
+const SESSION_USER_KEY = 'rm-pos-session-user';
+function savedSessionUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_USER_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+function saveSessionUser(user) {
+  try {
+    if (user) sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+    else sessionStorage.removeItem(SESSION_USER_KEY);
+  } catch {
+    // Storage blocked: a refresh asks to sign in again.
+  }
+}
+
+const CATALOG_REFRESH_MS = 10 * 60 * 1000;
+
+// Keeps this device's copy of the product list fresh, and sends saved drafts, while signed in with the server.
+function useOfflineSupport(user, serverSession) {
+  const userId = user?.id;
+  const keepsCatalog = Boolean(user) && can(user, 'pos.sell', 'quotations.manage');
+  useEffect(() => {
+    if (!userId || !serverSession) return undefined;
+    return startAutoSync(userId);
+  }, [userId, serverSession]);
+  useEffect(() => {
+    if (!keepsCatalog || !serverSession) return undefined;
+    syncCatalog();
+    const timer = setInterval(syncCatalog, CATALOG_REFRESH_MS);
+    const stop = subscribeConnection((online) => { if (online) syncCatalog(); });
+    return () => {
+      clearInterval(timer);
+      stop();
+    };
+  }, [keepsCatalog, serverSession]);
+}
+
 export default function App() {
   const { t, setLanguage } = useI18n();
   const { slug, screen, navigate } = useHashRoute();
@@ -87,13 +133,19 @@ export default function App() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [offline, setOffline] = useState('');
   const [theme, setThemeState] = useState(() => loadDevicePreferences().theme);
+  // False after an offline sign-in: drafts can be saved, but nothing reaches the server until a real sign-in.
+  const [serverSession, setServerSession] = useState(() => Boolean(getAuthToken()));
 
   useEffect(() => applyTheme(theme), [theme]);
+  useOfflineSupport(user, serverSession);
 
-  const enter = useCallback((nextUser) => {
+  const enter = useCallback((nextUser, { offlineSession = false } = {}) => {
     setUser(nextUser);
     setNotice('');
     setOffline('');
+    setServerSession(!offlineSession && Boolean(getAuthToken()));
+    saveSessionUser({ ...nextUser, offlineSession });
+    if (offlineSession) return;
     api('/api/auth/preferences')
       .then(({ preferences }) => {
         if (!preferences) return;
@@ -106,6 +158,8 @@ export default function App() {
 
   const leave = useCallback((message = '') => {
     setAuthToken(null);
+    saveSessionUser(null);
+    setServerSession(false);
     setUser(null);
     setChangingPassword(false);
     setNotice(message);
@@ -113,7 +167,10 @@ export default function App() {
   }, [navigate]);
 
   const restoreSession = useCallback(() => {
+    const remembered = savedSessionUser();
     if (!getAuthToken()) {
+      // A refresh during an offline sign-in keeps that offline session.
+      if (remembered?.offlineSession) enter(remembered, { offlineSession: true });
       setAuthReady(true);
       return;
     }
@@ -122,7 +179,8 @@ export default function App() {
       .then(({ user: currentUser }) => enter(currentUser))
       .catch((error) => {
         // A network failure keeps the session, so it can continue once the connection returns.
-        if (error.status === 0) setOffline(error.message);
+        if (isNetworkError(error) && remembered) enter(remembered);
+        else if (isNetworkError(error)) setOffline(error.message);
         else leave(error.status === 403 ? error.message : '');
       })
       .finally(() => setAuthReady(true));
@@ -155,11 +213,14 @@ export default function App() {
   }
 
   async function logout() {
-    try {
-      await api('/api/auth/logout', { method: 'POST' });
-    } catch (error) {
-      if (error.status !== 401) console.error('Logout could not reach the server:', error.message);
+    if (serverSession) {
+      try {
+        await api('/api/auth/logout', { method: 'POST' });
+      } catch (error) {
+        if (error.status !== 401) console.error('Logout could not reach the server:', error.message);
+      }
     }
+    clearSavedCart(user?.id);
     leave();
   }
 
@@ -186,6 +247,7 @@ export default function App() {
           setAuthToken(token, refreshToken);
           enter(nextUser);
         }}
+        onOfflineLogin={(offlineUser) => enter(offlineUser, { offlineSession: true })}
       />
     );
   }
@@ -193,7 +255,11 @@ export default function App() {
     return (
       <ChangePassword
         required={user.mustChangePassword}
-        onChanged={() => leave('Password changed. Sign in with your new password.')}
+        onChanged={() => {
+          // The old password must not open an offline session any more.
+          forgetSignIn(user).catch(() => {});
+          leave('Password changed. Sign in with your new password.');
+        }}
         onCancel={user.mustChangePassword ? logout : () => setChangingPassword(false)}
       />
     );
@@ -204,9 +270,11 @@ export default function App() {
   const page = slug ? (screen ?? slug) : home;
 
   return (
-    <CartProvider key={user.id}>
+    <CartProvider key={user.id} userId={user.id}>
     <Layout
       user={user}
+      serverSession={serverSession}
+      onSignInAgain={() => leave('Sign in to send the bills and quotations saved on this device.')}
       page={screen ?? (slug ? '' : home)}
       version={version}
       theme={theme}

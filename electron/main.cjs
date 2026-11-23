@@ -6,6 +6,9 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const devUrl = process.env.VITE_DEV_SERVER_URL;
+// Only the offline installer (npm run dist:offline marks it) runs its own server and database on this PC.
+// A cloud build talks to the hosted server and must not start one.
+const runsOwnServer = require('../package.json').rmPosMode === 'offline' || process.env.RM_POS_LOCAL_MODE === '1';
 const APP_ORIGIN = devUrl ? new URL(devUrl).origin : 'app://rmpos';
 const DIST = path.join(__dirname, '..', 'dist');
 
@@ -239,16 +242,19 @@ handle('app:computer-name', () => require('node:os').hostname());
 
 const apiAddressFile = () => path.join(app.getPath('userData'), 'api-address.txt');
 
+// A server address saved on this PC (api-address.txt in the app's data folder) overrides the one the app
+// was built with. Without a saved address the answer is empty, so the built-in address is used: an empty
+// answer here must never send a cloud build to this PC's own server.
 ipcMain.on('app:api-address:get', (event) => {
   if (!fromApp(event.senderFrame?.url ?? '')) {
-    event.returnValue = 'http://localhost:4000';
+    event.returnValue = '';
     return;
   }
   try {
-    const value = fsSync.readFileSync(apiAddressFile(), 'utf8');
-    event.returnValue = /^https?:\/\/[^/]+$/i.test(value.trim()) ? value.trim() : 'http://localhost:4000';
+    const value = fsSync.readFileSync(apiAddressFile(), 'utf8').trim();
+    event.returnValue = /^https?:\/\/[^/]+$/i.test(value) ? value : '';
   } catch {
-    event.returnValue = 'http://localhost:4000';
+    event.returnValue = '';
   }
 });
 
@@ -283,11 +289,11 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
-    startLocalServer();
+    if (runsOwnServer) startLocalServer();
     protocol.handle('app', serveApp);
     limitPermissions();
     if (!devUrl) Menu.setApplicationMenu(null);
-    await waitForLocalServer();
+    if (runsOwnServer) await waitForLocalServer();
     createWindow();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

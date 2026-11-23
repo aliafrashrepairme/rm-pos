@@ -144,6 +144,27 @@ src/
 - Its generated HTML strings and page-rewriting translator are replaced by React components and `t()`.
 - Pages and buttons check permissions from the signed-in user. The API checks again.
 
+## Offline drafts (cloud mode)
+
+When the server can't be reached, billing and quotations keep working from data saved on the device. Final posting needs the server: offline work is a **draft** until it is sent.
+
+| Saved on the device (IndexedDB, `src/offline/store.js`) | Purpose |
+|---|---|
+| Products for sale and POS options (no cost prices) | Search, scan and price bills offline. Refreshed at sign-in, every 10 minutes and when the connection returns |
+| Draft bills and quotations (the outbox) | Sent automatically when the connection returns |
+| The bill being rung up (`localStorage`, per user) | Survives closing the app, a refresh or a power cut. Signing out clears it |
+| An offline sign-in record per person | A PBKDF2-SHA-256 hash (310,000 rounds) of the password from the last online sign-in, never the password itself |
+
+Rules:
+
+- **No duplicates.** Each draft carries the request ID the online screen would have sent. The server keeps one record per ID (`sales.client_request_id`, `quotations.client_request_id` from migration 0030) and returns the same bill or quotation when it is sent again, so a lost reply or a retry never makes a copy.
+- **Bill numbers and dates are given when the draft reaches the server**, and the server checks stock, prices, coupons and the open shift at that moment, exactly as for an online sale.
+- **Status:** each draft is waiting, sending, sent or failed (the top bar shows it). A dropped connection, a server restart or an expired sign-in leaves it waiting. A refusal from the server (for example, the price changed) marks it failed with the reason, and it waits for a person: **Try again**, or **Open in POS** to ring it up again (this removes the refused draft first, so it can't be sent twice). A waiting draft can't be removed.
+- **Who sends it.** Drafts are sent only while the person who made them is signed in with the server, so every bill is recorded under the cashier who made it.
+- **Offline sign-in** works for staff who signed in online on the device in the last 14 days, with the same password. It opens a session without a server token: drafts only. Changing the password on the device removes the old record. A password reset or a disabled account elsewhere takes effect at the next online sign-in, and the server refuses that person's drafts until then.
+- **Needs a connection:** credit sales and loyalty points (they depend on balances only the server knows), holding a bill, editing a quotation, and every other screen.
+- Two devices selling the last item offline both succeed locally; the second draft fails at the server with "not enough stock" and waits for a person.
+
 ## Desktop app
 
 - The renderer has context isolation and the sandbox on, Node integration off, a content security policy, and blocked navigation to other sites.

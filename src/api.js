@@ -1,4 +1,6 @@
 // All calls to the Node API go through here.
+import { configureConnection, reportNetworkFailure, reportReachable } from './offline/connection.js';
+
 const configuredApiAddress = import.meta.env?.VITE_API_URL || 'http://localhost:4000';
 const isOfflineBuild = /^http:\/\/(localhost|127\.0\.0\.1):4000\/?$/.test(configuredApiAddress);
 const savedApiAddress = typeof localStorage === 'undefined' ? '' : localStorage.getItem('rm-pos-api-url') || '';
@@ -7,6 +9,7 @@ const API_URL = (isOfflineBuild
   ? 'http://127.0.0.1:4000'
   : (savedApiAddress || desktopApiAddress || configuredApiAddress)
 ).replace(/\/$/, '');
+configureConnection(API_URL);
 const TOKEN_KEY = 'rm-pos-token';
 const REFRESH_TOKEN_KEY = 'rm-pos-refresh-token';
 export const SESSION_EXPIRED_EVENT = 'rm-pos:session-expired';
@@ -35,13 +38,22 @@ async function send(path, options, token) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers.Authorization = `Bearer ${token}`;
   try {
-    return await fetch(`${API_URL}${path}`, { ...options, headers });
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    reportReachable();
+    return response;
   } catch {
+    reportNetworkFailure();
     const error = new Error('Cannot reach the RM POS server. Check the internet connection and try again.');
     error.status = 0;
     throw error;
   }
 }
+
+// True when a request failed because the server could not be reached, not because it refused.
+export const isNetworkError = (error) => error?.status === 0;
+
+// Whether a user is signed in with the server (an offline sign-in has no token).
+export const hasServerSession = () => Boolean(getAuthToken());
 
 function endExpiredSession() {
   setAuthToken(null);

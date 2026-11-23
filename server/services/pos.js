@@ -76,6 +76,7 @@ export async function catalog({ database }, query) {
       barcode: row.barcode,
       name: row.name,
       category: row.categories?.name || '',
+      categoryId: row.category_id,
       unit: row.unit_code,
       price: Number(row.selling_price),
       taxRate: Number(row.tax_rates?.rate ?? 0),

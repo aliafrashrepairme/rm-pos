@@ -156,3 +156,17 @@ test('only the API can reach quotations', async () => {
   const holders = (await db.query(`select role_code from public.role_permissions where permission_code = 'quotations.manage' order by role_code`)).rows.map((row) => row.role_code);
   assert.deepEqual(holders, ['Cashier', 'Manager']);
 });
+
+test('a quotation sent twice with one request ID is saved once', async () => {
+  const saw = await product('Hand Saw', { price: 1500 });
+  const request = randomUUID();
+  const body = { customerName: 'Offline Builder', validUntil: today(7), items: [{ productId: saw, qty: 1 }] };
+  const first = (await db.query('select public.save_quotation_once($1, $2, $3) as r', [body, user, request])).rows[0].r;
+  const second = (await db.query('select public.save_quotation_once($1, $2, $3) as r', [body, user, request])).rows[0].r;
+  assert.equal(first.replayed, false);
+  assert.equal(second.replayed, true);
+  assert.equal(second.id, first.id);
+  const copies = (await db.query('select count(*)::int as n from public.quotations where client_request_id = $1', [request])).rows[0].n;
+  assert.equal(copies, 1);
+  await assert.rejects(db.query('select public.save_quotation_once($1, $2, null)', [body, user]), /request ID is required/);
+});

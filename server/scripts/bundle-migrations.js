@@ -8,8 +8,9 @@ const folder = new URL('../supabase/migrations/', import.meta.url);
 
 export async function bundleMigrations() {
   const names = (await readdir(folder)).filter((name) => name.endsWith('.sql')).sort();
-  const parts = await Promise.all(names.map(async (name) => `-- ===== ${name} =====\n${await readFile(new URL(name, folder), 'utf8')}`));
-  return { names, sql: parts.join('\n') };
+  const files = await Promise.all(names.map(async (name) => ({ name, sql: await readFile(new URL(name, folder), 'utf8') })));
+  const sql = files.map((file) => `-- ===== ${file.name} =====\n${file.sql}`).join('\n');
+  return { names, files, sql };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

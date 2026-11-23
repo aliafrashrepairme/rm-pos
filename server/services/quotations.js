@@ -107,9 +107,27 @@ function quoteBody(body) {
 }
 
 export async function createQuotation(clients, user, body) {
-  const id = unwrap(await clients.database.rpc('save_quotation', { p_quote: quoteBody(body), p_user: user.id }));
+  const request = body?.clientRequestId;
+  if (request !== undefined && request !== null && (typeof request !== 'string' || !UUID.test(request))) {
+    throw new HttpError(400, 'The request ID is not valid.');
+  }
+  let id;
+  let replayed = false;
+  const once = request
+    ? await clients.database.rpc('save_quotation_once', { p_quote: quoteBody(body), p_user: user.id, p_request: request })
+    : null;
+  // PGRST202: the database has not had migration 0030 yet. Quotations keep working, without the
+  // protection against a second copy, until it is run.
+  if (once && once.error?.code !== 'PGRST202') {
+    // A draft saved offline may be sent twice; the second send returns the first quotation.
+    ({ id, replayed } = unwrap(once));
+  } else {
+    id = unwrap(await clients.database.rpc('save_quotation', { p_quote: quoteBody(body), p_user: user.id }));
+  }
   const quote = await getQuotation(clients, id);
-  await writeAudit(clients.database, { user, action: 'Quotation created', description: `${quote.quoteNo} · ${quote.customerName} · ${quote.total.toFixed(2)}`, entityType: 'quotation', entityId: id });
+  if (!replayed) {
+    await writeAudit(clients.database, { user, action: 'Quotation created', description: `${quote.quoteNo} · ${quote.customerName} · ${quote.total.toFixed(2)}`, entityType: 'quotation', entityId: id });
+  }
   return quote;
 }
 

@@ -186,8 +186,10 @@ export default function QuotationsPage({ user, onNavigate }) {
 
       {dialog?.kind === 'new' && (
         <QuoteForm
+          user={user}
           onClose={() => setDialog(null)}
           onSaved={(quote) => { toast(`${quote.quoteNo} · ${t('Draft')}`); setDialog({ kind: 'view', id: quote.id }); reload(); }}
+          onSavedOffline={() => { toast(`💾 ${t('Quotation saved on this device. It will be sent and numbered when the connection returns.')}`); setDialog(null); }}
         />
       )}
       {dialog?.kind === 'edit' && (

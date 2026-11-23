@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { api } from '../api.js';
+import { api, isNetworkError } from '../api.js';
+import { offlineSignIn, rememberSignIn } from '../offline/offlineAuth.js';
 import logo from '../assets/logo.jpg';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { LanguageSelect, ThemeButton } from './Layout.jsx';
 import { useStoreLogo } from './storeLogo.js';
 import PasswordInput from './PasswordInput.jsx';
 
-function SignIn({ notice, onLogin }) {
+function SignIn({ notice, onLogin, onOfflineLogin }) {
   const { t } = useI18n();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +20,20 @@ function SignIn({ notice, onLogin }) {
     setBusy(true);
     try {
       const session = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password }) });
+      // Lets this person sign in on this device later without a connection (a hash, never the password).
+      if (!session.user.mustChangePassword) rememberSignIn(identifier, password, session.user).catch(() => {});
       onLogin(session);
     } catch (failure) {
+      if (isNetworkError(failure) && onOfflineLogin) {
+        const offlineUser = await offlineSignIn(identifier, password).catch(() => null);
+        if (offlineUser) {
+          onOfflineLogin(offlineUser);
+          return;
+        }
+        setError('Cannot reach the RM POS server. Offline sign-in works only for staff who signed in on this device in the last 14 days, with the same password.');
+        setBusy(false);
+        return;
+      }
       setError(failure.message);
       setBusy(false);
     }
@@ -42,7 +55,7 @@ function SignIn({ notice, onLogin }) {
   );
 }
 
-export default function Login({ notice, theme, onTheme, onLanguage, onLogin }) {
+export default function Login({ notice, theme, onTheme, onLanguage, onLogin, onOfflineLogin }) {
   const { t } = useI18n();
   const storeLogo = useStoreLogo();
   return (
@@ -62,7 +75,7 @@ export default function Login({ notice, theme, onTheme, onLanguage, onLogin }) {
             <ThemeButton theme={theme} onChange={onTheme} />
             <LanguageSelect onChange={onLanguage} />
           </div>
-          <SignIn notice={notice} onLogin={onLogin} />
+          <SignIn notice={notice} onLogin={onLogin} onOfflineLogin={onOfflineLogin} />
         </div>
       </div>
     </section>

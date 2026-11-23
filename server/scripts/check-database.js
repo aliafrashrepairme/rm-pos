@@ -108,6 +108,12 @@ const quoteCounts = await database.rpc('quotation_counts');
 if (quoteCounts.error) failed = true;
 console.log(`${quoteCounts.error ? 'FAIL' : 'ok  '} quotation functions${quoteCounts.error ? ' (run 0022_quotations.sql)' : ''}`);
 
+// A missing request ID is refused by the function itself, so this changes nothing.
+const quoteOnce = await database.rpc('save_quotation_once', { p_quote: {}, p_user: null, p_request: null });
+const quoteOnceMissing = quoteOnce.error?.code === 'PGRST202';
+if (quoteOnceMissing) failed = true;
+console.log(`${quoteOnceMissing ? 'FAIL' : 'ok  '} offline draft functions${quoteOnceMissing ? ' (run 0030_offline_requests.sql)' : ''}`);
+
 const payables = await database.rpc('supplier_payables');
 if (payables.error) failed = true;
 console.log(`${payables.error ? 'FAIL' : 'ok  '} credit functions${payables.error ? ' (run 0023_credit.sql)' : ''}`);
