@@ -740,7 +740,10 @@ export default {
     'Cannot reach the RM POS server. Offline sign-in works only for staff who signed in on this device in the last 14 days, with the same password.': 'RM POS சேவையகத்தை அணுக முடியவில்லை. கடந்த 14 நாட்களில் இந்தச் சாதனத்தில் அதே கடவுச்சொல்லுடன் உள்நுழைந்த ஊழியர்கள் மட்டுமே இணைப்பின்றி உள்நுழைய முடியும்.',
     'The server refused this draft.': 'சேவையகம் இந்த வரைவை ஏற்கவில்லை.',
     'Someone else changed this while you were editing. Close it and open it again to see their changes.': 'நீங்கள் திருத்திக்கொண்டிருந்தபோது வேறொருவர் இதை மாற்றியுள்ளார். அவர்களின் மாற்றங்களைப் பார்க்க இதை மூடி மீண்டும் திறக்கவும்.',
-    'The edit time is not valid.': 'திருத்திய நேரம் சரியானதல்ல.'
+    'The edit time is not valid.': 'திருத்திய நேரம் சரியானதல்ல.',
+    'Unreadable draft': 'படிக்க முடியாத வரைவு',
+    'this draft': 'இந்த வரைவை',
+    'This draft was saved with a key this device no longer has (for example, after Windows was reset), so it cannot be read or sent.': 'இந்தச் சாதனத்தில் இப்போது இல்லாத ஒரு சாவியுடன் இந்த வரைவு சேமிக்கப்பட்டது (எ.கா. Windows மீட்டமைக்கப்பட்ட பிறகு), எனவே அதைப் படிக்கவோ அனுப்பவோ முடியாது.'
   },
   si: {
     "Today's sales": 'අද විකුණුම්',
@@ -1482,6 +1485,9 @@ export default {
     'Cannot reach the RM POS server. Offline sign-in works only for staff who signed in on this device in the last 14 days, with the same password.': 'RM POS සේවාදායකයට සම්බන්ධ විය නොහැක. සම්බන්ධතාවයකින් තොරව පිවිසිය හැක්කේ පසුගිය දින 14 තුළ එම මුරපදයම භාවිතයෙන් මෙම උපාංගයට පිවිසි කාර්ය මණ්ඩලයට පමණි.',
     'The server refused this draft.': 'සේවාදායකය මෙම කෙටුම්පත ප්‍රතික්ෂේප කළා.',
     'Someone else changed this while you were editing. Close it and open it again to see their changes.': 'ඔබ සංස්කරණය කරමින් සිටියදී වෙනත් අයෙක් මෙය වෙනස් කළා. ඔවුන්ගේ වෙනස්කම් බැලීමට මෙය වසා නැවත විවෘත කරන්න.',
-    'The edit time is not valid.': 'සංස්කරණ වේලාව වලංගු නැත.'
+    'The edit time is not valid.': 'සංස්කරණ වේලාව වලංගු නැත.',
+    'Unreadable draft': 'කියවිය නොහැකි කෙටුම්පත',
+    'this draft': 'මෙම කෙටුම්පත',
+    'This draft was saved with a key this device no longer has (for example, after Windows was reset), so it cannot be read or sent.': 'මෙම කෙටුම්පත සුරැකුණේ මෙම උපාංගයේ දැන් නැති යතුරකිනි (උදා. Windows යළි සැකසූ පසු), එබැවින් එය කියවීමට හෝ යැවීමට නොහැක.'
   }
 };

@@ -1,45 +1,54 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { deleteValue, getValue, setValue } from '../../offline/store.js';
 
 const CartContext = createContext(null);
-const STORAGE_PREFIX = 'rm-pos-cart:';
-
-function loadSaved(userId) {
-  if (!userId) return null;
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_PREFIX + userId) || 'null');
-  } catch {
-    return null;
-  }
-}
+const KEY_PREFIX = 'cart:';
 
 // Signing out discards the saved bill, as it always has.
 export function clearSavedCart(userId) {
-  try {
-    localStorage.removeItem(STORAGE_PREFIX + userId);
-  } catch {
-    // Storage unavailable: nothing was saved.
-  }
+  if (!userId) return;
+  deleteValue(KEY_PREFIX + userId).catch(() => {});
 }
 
-// Keeps the current bill while the cashier moves between screens. It is also saved on this device, so
-// closing the app, a refresh or a power cut doesn't lose a bill being rung up. Signing out discards it.
+// Keeps the current bill while the cashier moves between screens. It is also saved on this device
+// (encrypted), so closing the app, a refresh or a power cut doesn't lose a bill being rung up.
+// Signing out discards it.
 export function CartProvider({ userId, children }) {
-  const [saved] = useState(() => loadSaved(userId));
-  const [lines, setLines] = useState(saved?.lines ?? []);
-  const [customer, setCustomer] = useState(saved?.customer ?? null);
-  const [couponCode, setCouponCode] = useState(saved?.couponCode ?? '');
+  const [loaded, setLoaded] = useState(!userId);
+  const [lines, setLines] = useState([]);
+  const [customer, setCustomer] = useState(null);
+  const [couponCode, setCouponCode] = useState('');
   // The accepted quotation this bill was started from, if any: { id, quoteNo }.
-  const [quotation, setQuotation] = useState(saved?.quotation ?? null);
+  const [quotation, setQuotation] = useState(null);
+  const saving = useRef(Promise.resolve());
+
+  // The saved bill is read before the screens appear, so nothing typed can be overwritten by it.
+  useEffect(() => {
+    if (!userId) return undefined;
+    let current = true;
+    // Earlier versions kept the bill unencrypted in localStorage; remove that copy.
+    try { localStorage.removeItem(`rm-pos-cart:${userId}`); } catch { /* storage unavailable */ }
+    getValue(KEY_PREFIX + userId)
+      .then((saved) => {
+        if (!current || !saved) return;
+        setLines(saved.lines ?? []);
+        setCustomer(saved.customer ?? null);
+        setCouponCode(saved.couponCode ?? '');
+        setQuotation(saved.quotation ?? null);
+      })
+      .catch(() => {})
+      .finally(() => { if (current) setLoaded(true); });
+    return () => { current = false; };
+  }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
-    try {
-      if (!lines.length && !customer && !couponCode && !quotation) localStorage.removeItem(STORAGE_PREFIX + userId);
-      else localStorage.setItem(STORAGE_PREFIX + userId, JSON.stringify({ lines, customer, couponCode, quotation }));
-    } catch {
-      // Storage full or blocked: the bill still works for this session.
-    }
-  }, [userId, lines, customer, couponCode, quotation]);
+    if (!userId || !loaded) return;
+    const empty = !lines.length && !customer && !couponCode && !quotation;
+    // Saves run one after another, so an older bill can never land after a newer one.
+    saving.current = saving.current
+      .then(() => (empty ? deleteValue(KEY_PREFIX + userId) : setValue(KEY_PREFIX + userId, { lines, customer, couponCode, quotation })))
+      .catch(() => {});
+  }, [userId, loaded, lines, customer, couponCode, quotation]);
 
   const value = useMemo(() => ({
     lines,
@@ -57,6 +66,7 @@ export function CartProvider({ userId, children }) {
       setQuotation(null);
     }
   }), [lines, customer, couponCode, quotation]);
+  if (!loaded) return null;
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 

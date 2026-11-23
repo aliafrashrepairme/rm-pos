@@ -1,5 +1,5 @@
 // Electron main process (Node.js side)
-const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, safeStorage, session, shell } = require('electron');
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -239,6 +239,38 @@ handle('printers:save', async (event, settings) => {
 });
 
 handle('app:computer-name', () => require('node:os').hostname());
+
+// The key that encrypts what the app saves on this PC for offline work (drafts, the product list, the bill
+// on the till). It is kept only in Windows-protected form (DPAPI through safeStorage), so it opens only for
+// this Windows user on this PC; the saved files are useless copied anywhere else.
+const deviceKeyFile = () => path.join(app.getPath('userData'), 'device-key.bin');
+let deviceKey = null;
+handle('app:storage-key', async () => {
+  deviceKey ||= (async () => {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) return null;
+    const file = deviceKeyFile();
+    try {
+      const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(await fs.readFile(file));
+      if (shouldReEncrypt) await fs.writeFile(file, await safeStorage.encryptStringAsync(result));
+      return result;
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        // Unreadable (for example, Windows was reset): keep the old file in case it can be recovered,
+        // and start a new key. Drafts saved with the old key are kept and shown as unreadable.
+        console.error('Device key could not be opened:', error.message);
+        await fs.rename(file, `${file}.unreadable-${Date.now()}`).catch(() => {});
+      }
+    }
+    const key = require('node:crypto').randomBytes(32).toString('base64');
+    await fs.writeFile(file, await safeStorage.encryptStringAsync(key));
+    return key;
+  })().catch((error) => {
+    deviceKey = null;
+    console.error('Device key failed:', error.message);
+    return null;
+  });
+  return deviceKey;
+});
 
 const apiAddressFile = () => path.join(app.getPath('userData'), 'api-address.txt');
 

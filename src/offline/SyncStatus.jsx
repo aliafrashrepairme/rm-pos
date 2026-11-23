@@ -55,7 +55,7 @@ export default function SyncStatus({ user, serverSession, onSignInAgain, onOpenI
   }
 
   async function remove(entry) {
-    const what = entry.kind === 'sale' ? t('this bill') : t('this quotation');
+    const what = entry.kind === 'sale' ? t('this bill') : entry.kind === 'quotation' ? t('this quotation') : t('this draft');
     // eslint-disable-next-line no-alert
     if (!window.confirm(`${t('Remove')} ${what}? ${t('It will not be sent to the server.')}`)) return;
     await removeDraft(entry.id);
@@ -84,7 +84,7 @@ export default function SyncStatus({ user, serverSession, onSignInAgain, onOpenI
                 {mine.slice().reverse().map((entry) => (
                   <tr key={entry.id}>
                     <td>{when(entry.createdAt)}</td>
-                    <td>{t(entry.kind === 'sale' ? 'Bill' : 'Quotation')}</td>
+                    <td>{t(entry.kind === 'sale' ? 'Bill' : entry.kind === 'quotation' ? 'Quotation' : 'Unreadable draft')}</td>
                     <td>{entry.summary?.customer || t('Walk-in Customer')}</td>
                     <td>{entry.summary?.total !== undefined ? money(entry.summary.total) : '—'}</td>
                     <td>

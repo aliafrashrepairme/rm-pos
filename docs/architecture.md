@@ -152,8 +152,10 @@ When the server can't be reached, billing and quotations keep working from data 
 |---|---|
 | Products for sale and POS options (no cost prices) | Search, scan and price bills offline. Refreshed at sign-in, every 10 minutes and when the connection returns |
 | Draft bills and quotations (the outbox) | Sent automatically when the connection returns |
-| The bill being rung up (`localStorage`, per user) | Survives closing the app, a refresh or a power cut. Signing out clears it |
+| The bill being rung up (per user) | Survives closing the app, a refresh or a power cut. Signing out clears it |
 | An offline sign-in record per person | A PBKDF2-SHA-256 hash (310,000 rounds) of the password from the last online sign-in, never the password itself |
+
+Everything above is encrypted with AES-256-GCM before it is saved. In the desktop app the key is made once per PC and kept only in Windows-protected form (`safeStorage`, which uses DPAPI): it opens only for the same Windows user on the same PC, so copied files are unreadable. In the web app the key is a non-exportable browser key kept in the same storage; page scripts can't read it, but it is weaker than the desktop protection. If the key can no longer be opened (for example, Windows was reset), drafts are not deleted: they are listed as unreadable and can be removed by a person, and the old key file is kept as `device-key.bin.unreadable-<time>` in case it can be recovered.
 
 Rules:
 
@@ -164,6 +166,10 @@ Rules:
 - **Offline sign-in** works for staff who signed in online on the device in the last 14 days, with the same password. It opens a session without a server token: drafts only. Changing the password on the device removes the old record. A password reset or a disabled account elsewhere takes effect at the next online sign-in, and the server refuses that person's drafts until then.
 - **Needs a connection:** credit sales and loyalty points (they depend on balances only the server knows), holding a bill, editing a quotation, and every other screen.
 - Two devices selling the last item offline both succeed locally; the second draft fails at the server with "not enough stock" and waits for a person.
+
+## Two people editing the same record
+
+Product, customer, supplier and quotation edit forms send the record's `updatedAt` from when they were opened (`expectedUpdatedAt`). If the record was saved since, the server refuses with 409 `EDIT_CONFLICT` and the form says someone else changed it, instead of the second save silently replacing the first. One-click actions (activate, deactivate) and requests without the time are not checked. Sales, stock and payments never needed this: they run as single database functions that lock what they change.
 
 ## Desktop app
 

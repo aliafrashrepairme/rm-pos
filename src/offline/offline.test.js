@@ -3,7 +3,7 @@ import { beforeEach, test } from 'node:test';
 import { findByCode, searchProducts } from './catalog.js';
 import { offlineSignIn, rememberSignIn, forgetSignIn } from './offlineAuth.js';
 import { addDraft, listDrafts, removeDraft, retryDraft, sendDrafts } from './outbox.js';
-import { resetMemoryStore } from './store.js';
+import { getValue, rawSaved, replaceDeviceKeyForTests, resetMemoryStore, setValue } from './store.js';
 
 const products = [
   { id: 'a', name: 'Claw Hammer', sku: 'HAM-01', barcode: '4006381333931', categoryId: 'tools', stock: 10 },
@@ -103,4 +103,33 @@ test('offline sign-in needs the same password, a recent online sign-in, and stop
   assert.equal(await offlineSignIn('cashier', 'Correct-horse-1', Date.now() + 15 * 24 * 60 * 60 * 1000), null);
   await forgetSignIn(user);
   assert.equal(await offlineSignIn('cashier', 'Correct-horse-1'), null);
+});
+
+test('everything saved on the device is encrypted, and reads back as saved', async () => {
+  await setValue('cart:u1', { customer: { name: 'Kamal Perera', phone: '0771234567' }, lines: [{ id: 'a', qty: 2 }] });
+  const raw = await rawSaved.value('cart:u1');
+  assert.equal(raw.sealed, 1);
+  assert.doesNotMatch(Buffer.from(raw.data).toString('latin1'), /Kamal|0771234567/);
+  assert.equal((await getValue('cart:u1')).customer.name, 'Kamal Perera');
+
+  await addDraft({ kind: 'sale', body: saleBody('66666666-6666-4666-8666-666666666666'), summary: { customer: 'Kamal Perera', total: 1500 }, userId: 'u1' });
+  const savedDraft = await rawSaved.entry('66666666-6666-4666-8666-666666666666');
+  assert.deepEqual(Object.keys(savedDraft).sort(), ['box', 'createdAt', 'id', 'userId']);
+  assert.doesNotMatch(Buffer.from(savedDraft.box.data).toString('latin1'), /Kamal|1500/);
+  assert.equal((await listDrafts())[0].summary.customer, 'Kamal Perera');
+});
+
+test('if the device key changes, drafts are kept and shown as unreadable, never lost silently', async () => {
+  await addDraft({ kind: 'sale', body: saleBody('77777777-7777-4777-8777-777777777777'), summary: {}, userId: 'u1' });
+  await setValue('catalog', { products: products });
+  replaceDeviceKeyForTests();
+  const [entry] = await listDrafts();
+  assert.equal(entry.id, '77777777-7777-4777-8777-777777777777');
+  assert.equal(entry.status, 'failed');
+  assert.match(entry.error, /key this device no longer has/);
+  // It is never sent, and a person can remove it.
+  await sendDrafts({ userId: 'u1', send: async () => { throw new Error('must not be called'); } });
+  assert.equal(await removeDraft(entry.id), true);
+  // Other saved values count as not saved, so they are simply downloaded again.
+  assert.equal(await getValue('catalog'), undefined);
 });
