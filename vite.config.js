@@ -18,5 +18,7 @@ function apiInSecurityPolicy(apiUrl, command) {
 export default defineConfig(({ mode, command }) => ({
   plugins: [react(), apiInSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL, command)],
   base: './',
+  // The app loads from local disk inside Electron, so one larger file costs nothing over a network.
+  build: { chunkSizeWarningLimit: 1500 },
   server: { port: 5173, strictPort: true }
 }));

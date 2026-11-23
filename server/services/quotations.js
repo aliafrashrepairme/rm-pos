@@ -60,6 +60,8 @@ export async function getQuotation({ database }, id) {
   return {
     ...asQuote(row),
     note: row.note,
+    labourDescription: row.labour_description ?? '',
+    labourFee: Number(row.labour_fee ?? 0),
     subtotal: Number(row.subtotal),
     tax: Number(row.tax_total),
     sentAt: row.sent_at,
@@ -94,6 +96,10 @@ function quoteBody(body) {
     return { productId: item.productId, qty };
   });
   if (typeof body.validUntil !== 'string' || !DATE.test(body.validUntil)) throw new HttpError(400, 'Choose a valid-until date from today onwards.');
+  const labourFee = body.labourFee === undefined || body.labourFee === null || body.labourFee === '' ? 0 : Number(body.labourFee);
+  if (!Number.isFinite(labourFee) || labourFee < 0 || labourFee > 999999999 || Math.round(labourFee * 100) / 100 !== labourFee) {
+    throw new HttpError(400, 'Enter a valid labour fee.');
+  }
   const customerId = typeof body.customerId === 'string' && body.customerId ? body.customerId : null;
   if (customerId && !UUID.test(customerId)) throw new HttpError(400, 'Choose an active customer.');
   return {
@@ -102,21 +108,34 @@ function quoteBody(body) {
     customerPhone: text(body.customerPhone, 30),
     validUntil: body.validUntil,
     note: text(body.note, 500),
+    labourDescription: text(body.labourDescription, 200),
+    labourFee,
     items
   };
 }
 
+// An out-of-date database ignores the labour fee. Say so, rather than saving a quote without it.
+function requireLabourSaved(quote, wanted) {
+  if (wanted.labourFee > 0 && quote.labourFee !== wanted.labourFee) {
+    throw new HttpError(500, 'The labour fee could not be saved. The database needs the 0030_quotation_labour.sql update.');
+  }
+}
+
 export async function createQuotation(clients, user, body) {
-  const id = unwrap(await clients.database.rpc('save_quotation', { p_quote: quoteBody(body), p_user: user.id }));
+  const wanted = quoteBody(body);
+  const id = unwrap(await clients.database.rpc('save_quotation', { p_quote: wanted, p_user: user.id }));
   const quote = await getQuotation(clients, id);
+  requireLabourSaved(quote, wanted);
   await writeAudit(clients.database, { user, action: 'Quotation created', description: `${quote.quoteNo} · ${quote.customerName} · ${quote.total.toFixed(2)}`, entityType: 'quotation', entityId: id });
   return quote;
 }
 
 export async function updateQuotation(clients, user, id, body) {
   requireId(id);
-  unwrap(await clients.database.rpc('save_quotation', { p_quote: { ...quoteBody(body), id }, p_user: user.id }));
+  const wanted = quoteBody(body);
+  unwrap(await clients.database.rpc('save_quotation', { p_quote: { ...wanted, id }, p_user: user.id }));
   const quote = await getQuotation(clients, id);
+  requireLabourSaved(quote, wanted);
   await writeAudit(clients.database, { user, action: 'Quotation updated', description: `${quote.quoteNo} · ${quote.total.toFixed(2)}`, entityType: 'quotation', entityId: id });
   return quote;
 }

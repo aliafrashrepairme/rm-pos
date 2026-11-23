@@ -34,10 +34,19 @@ export default function QuoteDocument({ quote }) {
               <td>{number(line.qty * line.unitPrice)}</td>
             </tr>
           ))}
+          {quote.labourFee > 0 && (
+            <tr>
+              <td>{quote.labourDescription || 'Technician work / labour fee'}<br /><small>Labour</small></td>
+              <td>1</td>
+              <td>{number(quote.labourFee)}</td>
+              <td>-</td>
+              <td>{number(quote.labourFee)}</td>
+            </tr>
+          )}
         </tbody>
       </table>
       <div className="pb-tot">
-        <div><span>Subtotal</span><b>{money(quote.subtotal)}</b></div>
+        <div><span>Subtotal</span><b>{money(quote.subtotal + (quote.labourFee || 0))}</b></div>
         <div><span>VAT</span><b>{money(quote.tax)}</b></div>
         <div className="big"><span>Total</span><b>{money(quote.total)}</b></div>
       </div>

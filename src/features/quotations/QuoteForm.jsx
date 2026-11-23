@@ -22,6 +22,8 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
   const [customerPhone, setCustomerPhone] = useState(quote?.customerId ? '' : quote?.customerPhone ?? '');
   const [validUntil, setValidUntil] = useState(quote?.validUntil ?? localDatePlus(14));
   const [note, setNote] = useState(quote?.note ?? '');
+  const [labourDescription, setLabourDescription] = useState(quote?.labourDescription ?? '');
+  const [labourFee, setLabourFee] = useState(quote?.labourFee ? String(quote.labourFee) : '');
   const [lines, setLines] = useState(() => (quote?.lines ?? []).map((line) => ({
     productId: line.productId, name: line.name, sku: line.sku, unit: line.unit, stock: line.stock,
     price: line.currentPrice, taxRate: line.currentTaxRate, qty: String(line.qty)
@@ -62,6 +64,7 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
   const change = (id, qty) => setLines((current) => current.map((line) => (line.productId === id ? { ...line, qty } : line)));
   const subtotal = lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const tax = lines.reduce((sum, line) => sum + lineTax(line), 0);
+  const labour = Math.max(Number(labourFee) || 0, 0);
 
   async function submit(event) {
     event.preventDefault();
@@ -74,6 +77,8 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
         customerPhone: customer ? customer.phone : customerPhone,
         validUntil,
         note,
+        labourDescription,
+        labourFee: labourFee === '' ? 0 : Number(labourFee),
         items: lines.map((line) => ({ productId: line.productId, qty: line.qty }))
       };
       const { quotation } = await api(quote ? `/api/quotations/${quote.id}` : '/api/quotations', { method: quote ? 'PUT' : 'POST', body: JSON.stringify(body) });
@@ -145,10 +150,18 @@ export default function QuoteForm({ quote, onClose, onSaved }) {
               </tbody>
             </table>
           </div>
+          <div className="form-grid">
+            <label className="field full">{t('Technician work / labour description')}
+              <input name="labourDescription" value={labourDescription} onChange={(event) => setLabourDescription(event.target.value)} maxLength={200} placeholder={t('e.g. Installation, repair, fitting…')} />
+            </label>
+            <label className="field">{t('Labour fee (no VAT)')}
+              <input name="labourFee" type="number" min="0" step="0.01" value={labourFee} onChange={(event) => setLabourFee(event.target.value)} placeholder="0.00" />
+            </label>
+          </div>
           <div className="cart-totals">
-            <div className="total-row"><span>{t('Subtotal')}</span><b>{money(subtotal)}</b></div>
+            <div className="total-row"><span>{t('Subtotal')}</span><b>{money(subtotal + labour)}</b></div>
             <div className="total-row"><span>{t('VAT')}</span><b>{money(tax)}</b></div>
-            <div className="total-row grand"><span>{t('Total')}</span><span>{money(subtotal + tax)}</span></div>
+            <div className="total-row grand"><span>{t('Total')}</span><span>{money(subtotal + tax + labour)}</span></div>
           </div>
         </div>
         {error && <p className="form-error modal-error" role="alert">{t(error)}</p>}

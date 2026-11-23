@@ -70,6 +70,7 @@ function QuoteModal({ quoteId, user, onClose, onChanged, onEdit, onConvert }) {
           </div>
           <div className="receipt-stage modal-scroll"><QuoteDocument quote={quote} /></div>
           {quote.status === 'Accepted' && priceChanged && <div className="light-note">{t('Some prices have changed since this quotation was made. The bill will use the current prices.')}</div>}
+          {quote.status === 'Accepted' && quote.labourFee > 0 && <div className="light-note">{t('This quotation includes a labour fee. It is not added to the POS bill, so charge it separately.')}</div>}
           {quote.status === 'Accepted' && !canSell && <div className="light-note">{t('A cashier converts accepted quotations into a bill from this screen.')}</div>}
           <div className="modal-actions-row quote-actions">
             <button type="button" className="btn btn-outline" onClick={() => print('pdf')}>⇩ {t('Download PDF')}</button>

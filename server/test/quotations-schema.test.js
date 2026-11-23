@@ -71,6 +71,24 @@ test('a quote copies prices and tax, numbers itself and moves no stock', async (
   assert.equal(Number(rows[0].unit_price), 1000);
 });
 
+test('a labour fee is added to the total without VAT and can be edited on a draft', async () => {
+  const item = await product('Pump', { price: 1000 });
+  const id = await save([{ productId: item, qty: 1 }], { labourDescription: 'Installation', labourFee: 500 });
+  let row = await quote(id);
+  assert.equal(row.labour_description, 'Installation');
+  assert.equal(Number(row.labour_fee), 500);
+  assert.equal(Number(row.subtotal), 1000);
+  assert.equal(Number(row.tax_total), 180);
+  assert.equal(Number(row.grand_total), 1680);
+
+  await save([{ productId: item, qty: 1 }], { id, labourDescription: 'Repair', labourFee: 250.5 });
+  row = await quote(id);
+  assert.equal(Number(row.grand_total), 1430.5);
+  await save([{ productId: item, qty: 1 }], { id });
+  assert.equal(Number((await quote(id)).labour_fee), 0);
+  await assert.rejects(() => save([{ productId: item, qty: 1 }], { labourFee: -5 }), /valid labour fee/);
+});
+
 test('quotes are validated', async () => {
   const item = await product('Valid');
   const pipe = await product('Pipe');
